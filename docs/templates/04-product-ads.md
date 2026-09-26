@@ -1,0 +1,175 @@
+# 04 — Product & Ads
+
+> Short, conversion-minded product spots. Five selling moments: **price drop** (Deal), **feature callouts** (Callouts), **hero launch** (Reveal), **before/after** (Compare), **promotion** (Sale).
+
+Category slug: `product-ads` · Conventions: [`00-foundations.md`](00-foundations.md)
+
+### Shared behaviour
+
+- **Product image slot**: PNG/WebP with transparency is ideal; JPG works (shown in a rounded frame, or as full-bleed where the layout allows). Defaults use the procedural **Objects** set (bottle, can, speaker, phone, watch).
+- Prices are formatted with `Intl.NumberFormat` (currency + locale); the user picks currency and symbol position.
+- CTA chips are pill-shaped, `accent` on `bg` (or inverted), with the label in the text face at wght 600.
+- Default formats favour feeds: **1:1 and 4:5** first, then 9:16, then 16:9.
+
+---
+
+## 4.1 Deal — *price drop*
+
+**Use it for** discounts, e-commerce promos, flash offers, marketplace ads.
+
+| ID | Formats | Duration | Structure | Alpha | Default look |
+|---|---|---|---|---|---|
+| `deal` | 1:1 · 4:5 · 9:16 · 16:9 | 6 s (4–12) | in · hold · out | no | `grotesk` · Cobalt |
+
+**Art direction.** The product large (≈ 60% of frame height) on one side; product name in small caps; the old price small with a strike; the **new price huge**; a rotated circular discount sticker; a CTA pill.
+
+**Choreography**
+- `0.00–0.70` Product rises from below and lands with a subtle squash (scaleY 0.97 → 1); its contact shadow tightens.
+- `0.40–0.90` Product name reveals (mask).
+- `1.00–1.30` Old price fades in.
+- `1.30–1.60` Strike line draws across the old price at −4° (`snap`); old price dims to 50% and drops 1u.
+- `1.50–2.20` New price **rolls down from the old value to the new one** (odometer digits) and punches (1.12 → 1, `pop`).
+- `2.10–2.50` Sticker spins in (−200° → −12°, scale 0 → 1, `pop`).
+- `2.50–2.90` CTA pill slides in.
+- `hold` Product floats (±0.4u, slow); sticker wobbles ±2°.
+- `5.50–6.00` Elements exit in reverse order.
+
+**Controls**
+- Content: Product image · Product name · Old price · New price · Currency/locale · Badge (Auto % · Custom text) · CTA
+- Style: Layout (Product left · right · top) · Shadow (on/off)
+- Layout: product scale/offset (`movable`)
+
+**Defaults.** Object *bottle* · `AERO BOTTLE 750 ML` · €39.00 → €27.00 · badge auto `−31%` · CTA `Shop now`
+
+**Looks.** Cobalt (yellow sticker) · Paper (cobalt sticker) · Hazard
+
+**The expensive detail.** Price digits roll from old to new in tabular figures; the strike is slightly angled like a real mark; the contact shadow is a blurred ellipse that tightens as the product lands.
+
+**Engine needs.** Odometer digits · currency formatting · trim-path strike · contact shadow · procedural Objects.
+
+---
+
+## 4.2 Callouts — *feature callouts*
+
+**Use it for** product features, spec highlights, launch explainers, hardware and packaging.
+
+| ID | Formats | Duration | Structure | Alpha | Default look |
+|---|---|---|---|---|---|
+| `callouts` | 16:9 · 1:1 · 4:5 · 9:16 | 7 s (5–15) | in · hold · out | optional | `grotesk` · Paper |
+
+**Art direction.** The product centered; 2–4 callouts, each with an anchor dot on the product, a thin leader line (0.12u) with a single elbow, a label title (wght 600) and a muted detail line. Engineering-drawing discipline: consistent angles (0°/45°), balanced left/right.
+
+**Choreography**
+- `0.00–0.90` Product fades in and scales 0.96 → 1 (`glide`) with a soft shadow.
+- Callout *i* starts at `0.90 + i × 0.35`: anchor dot pops (`pop`) with a ring pulse; leader line draws (trim, `glide`, 0.45 s); title reveals by mask; detail fades 0.1 s later.
+- `hold` Anchor rings pulse every 2 s (staggered).
+- `6.30–7.00` Labels fade, lines retract into anchors, dots shrink, product fades.
+
+**Controls**
+- Content: Product image · Title (optional) · Callouts (2–4: title, detail, **anchor point picked on the stage**, side Auto/Left/Right)
+- Style: Line style (Straight · Elbow) · Dot style (Solid · Ring)
+
+**Defaults.** Object *speaker* · Title `Nova One` · `40-hour battery` — *All week, on one charge.* · `Spatial audio` — *Sound that fills the room.* · `Recycled aluminium` — *Built to last longer.*
+
+**Looks.** Paper · Ink · Sand
+
+**The expensive detail.** Labels auto-distribute vertically to avoid overlaps and leader lines keep consistent angles — precision reads as premium.
+
+**Engine needs.** Point controls (stage picking) · label layout solver · trim paths.
+
+---
+
+## 4.3 Reveal — *hero launch*
+
+**Use it for** product launches, "coming soon", premium announcements, hardware reveals.
+
+| ID | Formats | Duration | Structure | Alpha | Default look |
+|---|---|---|---|---|---|
+| `reveal` | 16:9 · 9:16 · 1:1 · 4:5 | 7 s (5–15) | in · hold · out | no | `wide` · Ink |
+
+**Art direction.** Darkness, then the product emerges in a moving light. A faint floor reflection (flipped, faded, blurred), the name in wide type tracking in, a tagline, an availability line.
+
+**Choreography**
+- `0.00–0.80` Black; a faint haze appears (radial, 5%).
+- `0.60–2.00` A vertical **light band sweeps up** through the product (soft gradient mask) with a brighter rim-light leading edge.
+- `1.80–3.00` Name letters track in (blur + tracking, Focus-style).
+- `2.70–3.40` Tagline fades up.
+- `3.40–3.90` Availability line + CTA.
+- `hold` Slow push-in (1.00 → 1.04); a faint sweep passes again every 3 s.
+- `6.20–7.00` Fade to black.
+
+**Controls**
+- Content: Product image · Name · Tagline · Availability/CTA
+- Style: Light color · Reflection (on/off)
+
+**Defaults.** Object *watch* · `ORBIT` · `Made to move with you.` · `Available 10.10`
+
+**Looks.** Ink · Midnight · Film
+
+**The expensive detail.** One light does all the work: a soft gradient mask with a brighter leading edge sells "premium launch" without any extra decoration.
+
+**Engine needs.** Gradient masks · reflection (flip + fade + blur) · tracking animation.
+
+---
+
+## 4.4 Compare — *before / after*
+
+**Use it for** redesigns, photo edits, renovations, skincare, app updates, "glow-ups".
+
+| ID | Formats | Duration | Structure | Alpha | Default look |
+|---|---|---|---|---|---|
+| `compare` | 1:1 · 4:5 · 9:16 · 16:9 | 6 s (4–12) | in · hold · out | no | `grotesk` · Paper |
+
+**Art direction.** Two images in the same frame, a divider line with a round grip (subtle shadow, chevrons), small pill labels *Before* / *After*, optional headline.
+
+**Choreography**
+- `0.00–0.60` Before image fades in and settles (scale 1.04 → 1); *Before* label.
+- `0.80–2.20` Divider enters from the left edge and sweeps to 85% (`snap`), revealing *After*; its label pops the moment it's revealed.
+- `2.20–2.90` Divider settles back to 50% on a spring — both states visible.
+- `hold` Divider drifts ±4% (`drift`) to invite the eye.
+- `5.40–6.00` Divider sweeps to 100%, then fade.
+
+**Controls**
+- Content: Before image · After image · Labels · Headline (optional)
+- Style: Divider (Line · Grip) · Orientation (Horizontal · Vertical) · Corner radius
+
+**Defaults.** The same procedural *Scene* rendered flat/ungraded vs graded · `Before` / `After` · Headline `One click. Totally different.`
+
+**Looks.** Paper · Ink · Mono Light
+
+**The expensive detail.** Overshoot-then-settle divider motion, and images aligned by their focal points so the comparison is truthful.
+
+**Engine needs.** Image focal points · clip by divider · color adjustments (for the default pair) · springs.
+
+---
+
+## 4.5 Sale — *promo tape*
+
+**Use it for** seasonal sales, Black Friday, promo codes, store openings.
+
+| ID | Formats | Duration | Structure | Alpha | Default look |
+|---|---|---|---|---|---|
+| `sale` | 1:1 · 4:5 · 9:16 · 16:9 | 5 s (4–12) | in · hold (loops) · out | no | `poster` · Hazard |
+
+**Art direction.** Two diagonal tape bands with repeating marquee text cross the frame at opposing angles; a massive discount in the middle; a subline; a promo code in a dashed-outline box; tiny terms.
+
+**Choreography**
+- `0.00–0.45` Tapes slide in along their angles from off-frame (`snap`); marquee text scrolls in opposite directions (`linear`, constant speed).
+- `0.40–0.90` Discount slams (scale 1.5 → 1, rotation −4° → −2°, `pop`) with a 3-frame shake.
+- `0.90–1.40` Subline reveals.
+- `1.50–2.20` Code box's dashed border draws on (trim), code types in, box flashes `accent` once.
+- `hold` Marquee loops seamlessly; the discount pulses (1.03) every second.
+- `4.60–5.00` Tapes fly out along their axes; text cuts.
+
+**Controls**
+- Content: Discount · Subline · Tape text · Code (optional) · Terms (optional)
+- Style: Tape angle (Low · High)
+- Motion: Marquee speed
+
+**Defaults.** `−50%` · `Everything. This weekend only.` · Tape `SUMMER SALE ●` · Code `MOVE50` · `Ends Sunday 23:59.`
+
+**Looks.** Hazard · Ink (yellow tapes) · Candy
+
+**The expensive detail.** Marquee content is laid out as an exact repeat unit so the loop never pops; where the tapes cross, the top tape casts a soft shadow on the lower one.
+
+**Engine needs.** Seamless marquee helper · dashed trim paths · shadows between layers.

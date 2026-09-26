@@ -1,0 +1,138 @@
+# 07 — Export
+
+> Frame-perfect, on-device export: the same engine that drew the preview renders every frame at the target resolution inside a dedicated worker and hands it to WebCodecs (via Mediabunny), a GIF encoder, or a PNG/ZIP writer. Nothing is uploaded.
+
+Platform facts verified 2026-09-26 (browser source, MDN compat data v8.1.3, Mediabunny v1.60.0). Current stable browsers at that date: Chrome 154, Edge 153, Firefox 156, Safari 27.
+
+---
+
+## 1. Formats
+
+| Export option | Container / codec | Alpha | Primary audience |
+|---|---|---|---|
+| **Video** | MP4 · H.264 (AVC), yuv420p | — | Social, presentations, messaging |
+| **Transparent video** | WebM · VP9 + alpha (Matroska BlockAdditional) | ✓ | Web, CapCut, DaVinci Resolve, After Effects |
+| **PNG sequence** | ZIP of `frame_00001.png …` (straight alpha) | ✓ | Premiere Pro, Final Cut Pro, any editor |
+| **GIF** | GIF89a, looping | 1-bit | Chats, docs, email |
+| **Still** | PNG of the current frame | ✓ | Thumbnails, posters |
+| *Later* | WebM/MP4 with audio (Opus/AAC), animated WebP, ProRes 4444 (only with a fast, license-compatible encoder) | | |
+
+**Resolutions** (short side): 720 · 1080 · 1440 · 2160 (4K). **Frame rates**: 24 · 25 · 30 · 50 · 60. **Dimensions are always even** (Chromium rejects odd sizes for H.264).
+
+| Format | 1080p | 4K |
+|---|---|---|
+| 16:9 | 1920 × 1080 | 3840 × 2160 |
+| 9:16 | 1080 × 1920 | 2160 × 3840 |
+| 1:1 | 1080 × 1080 | 2160 × 2160 |
+| 4:5 | 1080 × 1350 | 2160 × 2700 |
+
+---
+
+## 2. What each browser can encode
+
+| | VideoEncoder | Video codecs | AudioEncoder (for later) | Notes |
+|---|---|---|---|---|
+| Chrome / Edge (desktop) | ✓ (94+) | H.264 (HW or OpenH264), VP8, VP9, AV1 | Opus; AAC only on Windows/macOS/Android (not Linux) | HEVC hardware-only |
+| Safari (macOS/iOS) | ✓ 16.4+ | H.264, HEVC, VP8, VP9 (AV1 off) | ✓ 26+: AAC, Opus | VP9-alpha *playback* in Safari unverified |
+| Firefox desktop | ✓ 130+ | VP8, VP9, AV1; H.264 via OS/OpenH264 (varies on Linux) | Opus, Vorbis (no AAC) | |
+| Firefox Android | ✗ | — | — | Offer GIF, PNG sequence, Still |
+
+- **WebCodecs' own `alpha: "keep"` is implemented by no engine.** Mediabunny encodes alpha itself: it splits color and alpha on the CPU in a blob-URL worker, encodes the alpha plane with a second VideoEncoder, and writes standard WebM alpha (BlockAdditional, `AlphaMode=1`). Works wherever VP9 encoding works → requires CSP `worker-src blob:`.
+- **The only codec pair every engine encodes natively is WebM (VP9 + Opus)** — our universal fallback.
+- MP4 with audio (later) needs `@mediabunny/aac-encoder` (WASM, ~254 KB gz, LGPL code inside, lazy-loaded) on Firefox, Chrome/Linux and Safari < 26.
+- HEVC with alpha cannot be produced through WebCodecs anywhere.
+
+**Everything is probed at runtime** (`canEncodeVideo`, `getFirstEncodableVideoCodec`, `VideoEncoder.isConfigSupported` with the exact size/bitrate) when the export sheet opens; unavailable options are disabled with a human reason and a suggested alternative.
+
+---
+
+## 3. Pipeline
+
+```
+Export sheet (main) ──job──► Export worker
+                              1. load template module, fonts, HarfBuzz, assets (transferred)
+                              2. build Scene at export resolution
+                              3. for frame f in 0..N−1:
+                                   t = f / fps
+                                   render N_mb sub-frames across the shutter → accumulate → finish
+                                   hand frame to the sink:
+                                     video  → CanvasSource.add(t, 1/fps)   (await = backpressure)
+                                     GIF    → quantize + encode frame
+                                     PNG    → convertToBlob('image/png') → ZIP stream
+                                   post progress every ~100 ms (frame, fps, ETA)
+                              4. finalize → StreamTarget/BufferTarget → file
+```
+
+- **Video settings**: H.264 High profile; VP9 profile 0; keyframe every 2 s; bitrate from a quality table (below); `latencyMode: 'quality'`; hardware acceleration "no-preference".
+- **Backpressure**: `await source.add(...)` (Mediabunny) keeps the encoder queue bounded; the worker never races ahead of the encoder.
+- **Motion-blur samples** by quality: Standard 4 · High 8 · Max 16. Static frames (no motion between shutter start/end, detected on a low-res probe) render with 1 sample.
+- **Progress & ETA**: rolling average of frame cost; the sheet shows percentage, frame count and time remaining; the stage fast-forwards through the frames.
+- **Cancel**: aborts the loop, closes encoders, discards partial output.
+
+### Bitrate table (H.264/VP9, Standard → High → Max)
+
+| Resolution | 30 fps (Mbps) | 60 fps (Mbps) |
+|---|---|---|
+| 720p | 5 → 8 → 12 | 8 → 12 → 18 |
+| 1080p | 10 → 16 → 24 | 16 → 24 → 36 |
+| 1440p | 16 → 24 → 36 | 24 → 36 → 54 |
+| 4K | 35 → 50 → 70 | 50 → 70 → 100 |
+
+Motion graphics have flat colors and sharp edges; the table errs high to avoid banding and edge smearing. Tuned during Phase 2 QA.
+
+---
+
+## 4. Transparency
+
+- The compositor renders premultiplied alpha; exporters convert as each format expects (PNG: straight alpha; WebM alpha: Mediabunny's color/alpha split).
+- Templates with `alpha: 'default' | 'optional'` export transparent when **Background = Transparent**; *Bake background* (lower thirds with *Preview on my footage*, transitions with A/B images) produces an opaque MP4 instead.
+- Guidance in the sheet: WebM alpha for web, CapCut, Resolve and After Effects; **PNG sequence for Premiere Pro and Final Cut Pro** (universal); GIF only has 1-bit transparency.
+
+## 5. GIF
+
+- Encoder: `gifenc` (MIT, tiny, fast, unmaintained) or `modern-gif` (MIT, maintained) — decided by a Phase 2 spike on quality and speed. gifski (best quality) is AGPL and excluded.
+- Global palette per export (256 colors) built from sampled frames — templates use few colors, so global palettes avoid per-frame flicker; optional ordered dithering for gradients.
+- Defaults: width 640 (480/640/720), 20 fps (15/20/25), infinite loop; motion blur off (it only adds colors).
+- Size guard: estimate and warn above ~15 MB.
+
+## 6. PNG sequence & still
+
+- `OffscreenCanvas.convertToBlob({ type: 'image/png' })` per frame in the worker → streamed into a ZIP with fflate (store mode; PNGs are already compressed).
+- Names: `ugoki-{template}-{w}x{h}-{fps}fps/frame_00001.png` (+ a `README.txt` with fps, frame count, cut point for transitions).
+- Still: the current stage time rendered at export resolution with full motion-blur quality off (a still should be sharp).
+
+---
+
+## 7. Saving files
+
+| Browser | Method |
+|---|---|
+| Chromium desktop & Android | `showSaveFilePicker` → Mediabunny `StreamTarget`/ZIP stream written directly to disk (no memory ceiling) |
+| Safari, Firefox | In-memory `BufferTarget` → Blob download; for large jobs, spill to OPFS (`createWritable`: Firefox 111+, Safari 26+) and download from there |
+
+Memory guard: estimate output size up front; above ~1 GB without streaming, suggest a lower resolution or PNG → video split.
+
+---
+
+## 8. Reliability
+
+- **Runs in a worker** (not throttled like main-thread timers; `requestAnimationFrame` never runs in hidden tabs).
+- **Web Lock held for the duration of the export** — pages holding a lock are exempt from Chrome's Energy Saver tab freezing (which otherwise freezes the page *and its workers* after 5 minutes hidden).
+- **Screen Wake Lock** while the tab is visible (auto-released when hidden, per spec).
+- The sheet asks users to keep the tab in front for long exports; if the tab is hidden, a notice appears when they return.
+- Errors are caught per stage (load, build, render, encode, finalize) with specific messages and a retry that suggests a safer preset (lower resolution, WebM instead of MP4, fewer motion-blur samples).
+- Filenames: `ugoki-{template}-{w}x{h}-{fps}fps.{ext}`, plus `-cut-f{n}` for transitions.
+
+---
+
+## 9. QA matrix (per release)
+
+| Check | Chrome (mac/win/linux) | Safari (mac/iOS) | Firefox (desktop) | Chrome Android |
+|---|---|---|---|---|
+| MP4 1080p30 plays in QuickTime, VLC, Premiere/Resolve, and uploads to Instagram/TikTok/YouTube/LinkedIn | ✓ | ✓ | where H.264 exists | ✓ |
+| WebM alpha imports with transparency in Resolve/After Effects/CapCut and plays in Chrome/Firefox | ✓ | encode ✓ / playback check | ✓ | ✓ |
+| PNG sequence imports as an image sequence in Premiere and Final Cut | ✓ | ✓ | ✓ | ✓ |
+| GIF loops correctly in Slack, Gmail, Notion | ✓ | ✓ | ✓ | ✓ |
+| 4K60 export completes; memory stays bounded; tab hidden mid-export completes | ✓ | ✓ | ✓ | — |
+| Colors match preview (no gamma shift) | ✓ | ✓ | ✓ | ✓ |
+| Exported frame N equals preview at `t = N / fps` (pixel diff) | ✓ | ✓ | ✓ | ✓ |

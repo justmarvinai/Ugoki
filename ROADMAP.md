@@ -1,0 +1,179 @@
+# Ugoki — Roadmap
+
+> From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
+
+**Now**: Phase 0 — planning is written; waiting for your answers in [`USER_QUESTIONS.md`](USER_QUESTIONS.md) and your explicit go-ahead to start coding.
+
+| Phase | Outcome | Version |
+|---|---|---|
+| 0 | Plan & decisions signed off | — |
+| 1 | Foundations + engine core; *Rise* renders in the Lab | 0.1.0 |
+| 2 | Editor + export MVP; 4 reference templates end-to-end | 0.2.0 |
+| 3 | Template wave 1 complete (25) | 0.3.0 |
+| 4 | Gallery with live, personalized previews | 0.4.0 |
+| 5 | Template wave 2 complete (50) | 0.5.0 |
+| 6 | Landing page, brand, legal, SEO | 0.6.0 |
+| 7 | Polish, QA, launch | 1.0.0 |
+
+---
+
+## Phase 0 — Plan & decide
+
+- [x] Brief analyzed; stack, platform, font, competitor and design-reference research (verified 2026-09-26)
+- [x] Planning docs: product, experience, design system, motion language, architecture, engine, export, decision log
+- [x] Template library: foundations + 50 detailed specs + build waves
+- [x] `CLAUDE.md`, `ROADMAP.md`, `CHANGELOG.md`, `USER_QUESTIONS.md`
+- [ ] You answer `USER_QUESTIONS.md` (or accept the recommendations)
+- [ ] Docs updated with your decisions (ADR-015 and any changed scope)
+- [ ] **Your explicit go-ahead to start coding**
+
+**Exit**: signed-off plan.
+
+---
+
+## Phase 1 — Foundations & engine core → `0.1.0`
+
+**Scaffold**
+- [ ] Next.js 16.3 · React 19.3 (React Compiler on) · TypeScript 7 · Tailwind 4.3 · Biome 2.5 · Vitest 5 · Playwright 1.63 · pnpm 10 · Node 24
+- [ ] GitHub Actions CI (typecheck, Biome, tests, build with "no serverless functions" assertion)
+- [ ] Vercel project, preview deployments per branch, security headers
+- [ ] Design tokens (Daylight/Cinema) in Tailwind `@theme`; Mona Sans self-hosted; first primitives (Button, SegmentedControl, Slider)
+
+**Spikes** (each ends with a short note in `docs/08-decisions.md` if it changes anything)
+- [ ] Worker `requestAnimationFrame` + OffscreenCanvas WebGL2 in Chrome, Safari 17+, Firefox
+- [ ] Turbopack worker bundling + dynamic template imports inside workers
+- [ ] HarfBuzz font loading: Vercel compression for `.ttf` vs WOFF2 + WASM decoder
+- [ ] Float accumulation (`EXT_color_buffer_float`) on Safari/iOS; RGBA8 fallback quality
+- [ ] Mediabunny WebM-alpha round trip (encode → import in Resolve/After Effects)
+- [ ] GIF encoder choice (gifenc vs modern-gif): quality, speed, size
+
+**Engine core**
+- [ ] `core`: easing library, closed-form springs, stagger patterns, seeded RNG, OKLCH color utils
+- [ ] `template`: `defineTemplate`, control schema, validation (Zod), defaults, Looks, migrations
+- [ ] `timeline`: sections, energy profiles, reading-time rules, sequences, cut points, stepped time
+- [ ] `draw`: Draw API over Canvas 2D (groups, shapes, trims, clips, images, movable/editable registry)
+- [ ] `text`: HarfBuzz loader, font registry, shaping, balanced line breaking, auto-fit, glyph path cache, fallback runs
+- [ ] `host` + `runtime`: render worker, typed protocol, player, adaptive quality, atomic scene swaps
+- [ ] `/lab` workbench (formats side by side, scrubber, energies, stress text, render-cost meter)
+- [ ] Golden-frame harness (Playwright + committed references)
+
+**Reference template 1**
+- [ ] **Rise** — all formats, 3 Looks, 3 energies, duration extremes, stress text
+
+**Exit**: Rise plays at 60 fps in the Lab in Chrome, Safari and Firefox; two renders are pixel-identical; golden frames run in CI.
+
+---
+
+## Phase 2 — Editor & export MVP → `0.2.0`
+
+**Compositor**
+- [ ] WebGL2 layers (segmented compositing), blend modes, blur, bloom, masks/mattes, color adjust
+- [ ] Motion-blur accumulation (sub-frames, shutter from Energy), finish (grain, soft glow)
+
+**Editor**
+- [ ] Stage with checkerboard, guides, preview backdrop (+ "Preview on my footage"), fit/100%
+- [ ] Editing overlay: select, drag, snap, scale movable groups; click-to-focus controls
+- [ ] Inspector generated from the control schema (Content · Style · Motion · Layout), Looks, Shuffle, hover previews
+- [ ] Palettes incl. Brand Light/Dark/Bold with contrast guard; pairing picker; background; finish
+- [ ] Transport (sections, Dot playhead, loop, duration handle, cut marker); keyboard shortcuts
+- [ ] Project store + history (undo/redo with coalescing); Dexie autosave & drafts; share links
+- [ ] Image/logo import (raster + sanitized SVG → vector paths), focal points, logo color modes
+
+**Export**
+- [ ] Export worker pipeline; capability probing; Web Lock + Wake Lock
+- [ ] MP4 (H.264), WebM (VP9 + alpha), PNG sequence ZIP, GIF, PNG still
+- [ ] Streaming save (File System Access) + Blob/OPFS fallback; progress/ETA/cancel; errors with fallbacks
+- [ ] Export QA matrix (see `docs/07-export.md` §9) on Chrome, Safari, Firefox
+
+**Reference templates 2–4**
+- [ ] **Line** (transparent overlay) · **Sheen** (logo, compositor) · **Layers** (transition, cut point, motion blur)
+
+**Exit**: Choose → Customize → Preview → Export works end-to-end for 4 templates in all target browsers; exported frame N equals preview at `t = N / fps`.
+
+---
+
+## Phase 3 — Template wave 1 → `0.3.0`
+
+**Engine additions**: sequence builder & auto duration · odometer digits & number formatting · UI Kit v1 (card, input, button, toast, charts) · cursor & typing helpers · procedural placeholders (Objects, Scenes, Artworks, Screens, avatars, fictional logos).
+
+**Reference templates 5–7 first**
+- [ ] Punch · Deal · Click
+
+**Remaining wave-1 templates**
+- [ ] Focus · Decode
+- [ ] Broadcast · Capsule
+- [ ] Listicle · Countdown
+- [ ] Sale
+- [ ] Columns · Stack
+- [ ] Quote · Review · Numbers
+- [ ] Cinematic · Episode
+- [ ] Iris · Blinds
+- [ ] Bounce
+- [ ] Dashboard
+
+**Exit**: 25 templates pass the quality bar ([`docs/templates/00-foundations.md`](docs/templates/00-foundations.md) §9) and golden frames.
+
+---
+
+## Phase 4 — Gallery → `0.4.0`
+
+- [ ] Shared renderer for tiles (`bitmaprenderer`), per-frame budget scheduler, poster frames, hover/ambient playback
+- [ ] Category navigation, category pages (SEO copy), search (names, tags, use cases)
+- [ ] Format control re-laying out all tiles live
+- [ ] "Type a headline" personalization carried into the editor
+- [ ] Recent drafts row + popover
+- [ ] Tile → editor morph (React `<ViewTransition>`)
+
+**Exit**: smooth scrolling (≥ 55 fps) with ambient previews on the reference laptop; flows A and C pass e2e.
+
+---
+
+## Phase 5 — Template wave 2 → `0.5.0`
+
+**Engine additions**: 3D planes (perspective, depth sort, depth blur) · variable-axis text + width solver · SVG vector effects (trim-draw) · Delaunay shards · noise paths & droplets · beat grid · split-flap renderer · backdrop blur for UI panels.
+
+- [ ] Stretch · Echo
+- [ ] Editorial · Signal
+- [ ] Chat · Versus
+- [ ] Callouts · Reveal · Compare
+- [ ] Float · Ring · Zoom
+- [ ] Manifesto · Pattern
+- [ ] Hype · Grid · Departures
+- [ ] Liquid · Sweep
+- [ ] Draw · Shards · Resolve
+- [ ] Notify · Scroll · Command
+
+**Exit**: 50/50 templates pass the quality bar and golden frames.
+
+---
+
+## Phase 6 — Landing, brand & legal → `0.6.0`
+
+- [ ] Wordmark with the Dot (+ width-axis animation), favicon, OG images (pre-rendered)
+- [ ] Landing: hero with live engine + "try your own word" · scroll-scrubbed reel · Choose/Customize/Export sequence · categories · statements · finale
+- [ ] Legal pages (imprint, privacy, licenses incl. all font licenses), 404
+- [ ] Sitemap, robots, JSON-LD; Vercel Web Analytics + Speed Insights (+ event analytics if chosen)
+
+**Exit**: landing Lighthouse ≥ 95 in all categories; LCP < 1.8 s (p75 lab); reduced-motion variant complete.
+
+---
+
+## Phase 7 — Polish, QA & launch → `1.0.0`
+
+- [ ] Phone & tablet editor polish (sheets, gestures, touch targets)
+- [ ] Accessibility audit (WCAG 2.2 AA), axe-core clean, screen-reader pass
+- [ ] Cross-browser export QA matrix, color/gamma check, 4K60 stress test
+- [ ] Performance tuning to budgets; bundle budgets enforced
+- [ ] Error states, empty states, first-run hints, copy review (voice & tone)
+- [ ] Launch checklist: domain, headers, analytics, legal, OG previews, 404, favicon, social cards
+- [ ] Tag `v1.0.0`
+
+---
+
+## After launch
+
+| Version | Themes |
+|---|---|
+| **v1.1** | Brand Kit (colors, logo, fonts saved locally, applied everywhere) · custom font upload · inline on-canvas text editing · `.ugoki` project files |
+| **v1.2** | Offline PWA · German localization · animated WebP · more Looks |
+| **v2** | Audio (music + SFX, beat-synced) · Sequences (stitch templates) · new categories (Data & Charts, Captions, Maps, Events) · AI assist (needs serverless + API budget) · ProRes 4444 if a fast, license-compatible encoder exists |
