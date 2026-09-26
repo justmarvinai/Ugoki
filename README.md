@@ -1,6 +1,6 @@
 # ugoki
 
-**Make it move.** Ugoki (動き — *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, and export it — rendered entirely on your device. No sign-up, no uploads, no watermark.
+**Motion, make yours.** Ugoki (動き — *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, and export it — rendered entirely on your device. Free, no sign-up, no uploads, no watermark, no tracking.
 
 **Choose → Customize → Preview → Export**
 
@@ -8,7 +8,7 @@
 
 ## Status
 
-**Phase 0 — Planning.** The complete plan is written; no application code yet. Next step: answer [`USER_QUESTIONS.md`](USER_QUESTIONS.md) (or accept the recommendations) and give the go-ahead to start Phase 1.
+**Phase 0 — Planning.** The complete plan is written and the owner's decisions are recorded in [`USER_QUESTIONS.md`](USER_QUESTIONS.md); no application code yet. Next step: the owner's go-ahead to start Phase 1.
 
 ## The plan
 
@@ -25,9 +25,13 @@
 | [Template library](docs/templates/README.md) | 50 launch templates in 10 categories, fully specified |
 | [Roadmap](ROADMAP.md) | Phases 0–7 to v1.0 and beyond |
 | [Changelog](CHANGELOG.md) | What changed, when |
-| [Questions](USER_QUESTIONS.md) | Decisions needed from the product owner |
+| [Questions & decisions](USER_QUESTIONS.md) | The owner's decisions and remaining open items |
 | [CLAUDE.md](CLAUDE.md) | Working agreement for AI-assisted development |
 
 ## Stack at a glance
 
 Next.js 16 · React 19.3 · TypeScript 7 · Tailwind CSS 4 · a custom deterministic engine (Canvas 2D + WebGL2 in Web Workers, HarfBuzz typography) · WebCodecs + Mediabunny for on-device export · IndexedDB for local drafts · hosted as static pages on Vercel.
+
+## License
+
+All rights reserved. This repository is public for transparency, but no open-source license is granted.

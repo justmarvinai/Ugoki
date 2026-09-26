@@ -2,7 +2,7 @@
 
 > Lightweight ADRs. Each records context, the decision, alternatives considered, consequences and when to revisit. New architectural decisions are appended here (next number), never silently changed.
 
-Status legend: **Accepted** — technical decisions delegated to us by the brief ("most modern and best tech stack"), made during planning · **Proposed** — needs your confirmation in [`USER_QUESTIONS.md`](../USER_QUESTIONS.md).
+Status legend: **Accepted** — technical decisions delegated to us by the brief ("most modern and best tech stack") or decided by the owner in [`USER_QUESTIONS.md`](../USER_QUESTIONS.md) · **Proposed** — awaiting the owner's confirmation · **Superseded** — replaced by a later ADR.
 
 ---
 
@@ -12,7 +12,7 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Decision**: No backend in the product path. All pages are prerendered; rendering and encoding happen in the browser; drafts live in IndexedDB; sharing uses the URL hash.
 **Alternatives**: Serverless rendering (Hobby limits: 300 s functions, 1 vCPU; cost at scale); headless-Chromium render farms (not possible on Hobby).
 **Consequences**: ~€0 running cost; no accounts or cloud sync; browser capability differences must be handled client-side.
-**Revisit when**: accounts, team features or AI features are planned.
+**Revisit when**: accounts, team features or AI features are planned (none are, as of the owner's decisions A2 and D11).
 
 ### ADR-002 — Next.js 16 App Router on Vercel, all routes prerendered
 **Status**: Accepted · 2026-09-26
@@ -93,7 +93,18 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Why**: Personalization ("type your headline everywhere") and format switching need live rendering; saves Hobby bandwidth (100 GB/month) compared with 50+ preview videos.
 
 ### ADR-015 — Monochrome brand: "color belongs to the work"
-**Status**: Proposed · needs your decision (USER_QUESTIONS B2)
-**Decision**: Ugoki's interface is black/white; the only color comes from templates (the playhead Dot borrows the playing template's accent). Brand typeface: Mona Sans v2 (Expanded display).
+**Status**: Accepted · 2026-09-26 (owner decisions B1–B5)
+**Decision**: Ugoki's interface is black/white; the only color comes from templates (the playhead Dot borrows the playing template's accent). Brand typeface: Mona Sans v2 (Expanded display). Wordmark: lowercase `ugoki` with the Dot; 動き as a quiet secondary signature; tagline *Motion, make yours.*
 **Why**: The product is the hero; avoids documented AI-site clichés (near-black + single vermilion/acid accent; cream + serif + terracotta).
-**Alternatives**: a signature hue held back for CTAs (Revolut-style); a different typeface (Archivo; Funnel Display + Funnel Sans).
+**Alternatives considered**: a signature hue held back for CTAs (Revolut-style); other typefaces (Archivo; Funnel Display + Funnel Sans).
+
+### ADR-016 — No analytics, no telemetry
+**Status**: Accepted · 2026-09-26 (owner decisions D8, D9)
+**Decision**: No analytics, Speed Insights, error monitoring or telemetry of any kind; no third-party requests at runtime.
+**Consequences**: Success criteria are verified before release (golden frames, export QA matrix, `/lab` benchmarks, Lighthouse, hands-on tests) instead of measured in production. Error panels offer a voluntary *Copy details* report. CSP stays `connect-src 'self'`; the privacy policy stays short.
+**Revisit when**: the owner wants usage data — then only cookieless, EU-friendly or self-hostable options, documented in the privacy policy.
+
+### ADR-017 — German private operator: legal pages & privacy posture
+**Status**: Accepted · 2026-09-26 (owner decision A3)
+**Decision**: Ship an Impressum and a Datenschutzerklärung (German, with English versions), linked from every page footer. Keep the data footprint minimal: no cookies, no analytics, no accounts, no third-party runtime requests (self-hosted fonts — never Google Fonts' CDN), all user content processed and stored on the user's device. The only personal data the operator's infrastructure sees is the hosting provider's request logs (Vercel).
+**Consequences**: The owner provides Impressum details before launch (USER_QUESTIONS O4) and has the final legal texts checked (reputable generator or lawyer) — the planning docs are not legal advice. No cookie banner is needed while there are no cookies or tracking.

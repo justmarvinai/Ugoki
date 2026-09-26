@@ -15,7 +15,8 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | **Preview = export** | One deterministic engine renders both, on-device |
 | **Most modern stack** | Next.js 16.3, React 19.3, TypeScript 7, Tailwind 4.3, WebCodecs, OffscreenCanvas, WebGL2 |
 | **Premium, fast UX** | Engine off the main thread (workers), lazy loading, strict budgets |
-| **Hobby is non-commercial only** | If Ugoki earns money, move to Vercel Pro (or any static host) — nothing in the architecture ties us to Hobby |
+| **Hobby is non-commercial only** | Ugoki is a non-commercial private project (decision A1). If that changes, move to Vercel Pro or any static host — nothing ties us to Hobby |
+| **€0 budget, no analytics** (decisions E3, D8) | Free services only; no analytics, telemetry or third-party requests at runtime |
 
 ---
 
@@ -46,7 +47,7 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | E2E & golden frames | **Playwright** | ^1.63.0 | Flows, visual regression of template frames |
 | Package manager | **pnpm** | 10.34.5 (pinned via `packageManager`) | Vercel does not auto-detect pnpm 11/12 yet |
 | Runtime | **Node.js** | 24.x (Active LTS, Vercel default) | Node 20 is EOL; Vitest 5 needs ≥ 22.12 |
-| Hosting | **Vercel Hobby** | — | Static pages on the CDN; Web Analytics (page views) + Speed Insights |
+| Hosting | **Vercel Hobby** | — | Static pages on the CDN; free Vercel domain; no analytics products |
 
 ### Deliberately not used
 
@@ -92,7 +93,7 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
    └───────────────────────┘      Share link: #d=<deflate+base64url state>
 ```
 
-- **Nothing leaves the device.** No API routes, no uploads. The only network traffic is static assets and cookieless analytics.
+- **Nothing leaves the device.** No API routes, no uploads, no analytics. The only network traffic is fetching Ugoki's own static assets from its own origin.
 - **All routes are prerendered.** Route segments that must stay static declare `export const dynamic = 'error'` so an accidental dynamic API fails the build instead of silently creating serverless functions.
 
 ---
@@ -129,7 +130,7 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 │   ├── components/                # design-system primitives (Button, Slider, SegmentedControl…)
 │   ├── design/                    # tokens.css (Tailwind @theme), motion tokens, icons
 │   ├── stores/                    # Zustand stores + history middleware
-│   └── lib/                       # db (Dexie), share codec, analytics, capabilities, utils
+│   └── lib/                       # db (Dexie), share codec, capabilities, utils
 ├── tests/                         # e2e, golden frames, fixtures
 └── biome.json · next.config.ts · tsconfig.json · vitest.config.ts · playwright.config.ts · package.json
 ```
@@ -222,7 +223,8 @@ Dexie schema v1:
 | One template module (gz) | ≤ 15 KB |
 | Export modules (gz, lazy) | Mediabunny ~40–55 KB · GIF ~10 KB · fflate ~10 KB |
 | Landing LCP / INP / CLS (p75) | < 1.8 s / < 150 ms / < 0.05 |
-| Render cost per frame @ 1080p-equivalent | ≤ 8 ms on the reference laptop (M1/M2 Air); ≤ 16 ms mid-range Windows |
+| Render cost per frame @ 1080p-equivalent | ≤ 8 ms on the reference desktop (owner's PC, 2560 × 1440 display); ≤ 16 ms on a mid-range laptop |
+| Editor stage on the reference display | A 16:9 stage fills ≈ 2000 × 1126 px on 2560 × 1440 (≈ 2.3 MP at 100% scaling, ≈ 3.5 MP at 125%). Target: 60 fps at full resolution for most templates; adaptive render scale covers heavy ones while playing; paused frames always render at full resolution |
 | Editor memory (typical) | ≤ 400 MB |
 
 Budgets are checked in CI (bundle analyzer output + engine benchmark in `/lab`).
@@ -245,7 +247,8 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 
 ## 13. Security & privacy
 
-- **No cookies. No accounts. No uploads.** User files are processed in the browser and stored only in IndexedDB.
+- **No cookies. No accounts. No uploads. No analytics.** User files are processed in the browser and stored only in IndexedDB.
+- **No third-party requests at runtime**: fonts, scripts, WASM and images are all served from Ugoki's own origin (never Google Fonts or other CDNs) — the simplest GDPR posture for a German operator (ADR-017).
 - **Headers** (via `next.config.ts` `headers()`):
   - `Content-Security-Policy`: `default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
     - `'unsafe-inline'` scripts are needed for Next.js's inline bootstrap on static pages (nonces would force dynamic rendering); acceptable because we never render user-supplied HTML. Revisit when hash-based CSP works for static App Router output.
@@ -256,22 +259,23 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 
 ## 14. SEO & metadata
 
-- Static metadata per route; `sitemap.ts`, `robots.ts`; JSON-LD `SoftwareApplication` (free) on the landing page.
+- Static metadata per route (default title `Ugoki — Motion, make yours.`); `sitemap.ts`, `robots.ts`; JSON-LD `SoftwareApplication` (free) on the landing page.
 - **Open Graph images** are pre-rendered by `scripts/og.ts` (Playwright + the engine: poster frame + title) into `public/og/` — `next/og` can't run our canvas engine.
 - Category pages carry short, human-written intros (use cases) for search.
 
-## 15. Analytics & monitoring
+## 15. Analytics & monitoring — none, by decision
 
-- **Vercel Web Analytics** (cookieless; Hobby: 50k events/month, **page views only** — custom events are Pro-only) and **Speed Insights** (Hobby: 10k events per 30 days).
-- Export funnel metrics (export started/completed/failed, formats) need either Vercel Pro or a cookieless alternative (e.g. Umami) — open question in USER_QUESTIONS.
-- Errors: a client error boundary with a friendly recovery path; optional error monitoring later (question).
+- **No analytics, no Speed Insights, no error monitoring, no telemetry** (decisions D8, D9 — ADR-016). `@vercel/analytics` and `@vercel/speed-insights` are not installed.
+- Quality is ensured *before* release instead: golden frames, the export QA matrix, `/lab` render benchmarks, Lighthouse runs and hands-on tests.
+- Errors: a client error boundary with a friendly recovery path; export/render errors offer **Copy details** (browser, codec config, template, pipeline step) so users can report problems voluntarily.
 
 ## 16. Deployment
 
 - Vercel project linked to the GitHub repo; production = `main`; preview deployments for every branch/PR.
 - `packageManager: "pnpm@10.34.5"`, `engines.node: "24.x"`.
 - Build: `next build` (Turbopack). The build output must show **no serverless functions** — CI fails otherwise.
-- Domain: `*.vercel.app` until a custom domain is chosen.
+- Domain: the free Vercel domain (`<project>.vercel.app`) for now; a `.app` domain later (decision A4 — outside the €0 budget today).
+- One-time owner setup: import the GitHub repo into Vercel (Hobby); make `main` the default branch (see USER_QUESTIONS O2/O3).
 
 ## 17. Testing strategy
 
@@ -283,7 +287,7 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 | E2E | Playwright | Flows A–D from the experience doc; export smoke test (WebM in Chromium) verified by decoding the file (duration, size, frame count) |
 | Accessibility | Playwright + axe-core | Landing, gallery, editor, export sheet |
 | Performance | `/lab` benchmark | Per-template render cost vs. budget |
-| Cross-browser | Manual matrix | Safari macOS/iOS, Firefox, Chrome Windows/Android — before each release |
+| Cross-browser | Playwright (Chromium, Firefox, WebKit) + manual matrix | CI runs e2e in all three engines (WebKit as the Safari proxy); before each release a manual pass on the owner's desktop (2560 × 1440) plus real Safari/iOS when a device is available (USER_QUESTIONS O6) |
 
 ## 18. CI (GitHub Actions)
 

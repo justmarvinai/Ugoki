@@ -2,6 +2,7 @@
 
 > **Ugoki** (動き, Japanese for *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, export it — rendered entirely on your device.
 
+**Tagline:** *Motion, make yours.*
 **Positioning:** *Art-directed motion, rendered on your device.*
 **Promise to the user:** *"I didn't know I could make something this good this easily."*
 
@@ -64,6 +65,8 @@ Every major browser can now render and encode professional video on-device: WebC
 | **Mika** — designer who doesn't animate | Figma-native, high taste bar | "When a client or my portfolio needs motion, I want results I'm proud of without learning After Effects." | Showcase, Logo & Branding, Text & Titles |
 | **Priya** — educator / speaker | Keynote, PowerPoint, courses | "When I present, I want animated titles, quotes and numbers that make my slides feel alive." | Brand & Quotes, Text & Titles, Openers |
 
+**Priority** (decision C1): Lena and Sam first — social creators and video editors — then Jonas; Mika and Priya are served by the same catalog.
+
 ## 6. Product principles
 
 1. **Great before you touch it.** Every template, in every format, looks designed before any edit.
@@ -95,7 +98,7 @@ Every major browser can now render and encode professional video on-device: WebC
 - **Share links** — design state in the URL hash (no server, images excluded).
 - **Responsive** — desktop-first, fully usable on tablet and phone.
 - **Accessibility** — WCAG 2.2 AA for the interface.
-- **Legal & trust** — imprint, privacy policy, font/OSS licenses page; no cookies.
+- **Legal & trust** — Impressum and Datenschutzerklärung (German operator; German with English versions), font/OSS licenses page; no cookies, no analytics, no tracking.
 
 ### v1.x — Soon after launch
 
@@ -103,31 +106,34 @@ Brand Kit (colors, logo, fonts saved locally and applied everywhere) · custom f
 
 ### v2 — Later
 
-Audio (music + SFX, beat-synced; Opus/AAC) · Sequences (stitch templates into one video) · new categories (Data & Charts, Captions, Maps, Events) · AI assist (copy suggestions, brand-from-URL — needs serverless + API costs) · ProRes 4444 (only if a fast, license-compatible encoder exists) · additional template drops.
+Audio (music + SFX, beat-synced; Opus/AAC) · Sequences (stitch templates into one video) · new categories (Data & Charts, Captions, Maps, Events) · ProRes 4444 (only if a fast, license-compatible encoder exists) · additional template drops. AI features are **not planned for now** (decision D11).
 
 ### Non-goals
 
 A timeline/keyframe editor · general video editing (cutting clips) · accounts, cloud storage or databases · real-time collaboration · stock media libraries · server-side rendering · AI-generated templates at launch.
 
-## 9. Success metrics
+## 9. Success criteria
 
-| Metric | Target |
-|---|---|
-| Time to first export (new user, median) | < 3 min |
-| Export success (started → completed, supported browsers) | > 97% |
-| Template opened → exported | > 35% |
-| Landing LCP / INP / CLS (p75) | < 1.8 s / < 150 ms / < 0.05 |
-| Editor preview | ≥ 60 fps @ 1080p-equivalent on the reference laptop (Apple M1/M2 Air); ≥ 30 fps on a mid-range Windows laptop |
-| Export speed | 1080p30, 5 s, Standard quality in < 10 s on the reference laptop |
-| Template quality | 50/50 pass the quality bar and golden-frame tests |
+Ugoki collects **no analytics or telemetry** (decision D8), so these targets are verified before each release through QA, lab benchmarks and hands-on tests — not tracked from users.
 
-Note: on Vercel Hobby, Web Analytics records page views only (custom events such as "export completed" require Pro or another tool) — see [USER_QUESTIONS.md](../USER_QUESTIONS.md).
+| Criterion | Target | Verified by |
+|---|---|---|
+| Time to first export (first-time user) | < 3 min | Hands-on tests with first-time users (friends, family) |
+| Export reliability | Every format × resolution in the QA matrix completes on all supported browsers | Export QA matrix ([`07-export.md`](07-export.md) §9) |
+| Landing LCP / INP / CLS | < 1.8 s / < 150 ms / < 0.05 | Lighthouse + WebPageTest runs (lab) |
+| Editor preview | ≥ 60 fps on the reference desktop (owner's PC, 2560 × 1440 monitor); ≥ 30 fps on a mid-range laptop | `/lab` render-cost benchmark |
+| Export speed | 1080p30, 5 s, Standard quality in < 10 s on the reference desktop | Timed exports in QA |
+| Template quality | 50/50 pass the quality bar and golden-frame tests | Lab review + CI |
+
+Real-world feedback comes from people choosing to share it (errors offer a *Copy details* button for voluntary bug reports).
 
 ## 10. Business constraints
 
-- **Hosting**: Vercel Hobby, which is **non-commercial use only**. The architecture is static-first, so moving to Vercel Pro or another static host is trivial if Ugoki starts making money.
-- **Running cost**: ~€0/month at launch — static hosting, on-device compute, no database.
-- **Monetization** (future, undecided): Pro template packs, Brand Kit sync, team features — all out of v1 scope.
+- **Non-commercial private project** (decision A1) → Vercel Hobby fits its non-commercial terms. The architecture is static-first, so moving to Vercel Pro or another static host is trivial if that ever changes.
+- **Completely free** (A2): no watermark, no registration, no payment — and no end card on exports (D10).
+- **Budget €0** (E3): free tools, services and assets only; the free Vercel domain for now, a `.app` domain later (A4).
+- **Running cost**: €0/month — static hosting, on-device compute, no database, no analytics.
+- **Operator**: a private individual in Germany (A3) → Impressum and Datenschutzerklärung required (ADR-017).
 
 ## 11. Risks & mitigations
 
@@ -139,7 +145,8 @@ Note: on Vercel Hobby, Web Analytics records page views only (custom events such
 | Scope creep toward a timeline editor | Principles and non-goals above; say no by default |
 | Font licensing | OFL-only library; no Fontshare/ITF fonts |
 | Vercel Hobby limits (100 GB transfer, 5k image optimizations) | Live engine previews instead of preview videos; lean static assets; no `next/image` optimization dependency |
-| Legal requirements (e.g. German imprint & privacy) | Legal pages in v1; no cookies, cookieless analytics |
+| German legal requirements (Impressum, GDPR) | Legal pages in v1; owner provides details; no cookies, no analytics, no third-party requests (self-hosted fonts) keep the privacy footprint minimal |
+| No production data (no analytics) | Broader QA matrix, lab benchmarks, clear in-app errors with voluntary *Copy details* |
 | Competitors' reach (Canva, Figma) | Win on taste, alpha overlays, privacy and speed |
 
 ## 12. Glossary

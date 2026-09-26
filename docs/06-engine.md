@@ -11,7 +11,7 @@ TypeScript snippets in this document are **contract sketches** for implementatio
 1. **Deterministic** — same inputs → same pixels, in preview, export and every browser.
 2. **Random access** — any `t` can be rendered directly (scrubbing, motion blur sub-frames, parallel export) with no simulation state.
 3. **Pro quality** — analytic anti-aliasing for type and hairlines, true motion blur, GPU effects, HarfBuzz typography.
-4. **Fast** — ≤ 8 ms per 1080p-equivalent frame on the reference laptop; work that doesn't depend on `t` happens once in `build`.
+4. **Fast** — ≤ 8 ms per 1080p-equivalent frame on the reference desktop (owner's PC, 2560 × 1440 display); work that doesn't depend on `t` happens once in `build`.
 5. **Environment-agnostic** — no DOM; runs in a dedicated worker with OffscreenCanvas (main-thread fallback for debugging).
 6. **Simple to author** — a template is one file of readable choreography using shared helpers.
 

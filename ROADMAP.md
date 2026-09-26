@@ -2,7 +2,7 @@
 
 > From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
 
-**Now**: Phase 0 — planning is written; waiting for your answers in [`USER_QUESTIONS.md`](USER_QUESTIONS.md) and your explicit go-ahead to start coding.
+**Now**: Phase 0 — plan written and your decisions recorded ([`USER_QUESTIONS.md`](USER_QUESTIONS.md)). Waiting for your explicit go-ahead to start coding (open item O1).
 
 | Phase | Outcome | Version |
 |---|---|---|
@@ -23,8 +23,8 @@
 - [x] Planning docs: product, experience, design system, motion language, architecture, engine, export, decision log
 - [x] Template library: foundations + 50 detailed specs + build waves
 - [x] `CLAUDE.md`, `ROADMAP.md`, `CHANGELOG.md`, `USER_QUESTIONS.md`
-- [ ] You answer `USER_QUESTIONS.md` (or accept the recommendations)
-- [ ] Docs updated with your decisions (ADR-015 and any changed scope)
+- [x] You answer `USER_QUESTIONS.md` (or accept the recommendations)
+- [x] Docs updated with your decisions (ADR-015 accepted; ADR-016 no analytics; ADR-017 legal/privacy; new hero; large-screen layouts)
 - [ ] **Your explicit go-ahead to start coding**
 
 **Exit**: signed-off plan.
@@ -32,6 +32,10 @@
 ---
 
 ## Phase 1 — Foundations & engine core → `0.1.0`
+
+**Owner setup** (one-time, a few minutes — see USER_QUESTIONS O2/O3)
+- [ ] `main` exists and is the repository's default branch
+- [ ] GitHub repo imported into Vercel (Hobby) so every PR gets a preview link
 
 **Scaffold**
 - [ ] Next.js 16.3 · React 19.3 (React Compiler on) · TypeScript 7 · Tailwind 4.3 · Biome 2.5 · Vitest 5 · Playwright 1.63 · pnpm 10 · Node 24
@@ -124,7 +128,7 @@
 - [ ] Recent drafts row + popover
 - [ ] Tile → editor morph (React `<ViewTransition>`)
 
-**Exit**: smooth scrolling (≥ 55 fps) with ambient previews on the reference laptop; flows A and C pass e2e.
+**Exit**: smooth scrolling (≥ 55 fps) with ambient previews on the reference desktop at 2560 × 1440 (6 columns); flows A and C pass e2e.
 
 ---
 
@@ -150,9 +154,9 @@
 ## Phase 6 — Landing, brand & legal → `0.6.0`
 
 - [ ] Wordmark with the Dot (+ width-axis animation), favicon, OG images (pre-rendered)
-- [ ] Landing: hero with live engine + "try your own word" · scroll-scrubbed reel · Choose/Customize/Export sequence · categories · statements · finale
-- [ ] Legal pages (imprint, privacy, licenses incl. all font licenses), 404
-- [ ] Sitemap, robots, JSON-LD; Vercel Web Analytics + Speed Insights (+ event analytics if chosen)
+- [ ] Landing: hero *Motion, make yours.* with the live "type anything" stage · scroll-scrubbed reel · Choose/Customize/Export sequence · categories · statements · finale
+- [ ] Legal pages: Impressum + Datenschutzerklärung (German + English, owner's details from O4), licenses (incl. all font licenses), 404
+- [ ] Sitemap, robots, JSON-LD — no analytics (ADR-016)
 
 **Exit**: landing Lighthouse ≥ 95 in all categories; LCP < 1.8 s (p75 lab); reduced-motion variant complete.
 
@@ -165,7 +169,7 @@
 - [ ] Cross-browser export QA matrix, color/gamma check, 4K60 stress test
 - [ ] Performance tuning to budgets; bundle budgets enforced
 - [ ] Error states, empty states, first-run hints, copy review (voice & tone)
-- [ ] Launch checklist: domain, headers, analytics, legal, OG previews, 404, favicon, social cards
+- [ ] Launch checklist: security headers, zero third-party requests (verified in DevTools), legal texts checked by the owner, OG previews, 404, favicon, social cards, final review on the owner's 2560 × 1440 desktop
 - [ ] Tag `v1.0.0`
 
 ---
@@ -176,4 +180,6 @@
 |---|---|
 | **v1.1** | Brand Kit (colors, logo, fonts saved locally, applied everywhere) · custom font upload · inline on-canvas text editing · `.ugoki` project files |
 | **v1.2** | Offline PWA · German localization · animated WebP · more Looks |
-| **v2** | Audio (music + SFX, beat-synced) · Sequences (stitch templates) · new categories (Data & Charts, Captions, Maps, Events) · AI assist (needs serverless + API budget) · ProRes 4444 if a fast, license-compatible encoder exists |
+| **v2** | Audio (music + SFX, beat-synced) · Sequences (stitch templates) · new categories (Data & Charts, Captions, Maps, Events) · ProRes 4444 if a fast, license-compatible encoder exists · a `.app` domain when the budget allows |
+
+Not planned (owner decisions): AI features (D11), accounts or payments (A2), analytics (D8), end cards or watermarks (D10).

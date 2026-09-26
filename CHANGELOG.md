@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.0.2] — 2026-09-26 — Owner decisions recorded
+
+Still no application code — waiting for the explicit go-ahead.
+
+### Added
+
+- ADR-016 (no analytics or telemetry) and ADR-017 (German private operator: Impressum, Datenschutzerklärung, minimal data footprint).
+- Open items for the owner: go-ahead, `main` as default branch, Vercel import, Impressum details, tagline spelling, optional real-Safari checks.
+- Large-screen specifications for the owner's 2560 × 1440 reference display: breakpoints up to 2560, gallery up to 6 columns (16:9), 400 px inspector from 1920 px.
+- Voluntary *Copy details* error reports (instead of telemetry).
+
+### Changed
+
+- `USER_QUESTIONS.md` is now a decision record (owner answers + defaults).
+- Tagline is **"Motion, make yours."**; the landing hero is rebuilt around it (headline + a live stage where visitors type anything and see it animated in five styles).
+- ADR-015 accepted: Mona Sans, monochrome "color belongs to the work", `ugoki` wordmark with the Dot, 動き as a quiet signature.
+- Success metrics became pre-release success criteria (QA, lab benchmarks, hands-on tests) because Ugoki collects no analytics.
+- Performance budgets now reference the owner's desktop PC with a 2560 × 1440 monitor.
+- Legal pages: Impressum and Datenschutz, German with English versions.
+
+### Removed
+
+- Vercel Web Analytics and Speed Insights from the plan.
+- AI features from the v2 roadmap (not planned for now); custom domain deferred (€0 budget — free Vercel domain for now).
+
 ## [0.0.1] — 2026-09-26 — Planning baseline
 
 No application code yet — per the brief, coding starts after the plan is approved.

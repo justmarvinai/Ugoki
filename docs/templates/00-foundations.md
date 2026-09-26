@@ -236,6 +236,6 @@ Each template ships **3 Looks** = palette + font pairing + (optionally) a few te
 5. **Duration**: at min and max duration, the choreography still reads; the hold is never dead (micro-motion).
 6. **Clean edit points**: frame 0 and last frame are clean; loops are seamless; transitions hit 100% coverage at the marked cut frame.
 7. **Determinism**: same inputs → identical pixels in preview and export, at every fps (golden-frame tests pass).
-8. **Performance**: preview ≥ 60 fps at 1080p-equivalent on the reference laptop, with the template's effects on (see architecture budgets).
+8. **Performance**: preview ≥ 60 fps at 1080p-equivalent on the reference desktop (2560 × 1440 display), with the template's effects on (see architecture budgets).
 9. **Transparency**: when exported with alpha, nothing depends on a background that isn't there (no dark fringes, no invisible text).
 10. **The expensive detail** from the spec is implemented and visible.

@@ -121,6 +121,7 @@ Memory guard: estimate output size up front; above ~1 GB without streaming, sugg
 - **Screen Wake Lock** while the tab is visible (auto-released when hidden, per spec).
 - The sheet asks users to keep the tab in front for long exports; if the tab is hidden, a notice appears when they return.
 - Errors are caught per stage (load, build, render, encode, finalize) with specific messages and a retry that suggests a safer preset (lower resolution, WebM instead of MP4, fewer motion-blur samples).
+- Ugoki has **no telemetry** (ADR-016): every error panel offers **Copy details** (browser + version, probed capabilities, codec config, template, resolution/fps, failing stage, error text — no user content) so users can send a report voluntarily.
 - Filenames: `ugoki-{template}-{w}x{h}-{fps}fps.{ext}`, plus `-cut-f{n}` for transitions.
 
 ---

@@ -2,7 +2,7 @@
 
 > Ugoki's visual identity and interface system: brand, voice, color, type, layout, components, UI motion and the rules that keep it from looking generic.
 
-Status: **proposal** — brand-level choices (typeface, color stance, wordmark, use of 動き) are open questions in [`USER_QUESTIONS.md`](../USER_QUESTIONS.md). The recommended defaults below are what we build with unless you decide otherwise.
+Status: **decided** (2026-09-26) — typeface Mona Sans, monochrome color stance, `ugoki` wordmark with the Dot, 動き as a quiet signature, tagline *Motion, make yours.* (see [`USER_QUESTIONS.md`](../USER_QUESTIONS.md), ADR-015).
 
 ---
 
@@ -33,7 +33,8 @@ References, not templates: Apple (the product is the hero, the interface recedes
   - the favicon (the Dot inside a rounded square).
 - **The Dot's color**: ink/white by default; when a template plays, it **takes that template's accent** — the only color the interface ever shows is borrowed from the work.
 - **Wordmark motion**: on first paint the letters expand from condensed (wdth 75) to expanded (wdth 125) on a `snappy` spring while the Dot drops in and settles. On hover (footer), the letters breathe along the width axis.
-- **動き** (the Japanese word) is a quiet secondary signature: footer and About line only ("Ugoki — 動き — movement"), set in M PLUS 1 or Noto Sans JP (subset to two glyphs). Not part of the logo unless you decide otherwise.
+- **動き** (the Japanese word) is a quiet secondary signature: footer and About line only ("Ugoki — 動き — movement"), set in M PLUS 1 or Noto Sans JP (subset to two glyphs). Not part of the logo.
+- **Tagline**: *Motion, make yours.* — the landing headline; the hero stage makes it literal (visitors type their own words and watch them animate).
 
 ---
 
@@ -43,7 +44,7 @@ References, not templates: Apple (the product is the hero, the interface recedes
 
 | Do | Don't |
 |---|---|
-| "Make it move." | "Unleash your creativity with AI-powered motion!" |
+| "Motion, make yours." | "Unleash your creativity with AI-powered motion!" |
 | "Pick a starting point." | "Browse our extensive library of stunning templates" |
 | "Done. 6.2 MB, ready to post." | "Your export has completed successfully!" |
 | "Your browser can't make MP4s. Try WebM, or open Ugoki in Chrome or Safari." | "Error: codec not supported" |
@@ -103,7 +104,7 @@ The dark-footage **checkerboard** (transparent stage) uses `#141416`/`#1B1B1E` s
 
 **One family: Mona Sans v2** (SIL OFL, self-hosted from the GitHub build for `opsz` and the Mono), plus **Mona Sans Mono** for timecodes and numeric readouts. The width axis is the brand's voice: Expanded for display, Normal for text and UI.
 
-To keep a distinct voice (Mona Sans is also GitHub's typeface): Expanded widths for display, custom-kerned wordmark, and a brand spike to choose stylistic alternates. Alternatives if you prefer: Archivo (widest free grotesk), Funnel Display + Funnel Sans — see USER_QUESTIONS.
+To keep a distinct voice (Mona Sans is also GitHub's typeface): Expanded widths for display, custom-kerned wordmark, and a brand spike in Phase 1 to choose stylistic alternates.
 
 ### Marketing scale (Daylight)
 
@@ -138,7 +139,8 @@ To keep a distinct voice (Mona Sans is also GitHub's typeface): Expanded widths 
 - **Section rhythm** (marketing): alternating full-bleed Daylight/Cinema bands; 128–200 px vertical padding desktop, 80–120 px mobile. The color change *is* the divider — no rules, no cards.
 - **Radii**: 6 (small controls) · 10 (buttons/inputs in app) · 14 (popovers, sheets) · 20 (media tiles, stage) · pill (primary CTAs, chips).
 - **Elevation**: tone steps and hairlines, not shadows. Only popovers/menus/sheets get a soft shadow in Cinema (`0 12px 32px rgb(0 0 0 / 0.4)`).
-- **Breakpoints**: 480 · 768 · 1024 · 1280 · 1536.
+- **Breakpoints**: 480 · 768 · 1024 · 1280 · 1536 · 1920 · 2560.
+- **Large screens are first-class**: the owner's reference display is 2560 × 1440, so every screen is designed and reviewed at 2560 as well as 1440, 1280 and 375 px wide. Extra width goes to *more work on screen* (more gallery columns, a bigger stage, a 400 px inspector from 1920 px), never to longer text lines — marketing copy keeps its 1440 px content width inside full-bleed bands.
 
 ---
 

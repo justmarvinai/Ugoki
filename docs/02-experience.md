@@ -23,7 +23,7 @@
 | `/templates` | Gallery (all) | Cinema | Static shell; live previews client-side |
 | `/templates/[category]` | Category gallery (10 pages, SEO) | Cinema | Static (`generateStaticParams`) |
 | `/editor/[templateId]` | Editor (50 pages) | Cinema | Static shell + client editor; state from `#d=` (share link) or `?draft=` (local draft) |
-| `/legal/imprint` · `/legal/privacy` · `/legal/licenses` | Legal | Daylight | Static |
+| `/legal/imprint` (Impressum) · `/legal/privacy` (Datenschutzerklärung) · `/legal/licenses` | Legal — German text with English version | Daylight | Static |
 | `/lab` | Engine lab (template development) | Cinema | Development builds only |
 | 404 | Not found | Daylight | Static; the "404" is animated by the engine |
 
@@ -34,7 +34,7 @@ Navigation stays minimal: wordmark (home), **Templates**, **Start creating**. No
 ## 3. Key flows
 
 **A — First visit to first export (target: < 3 min)**
-Landing → *Start creating* → Gallery (types a headline in the personalization field; every preview updates) → clicks a tile → Editor morphs open with their headline already applied → picks a Look, adjusts Energy → *Export* → Video (MP4) → file downloads.
+Landing (types a word into the hero — it animates in five styles) → *Start creating* → Gallery (their text is already in the personalization field; every preview shows it) → clicks a tile → Editor morphs open with their text applied → picks a Look, adjusts Energy → *Export* → Video (MP4) → file downloads.
 
 **B — Editor needs an overlay**
 Gallery → Lower Thirds → *Line* → edits name/title → *Preview on my footage* (drops a still from their video) → drags the lockup into place → *Export* → Transparent video (WebM) or PNG sequence → drops it into Premiere/Resolve/CapCut.
@@ -52,18 +52,18 @@ Editor → *Share* → copy link → recipient opens the same design (images rep
 Minimal, bold, "barely there". Seven moments, alternating Daylight and Cinema bands. The engine runs *on the page* — the landing is a demo, not a brochure.
 
 1. **Nav** — wordmark left; *Templates* and a quiet *Start creating* right. Solid background with a hairline appears after scrolling (no glass effect).
-2. **Hero** (Daylight, full viewport)
-   - Headline `Make it move.` in `display-xxl` (Mona Sans Expanded 800).
-   - The word **move.** is rendered live by the engine and cycles every ~2.4 s through five real template styles (Rise → Stretch → Echo → Decode → Focus).
-   - *Try your own word*: clicking/tapping the word turns it into an input — every style now animates the visitor's word.
-   - One line of copy: `Motion design templates, art-directed by pros. Customize in seconds. Export in your browser.`
+2. **Hero** (Daylight, full viewport) — built around the tagline
+   - Headline **`Motion, make yours.`** in `display-xxl` (Mona Sans Expanded 800). The word *Motion,* breathes along the width axis — a CSS variable-font animation: no JavaScript, instant, paused for reduced motion.
+   - One small line beneath: `Art-directed motion templates. Customize in seconds, export in your browser.`
+   - The **hero stage**: a wide, borderless live canvas where the engine cycles every ~2.4 s through five real template styles (Rise → Stretch → Echo → Decode → Focus).
+   - **Make it yours**: a single inline field under the stage, placeholder `Type anything` — as the visitor types, all five styles animate *their* words. The tagline, taken literally. The text carries into the gallery's personalization field.
    - Primary CTA `Start creating` + micro line `Free. No sign-up. Nothing to install.`
-   - Performance: the headline is server-rendered text (fast LCP); the engine loads after first paint and takes over the word seamlessly (same metrics, same position).
+   - Performance: the headline is server-rendered text (fast LCP); the stage reserves its space and shows a pre-rendered poster until the engine (loaded after first paint) takes over — no layout shift.
 3. **The reel** (Cinema band) — *Scroll is the playhead.* A sticky stage (16:9 desktop, 9:16 phone) scrubs through six real templates as you scroll (~100 vh each). A thin timeline with the Dot shows progress; captions give the template name and category. Nothing is a video file — it's the engine, scrubbed by scroll.
 4. **Choose. Customize. Export.** (Daylight) — three words as a sticky scroll sequence. The right side runs a live mini-editor: tiles shuffle and one is picked → the headline retypes, a palette swatch is clicked, Energy flips to Punchy, the format morphs 16:9 → 9:16 → an export bar fills with the Dot and a file chip appears (`ugoki-rise-1080x1920.mp4 · 4.1 MB`). One short line of copy per step.
 5. **Ten categories** (Cinema) — the category names set huge, one per line. Desktop: hovering a name shows a live preview that follows the cursor. Phone: tapping expands an inline preview. Each links to its category page.
-6. **Statements** (Daylight) — four lines in `display-l`, each with one small explanatory sentence: `Free.` · `No sign-up.` · `Stays on your device.` · `Up to 4K.` No icons, no cards.
-7. **Finale** (Cinema) — the `ugoki` wordmark spanning the full width, breathing on its width axis; *Start creating*. Footer: © Ugoki · Imprint · Privacy · Licenses · `動き — movement`.
+6. **Statements** (Daylight) — four lines in `display-l`, each with one small explanatory sentence: `Free.` (No watermark, no account, no payment.) · `No sign-up.` (Open it and start.) · `Stays on your device.` (Your files never leave your browser. No cookies, no tracking.) · `Up to 4K.` (MP4, transparent WebM, PNG sequences, GIF.) No icons, no cards.
+7. **Finale** (Cinema) — the `ugoki` wordmark spanning the full width, breathing on its width axis; *Start creating*. Footer: © Ugoki · Impressum · Datenschutz · Licenses · `動き — movement`.
 
 Reduced motion: hero shows a static frame with a play button; the reel becomes a list of poster frames with play buttons.
 
@@ -78,8 +78,8 @@ Reduced motion: hero shows a static frame with a play button; the reel becomes a
 **Continue where you left off**: up to 4 draft tiles (only when drafts exist).
 
 **Grid**
-- Columns adapt to the chosen format (e.g. 16:9 → 4/3/2/1 columns; 9:16 → 6/4/3/2).
-- **Tiles are live engine renders**, not videos: idle tiles show their poster frame; hover/focus plays from the start. On capable devices (measured first-frame cost) visible tiles play ambiently at reduced fps; on phones the tile nearest the viewport center plays.
+- Columns fill the width from a minimum tile size per format (≈ 360 px for 16:9, ≈ 220 px for 9:16): one column on phones, up to 6 columns of 16:9 or 10 of 9:16 on a 2560 px screen — large monitors get a richer wall of work, not wider tiles.
+- **Tiles are live engine renders**, not videos: idle tiles show their poster frame; hover/focus plays from the start. On capable devices (measured first-frame cost) up to ~8 tiles nearest the pointer or viewport center play ambiently at reduced fps; on phones the tile nearest the viewport center plays.
 - Tile = media (radius 20) + name beneath; hover reveals the one-liner and three Look dots (hovering a dot previews that Look).
 - **Personalization**: typing in the header field updates every template's primary text (debounced ~150 ms); it carries into the editor.
 - **Format control** re-lays out every tile live — the gallery itself proves the responsive layouts.
@@ -114,7 +114,7 @@ Reduced motion: hero shows a static frame with a play button; the reel becomes a
 - **Direct manipulation**: hovering editable elements shows a faint outline; clicking selects — the inspector scrolls to and focuses the matching control (text fields get the caret). Movable groups can be dragged with snapping to center lines and safe areas (guides flash on snap) and scaled with a corner handle or the scale slider.
 - Zoom: Fit (default) / 100%.
 
-**Inspector** (single scrolling column, sticky section headers)
+**Inspector** (single scrolling column, sticky section headers; 360 px wide, 400 px from 1920 px screens up — the stage takes all remaining space)
 - **Looks**: three Look swatches + *Shuffle* (cycles curated Look/seed combinations — never random ugliness). Hover previews on stage; click commits.
 - **Content**: auto-generated from the template's control schema — text fields (with `*emphasis*` hint where supported), lists (reorderable), image slots (drop/paste/click, fit, focal point).
 - **Style**: Palette (template palettes + *Brand color* chip → Brand Light/Dark/Bold), Font pairing, template style controls, Background (color · transparent · image), Finish (Clean · Grain · Soft glow).
@@ -205,6 +205,7 @@ Filenames: `ugoki-{template}-{w}x{h}-{fps}fps.{ext}` (+ `-cut-f{n}` for transiti
 | Storage full | `Couldn't save your draft — browser storage is full. Export or delete old drafts.` |
 | Share link with unknown template/version | Opens the closest valid state and explains what was reset |
 | Tab hidden during export | Export continues in a worker; a notice recommends keeping the tab in front |
+| Export or render error | Specific message + a safer fallback (lower resolution, other format) + **Copy details** (browser, codec config, template, step) so users can report issues voluntarily — Ugoki has no telemetry |
 
 ---
 
