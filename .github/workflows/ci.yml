@@ -1,0 +1,85 @@
+# CI (docs/05-architecture.md §17): static checks, unit tests and a static-only build on every
+# push and pull request; engine tests in Chromium, Firefox and WebKit; golden frames (Chromium
+# references) and end-to-end tests against the production build.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  check:
+    name: Typecheck · lint · unit · build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      # Fails if any route would need a serverless function (Vercel Hobby, no functions).
+      - run: pnpm build
+
+  browser:
+    name: Engine in ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - run: pnpm test:browser
+        env:
+          VITEST_BROWSERS: ${{ matrix.browser }}
+
+  e2e:
+    name: Golden frames · end-to-end
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps
+      - run: pnpm test:golden
+        env:
+          VITEST_BROWSERS: chromium
+      - run: pnpm build
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-output
+          path: |
+            test-results/
+            tests/golden/__screenshots__/**/*-actual.png
+            tests/golden/__screenshots__/**/*-diff.png
+            .vitest/
+          retention-days: 7
