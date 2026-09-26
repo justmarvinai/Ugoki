@@ -2,7 +2,7 @@
 
 > From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
 
-**Now**: Phase 1 — foundations & engine core is built and in review (PR to `main`, with a Vercel preview). Next: the owner checks the Lab in Safari (O6); then Phase 2. Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
+**Now**: Phase 2 — editor & export MVP is in progress. Phase 1 shipped as 0.1.0 (merged 2026-09-26; the owner checked the Lab on the preview, O6). Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
 
 | Phase | Outcome | Version |
 |---|---|---|
@@ -66,7 +66,7 @@
 - [x] **Rise** — all formats, 3 Looks, 3 energies, duration extremes, stress text
 
 **Exit**: Rise plays at 60 fps in the Lab in Chrome, Safari and Firefox; two renders are pixel-identical; golden frames run in CI.
-*Status*: 60 fps with four views measured in Chromium (≈ 0.1 ms recording per view per frame); determinism and golden frames are tested; CI plays Rise in the Lab in Chromium, Firefox and WebKit and checks the frames reach the screen; real Safari needs the owner's device check (O6).
+*Status*: done — merged 2026-09-26. 60 fps with four views measured in Chromium (≈ 0.1 ms recording per view per frame); determinism and golden frames are tested; CI plays Rise in the Lab in Chromium, Firefox and WebKit and checks the frames reach the screen; the owner checked the Lab on the preview (O6). The two open spike items continue in Phase 2 (compositor, exporter).
 
 ---
 

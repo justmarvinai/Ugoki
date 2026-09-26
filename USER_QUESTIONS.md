@@ -13,7 +13,7 @@
 | O3 | Import the GitHub repo into Vercel (free Hobby account) | ✅ Done 2026-09-26 — every branch and PR gets a preview deployment |
 | O4 | **Impressum details**: your full name, a postal street address (a P.O. box is not enough) and an email address. If you'd rather not publish your home address, ask a lawyer about alternatives. *Not legal advice* — before launch, check the final legal texts with a reputable German generator or a lawyer. | ⏳ Later (before launch, Phase 6) |
 | O5 | Tagline spelling | ✅ **"Motion, made yours."** |
-| O6 | Occasional access to an iPhone, iPad or Mac for real-Safari checks (CI covers WebKit, not Safari's video encoders). **First check, once the Vercel preview exists:** open `/lab` on the preview URL in Safari (Mac and/or iPhone), press play, and send a screenshot of the *This device* panel plus whether *Rise* plays smoothly. | ⏳ Open — the preview exists (see the Phase 1 PR) |
+| O6 | Occasional access to an iPhone, iPad or Mac for real-Safari checks (CI covers WebKit, not Safari's video encoders). **First check, once the Vercel preview exists:** open `/lab` on the preview URL in Safari (Mac and/or iPhone), press play, and send a screenshot of the *This device* panel plus whether *Rise* plays smoothly. | ✅ 2026-09-26 — the owner checked the Lab on the preview: "works". A *This device* readout from Safari still helps Phase 2's export QA |
 
 ---
 
