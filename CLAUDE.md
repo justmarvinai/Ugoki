@@ -51,7 +51,7 @@ Don't add dependencies casually: check license (MIT/ISC/Apache/BSD/MPL-2.0 OK), 
 pnpm dev            # Next.js dev server (Turbopack) — the Lab is at /lab
 pnpm build          # production build + scripts/assert-static.mjs (fails if any route isn't prerendered)
 pnpm start          # serve the production build
-pnpm typecheck      # tsc --noEmit (TypeScript 7)
+pnpm typecheck      # next typegen (route types like LayoutProps) + tsc --noEmit (TypeScript 7)
 pnpm lint           # biome check .   (pnpm lint:fix to apply fixes)
 pnpm format         # biome format --write .
 pnpm test           # vitest unit tests (Node; HarfBuzz runs in Node too)
