@@ -2,7 +2,7 @@
 
 > Ugoki's visual identity and interface system: brand, voice, color, type, layout, components, UI motion and the rules that keep it from looking generic.
 
-Status: **decided** (2026-09-26) — typeface Mona Sans, monochrome color stance, `ugoki` wordmark with the Dot, 動き as a quiet signature, tagline *Motion, make yours.* (see [`USER_QUESTIONS.md`](../USER_QUESTIONS.md), ADR-015).
+Status: **decided** (2026-09-26) — typeface Mona Sans, monochrome color stance, `ugoki` wordmark with the Dot, 動き as a quiet signature, tagline *Motion, made yours.* (see [`USER_QUESTIONS.md`](../USER_QUESTIONS.md), ADR-015).
 
 ---
 
@@ -34,7 +34,7 @@ References, not templates: Apple (the product is the hero, the interface recedes
 - **The Dot's color**: ink/white by default; when a template plays, it **takes that template's accent** — the only color the interface ever shows is borrowed from the work.
 - **Wordmark motion**: on first paint the letters expand from condensed (wdth 75) to expanded (wdth 125) on a `snappy` spring while the Dot drops in and settles. On hover (footer), the letters breathe along the width axis.
 - **動き** (the Japanese word) is a quiet secondary signature: footer and About line only ("Ugoki — 動き — movement"), set in M PLUS 1 or Noto Sans JP (subset to two glyphs). Not part of the logo.
-- **Tagline**: *Motion, make yours.* — the landing headline; the hero stage makes it literal (visitors type their own words and watch them animate).
+- **Tagline**: *Motion, made yours.* — the landing headline; the hero stage makes it literal (visitors type their own words and watch them animate).
 
 ---
 
@@ -44,7 +44,7 @@ References, not templates: Apple (the product is the hero, the interface recedes
 
 | Do | Don't |
 |---|---|
-| "Motion, make yours." | "Unleash your creativity with AI-powered motion!" |
+| "Motion, made yours." | "Unleash your creativity with AI-powered motion!" |
 | "Pick a starting point." | "Browse our extensive library of stunning templates" |
 | "Done. 6.2 MB, ready to post." | "Your export has completed successfully!" |
 | "Your browser can't make MP4s. Try WebM, or open Ugoki in Chrome or Safari." | "Error: codec not supported" |

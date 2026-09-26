@@ -259,7 +259,7 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 
 ## 14. SEO & metadata
 
-- Static metadata per route (default title `Ugoki — Motion, make yours.`); `sitemap.ts`, `robots.ts`; JSON-LD `SoftwareApplication` (free) on the landing page.
+- Static metadata per route (default title `Ugoki — Motion, made yours.`); `sitemap.ts`, `robots.ts`; JSON-LD `SoftwareApplication` (free) on the landing page.
 - **Open Graph images** are pre-rendered by `scripts/og.ts` (Playwright + the engine: poster frame + title) into `public/og/` — `next/og` can't run our canvas engine.
 - Category pages carry short, human-written intros (use cases) for search.
 

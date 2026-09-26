@@ -2,7 +2,7 @@
 
 > From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
 
-**Now**: Phase 0 — plan written and your decisions recorded ([`USER_QUESTIONS.md`](USER_QUESTIONS.md)). Waiting for your explicit go-ahead to start coding (open item O1).
+**Now**: Phase 1 — foundations & engine core (go-ahead given 2026-09-26). Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
 
 | Phase | Outcome | Version |
 |---|---|---|
@@ -25,7 +25,7 @@
 - [x] `CLAUDE.md`, `ROADMAP.md`, `CHANGELOG.md`, `USER_QUESTIONS.md`
 - [x] You answer `USER_QUESTIONS.md` (or accept the recommendations)
 - [x] Docs updated with your decisions (ADR-015 accepted; ADR-016 no analytics; ADR-017 legal/privacy; new hero; large-screen layouts)
-- [ ] **Your explicit go-ahead to start coding**
+- [x] **Your explicit go-ahead to start coding** (2026-09-26)
 
 **Exit**: signed-off plan.
 
@@ -34,8 +34,8 @@
 ## Phase 1 — Foundations & engine core → `0.1.0`
 
 **Owner setup** (one-time, a few minutes — see USER_QUESTIONS O2/O3)
-- [ ] `main` exists and is the repository's default branch
-- [ ] GitHub repo imported into Vercel (Hobby) so every PR gets a preview link
+- [x] `main` exists and is the repository's default branch
+- [ ] GitHub repo imported into Vercel (Hobby) — owner does this **after Phase 1**; until then PRs have no preview links
 
 **Scaffold**
 - [ ] Next.js 16.3 · React 19.3 (React Compiler on) · TypeScript 7 · Tailwind 4.3 · Biome 2.5 · Vitest 5 · Playwright 1.63 · pnpm 10 · Node 24
@@ -154,7 +154,7 @@
 ## Phase 6 — Landing, brand & legal → `0.6.0`
 
 - [ ] Wordmark with the Dot (+ width-axis animation), favicon, OG images (pre-rendered)
-- [ ] Landing: hero *Motion, make yours.* with the live "type anything" stage · scroll-scrubbed reel · Choose/Customize/Export sequence · categories · statements · finale
+- [ ] Landing: hero *Motion, made yours.* with the live "type anything" stage · scroll-scrubbed reel · Choose/Customize/Export sequence · categories · statements · finale
 - [ ] Legal pages: Impressum + Datenschutzerklärung (German + English, owner's details from O4), licenses (incl. all font licenses), 404
 - [ ] Sitemap, robots, JSON-LD — no analytics (ADR-016)
 

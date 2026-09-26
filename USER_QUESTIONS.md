@@ -1,19 +1,19 @@
 # Questions & decisions
 
-> **Status (2026-09-26)**: all planning questions are answered. **You** = your explicit answer · **Default** = the recommendation, applied because you asked for defaults on everything you didn't answer. The original questions with all their options are in the git history (commit `31d5c8c`).
+> **Status (2026-09-26)**: all planning questions are answered and Phase 1 is underway. **You** = your explicit answer · **Default** = the recommendation, applied because you asked for defaults on everything you didn't answer. The original questions with all their options are in the git history (commit `31d5c8c`).
 
 ---
 
 ## Open items
 
-| # | Item | Needed by |
+| # | Item | Status |
 |---|---|---|
-| **O1** | **Your explicit go-ahead to start coding** — the brief says not to code before you ask. | Now |
-| O2 | The repository's default branch is currently the planning branch (it was the first branch pushed). Create `main` from it and make `main` the default (GitHub → Settings → General → Default branch) — or tell me to push `main` for you. Phase PRs will target `main`. | Start of Phase 1 |
-| O3 | Import the GitHub repo into Vercel (free Hobby account, sign in with GitHub, *Add New → Project → Ugoki*, framework preset Next.js). One-time, ~2 minutes; I'll post exact steps when the scaffold lands. Needed for the preview links in every PR (E2). | Phase 1 |
-| O4 | **Impressum details**: your full name, a postal street address (a P.O. box is not enough) and an email address. If you'd rather not publish your home address, ask a lawyer about alternatives. *Not legal advice* — before launch, check the final legal texts with a reputable German generator or a lawyer. | Phase 6 (before launch) |
-| O5 | Tagline spelling: I'm using your wording exactly — **"Motion, make yours."** Tell me if you meant "Motion, made yours." | Phase 6 |
-| O6 | Do you have occasional access to an iPhone, iPad or Mac? Real-Safari checks are valuable (CI covers WebKit, but not Safari's video encoders). | Phase 2 (nice to have) |
+| O1 | Go-ahead to start coding | ✅ Given 2026-09-26 — Phase 1 started |
+| O2 | `main` as the default branch | ✅ Created by the owner; phase PRs target `main` |
+| O3 | Import the GitHub repo into Vercel (free Hobby account) | ⏳ After Phase 1 (owner's call) — no preview links until then |
+| O4 | **Impressum details**: your full name, a postal street address (a P.O. box is not enough) and an email address. If you'd rather not publish your home address, ask a lawyer about alternatives. *Not legal advice* — before launch, check the final legal texts with a reputable German generator or a lawyer. | ⏳ Later (before launch, Phase 6) |
+| O5 | Tagline spelling | ✅ **"Motion, made yours."** |
+| O6 | Occasional access to an iPhone, iPad or Mac for real-Safari checks (CI covers WebKit, not Safari's video encoders) | ⏳ Nice to have (Phase 2) |
 
 ---
 
@@ -37,7 +37,7 @@
 | B2 | Color stance | **Monochrome — color belongs to the work** (ADR-015) | You |
 | B3 | Logo | No existing logo → lowercase `ugoki` wordmark with **the Dot** as the playhead | You + Default |
 | B4 | 動き | Quiet secondary signature (footer, About line) | You |
-| B5 | Tagline | **"Motion, make yours."** | You |
+| B5 | Tagline | **"Motion, made yours."** | You |
 | B6 | Themes | Daylight landing with Cinema bands; Cinema (dark) gallery, editor and export | Default |
 
 ### C. Audience & scope
@@ -81,7 +81,7 @@
 
 ## What changed in the plan because of these answers
 
-- **Landing hero** is built around the tagline: headline *Motion, make yours.* plus a live stage where visitors type anything and see it animated in five template styles (`docs/02-experience.md` §4).
+- **Landing hero** is built around the tagline: headline *Motion, made yours.* plus a live stage where visitors type anything and see it animated in five template styles (`docs/02-experience.md` §4).
 - **No analytics**: removed Vercel Web Analytics and Speed Insights; success targets are verified through QA, lab benchmarks and hands-on tests (`docs/01-product.md` §9, ADR-016).
 - **Legal**: Impressum and Datenschutzerklärung in German with English versions; fonts self-hosted, no third-party requests at runtime (ADR-017).
 - **Brand**: ADR-015 accepted — Mona Sans, monochrome, the Dot wordmark, 動き as a quiet signature.

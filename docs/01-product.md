@@ -2,7 +2,7 @@
 
 > **Ugoki** (動き, Japanese for *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, export it — rendered entirely on your device.
 
-**Tagline:** *Motion, make yours.*
+**Tagline:** *Motion, made yours.*
 **Positioning:** *Art-directed motion, rendered on your device.*
 **Promise to the user:** *"I didn't know I could make something this good this easily."*
 

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+### Changed
+
+- Tagline is now **"Motion, made yours."** (owner decision; replaces "Motion, make yours.").
+- Phase 1 (foundations & engine core) started; `main` is the default branch; Vercel import deferred until after Phase 1.
+
 ## [0.0.2] — 2026-09-26 — Owner decisions recorded
 
 Still no application code — waiting for the explicit go-ahead.

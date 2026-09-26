@@ -94,7 +94,7 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 
 ### ADR-015 — Monochrome brand: "color belongs to the work"
 **Status**: Accepted · 2026-09-26 (owner decisions B1–B5)
-**Decision**: Ugoki's interface is black/white; the only color comes from templates (the playhead Dot borrows the playing template's accent). Brand typeface: Mona Sans v2 (Expanded display). Wordmark: lowercase `ugoki` with the Dot; 動き as a quiet secondary signature; tagline *Motion, make yours.*
+**Decision**: Ugoki's interface is black/white; the only color comes from templates (the playhead Dot borrows the playing template's accent). Brand typeface: Mona Sans v2 (Expanded display). Wordmark: lowercase `ugoki` with the Dot; 動き as a quiet secondary signature; tagline *Motion, made yours.*
 **Why**: The product is the hero; avoids documented AI-site clichés (near-black + single vermilion/acid accent; cream + serif + terracotta).
 **Alternatives considered**: a signature hue held back for CTAs (Revolut-style); other typefaces (Archivo; Funnel Display + Funnel Sans).
 

@@ -2,9 +2,10 @@
 
 Ugoki (動き, "movement") is a browser-based motion design tool: users pick an art-directed template, customize it (text, colors, images, timing, layout), preview it live and export video — **rendered entirely on the user's device**. Flow: **Choose → Customize → Preview → Export.**
 
-## Current phase: 0 — Planning
+## Current phase: 1 — Foundations & engine core
 
-- **Do not write application code until the user explicitly says to start.** The brief requires it. Until then, only planning documents change.
+- The owner gave the go-ahead to code on 2026-09-26. Work phase by phase as laid out in `ROADMAP.md`; don't start a new phase's scope without finishing (or explicitly re-planning) the current one.
+- Vercel import happens after Phase 1 (owner's call): until then there are no preview deployments — verify locally and in CI.
 - The owner's decisions (2026-09-26) are recorded in `USER_QUESTIONS.md` — a decision table plus open items (O1 = the go-ahead). New product/brand questions go there too; when answered, update the affected docs and ADRs.
 - Progress is tracked in `ROADMAP.md` (tick boxes as work lands).
 
@@ -30,7 +31,7 @@ Ugoki (動き, "movement") is a browser-based motion design tool: users pick an 
 3. **Preview = export.** One deterministic engine renders both. Templates are pure functions of `(props, format, t)`.
 4. **Licenses**: no GSAP (license forbids visual animation builders), no Remotion, no AGPL/GPL code in the bundle (e.g. gifski, ffmpeg.wasm core), fonts are SIL OFL only (no Fontshare/ITF fonts).
 5. **No stock imagery.** Defaults use the engine's procedural placeholders; marketing uses live renders.
-6. **Design stance** (decided — ADR-015): monochrome interface, "color belongs to the work", Mona Sans, the `ugoki` wordmark with the Dot, tagline **"Motion, make yours."** Respect the anti-pattern list in `docs/03-design-system.md` §11.
+6. **Design stance** (decided — ADR-015): monochrome interface, "color belongs to the work", Mona Sans, the `ugoki` wordmark with the Dot, tagline **"Motion, made yours."** Respect the anti-pattern list in `docs/03-design-system.md` §11.
 7. **Quality bar**: every template meets `docs/templates/00-foundations.md` §9 before it ships.
 8. **Free, no strings**: no sign-up, no payments, no watermark, no end card (exports only carry the `ugoki-` filename prefix), no AI features for now. **Budget is €0** — never add paid services, assets or APIs.
 9. **German private operator**: Impressum + Datenschutzerklärung pages are required (ADR-017); never add anything that would need a cookie banner.

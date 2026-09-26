@@ -1,6 +1,6 @@
 # ugoki
 
-**Motion, make yours.** Ugoki (動き — *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, and export it — rendered entirely on your device. Free, no sign-up, no uploads, no watermark, no tracking.
+**Motion, made yours.** Ugoki (動き — *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, and export it — rendered entirely on your device. Free, no sign-up, no uploads, no watermark, no tracking.
 
 **Choose → Customize → Preview → Export**
 
@@ -8,7 +8,7 @@
 
 ## Status
 
-**Phase 0 — Planning.** The complete plan is written and the owner's decisions are recorded in [`USER_QUESTIONS.md`](USER_QUESTIONS.md); no application code yet. Next step: the owner's go-ahead to start Phase 1.
+**Phase 1 — Foundations & engine core** (in progress). The plan is complete and the owner's decisions are recorded in [`USER_QUESTIONS.md`](USER_QUESTIONS.md). Progress: [`ROADMAP.md`](ROADMAP.md).
 
 ## The plan
 
