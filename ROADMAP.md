@@ -44,7 +44,7 @@
 - [x] Design tokens (Daylight/Cinema) in Tailwind `@theme`; Mona Sans self-hosted; first primitives (Button, SegmentedControl, Slider)
 
 **Spikes** (each ends with a short note in `docs/08-decisions.md` if it changes anything)
-- [x] Worker `requestAnimationFrame` + OffscreenCanvas WebGL2 — *verified in Chromium; Firefox and WebKit run the real-worker test in CI; real Safari via the Lab's device panel (O6)*
+- [x] Worker `requestAnimationFrame` + OffscreenCanvas WebGL2 — *worker rAF and OffscreenCanvas verified in Chromium, Firefox and WebKit (CI); WebGL2 in workers only in Chromium on CI's GPU-less runners; real Safari via the Lab's device panel (O6)*
 - [x] Turbopack worker bundling + dynamic template imports inside workers — *works; harfbuzzjs needs a browser alias for Node's `module`*
 - [x] HarfBuzz font loading — *gzip TTF + `DecompressionStream` (ADR-020)*
 - [ ] Float accumulation (`EXT_color_buffer_float`) on Safari/iOS; RGBA8 fallback quality — *Chromium ✓; Safari/iOS via O6; fallback quality is judged with the compositor (Phase 2)*
@@ -65,7 +65,7 @@
 - [x] **Rise** — all formats, 3 Looks, 3 energies, duration extremes, stress text
 
 **Exit**: Rise plays at 60 fps in the Lab in Chrome, Safari and Firefox; two renders are pixel-identical; golden frames run in CI.
-*Status*: 60 fps with four views measured in Chromium (≈ 0.1 ms recording per view per frame); determinism and golden frames are tested; Firefox/WebKit run the engine tests in CI; Safari needs the owner's device check (O6).
+*Status*: 60 fps with four views measured in Chromium (≈ 0.1 ms recording per view per frame); determinism and golden frames are tested; CI plays Rise in the Lab in Chromium, Firefox and WebKit and checks the frames reach the screen; real Safari needs the owner's device check (O6).
 
 ---
 
