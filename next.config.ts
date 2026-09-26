@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   poweredByHeader: false,
   images: { unoptimized: true },
+  turbopack: {
+    resolveAlias: {
+      // harfbuzzjs imports Node's `module` on a Node-only branch (Emscripten glue).
+      module: { browser: './src/lib/empty-module.ts' },
+    },
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
