@@ -48,7 +48,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'browser',
-          include: ['src/**/*.browser.test.ts'],
+          include: ['src/**/*.browser.test.ts', 'tests/templates/**/*.browser.test.ts'],
           browser: browser(),
         },
       },
