@@ -1,0 +1,41 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+/test-results
+/playwright-report
+/blob-report
+/.vitest-attachments
+__screenshots__/**/*-actual.png
+__screenshots__/**/*-diff.png
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# fonts pipeline downloads (outputs in public/fonts are committed)
+/.cache/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo

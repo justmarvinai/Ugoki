@@ -1,0 +1,130 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["**", "!node_modules", "!.next", "!public/fonts", "!**/__screenshots__"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noNonNullAssertion": "off"
+      }
+    },
+    "domains": {
+      "next": "recommended",
+      "react": "recommended"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/app/globals.css"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/engine/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react": "The engine is React-free so it can run in workers (CLAUDE.md).",
+                  "react-dom": "The engine is React-free so it can run in workers (CLAUDE.md).",
+                  "next": "The engine must not depend on Next.js (CLAUDE.md).",
+                  "motion": "The engine has its own motion helpers; Motion is for the UI only."
+                },
+                "patterns": [
+                  {
+                    "group": [
+                      "@/app/**",
+                      "@/features/**",
+                      "@/components/**",
+                      "@/stores/**",
+                      "@/templates/**",
+                      "@/workers/**",
+                      "next/**"
+                    ],
+                    "message": "src/engine must not import app, UI, stores, templates or workers (CLAUDE.md boundaries)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/templates/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react": "Templates are pure engine code.",
+                  "react-dom": "Templates are pure engine code.",
+                  "next": "Templates are pure engine code."
+                },
+                "patterns": [
+                  {
+                    "group": [
+                      "@/app/**",
+                      "@/features/**",
+                      "@/components/**",
+                      "@/stores/**",
+                      "@/lib/**",
+                      "@/workers/**",
+                      "@/engine/*/**"
+                    ],
+                    "message": "Templates may only import the public engine API from '@/engine' (CLAUDE.md boundaries)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}
