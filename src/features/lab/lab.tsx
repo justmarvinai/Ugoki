@@ -49,6 +49,23 @@ type Timeline = {
 
 type Arrangement = { rows: FormatId[][]; height: number } | { stack: true; width: number };
 
+type Placed = { kind: 'view'; format: FormatId; height: number } | { kind: 'break'; key: string };
+
+/** Views in display order, with line breaks between rows (views keep their keys and elements). */
+function placed(layout: Arrangement, views: readonly FormatId[]): Placed[] {
+  if ('stack' in layout) {
+    return views.map((format) => ({
+      kind: 'view' as const,
+      format,
+      height: layout.width / FORMATS[format].aspect,
+    }));
+  }
+  return layout.rows.flatMap((row, i) => [
+    ...(i > 0 ? [{ kind: 'break' as const, key: `break-${i}` }] : []),
+    ...row.map((format) => ({ kind: 'view' as const, format, height: layout.height })),
+  ]);
+}
+
 /** Largest frame height for which the views fit the stage, in one row or two. */
 function arrange(formats: readonly FormatId[], width: number, height: number): Arrangement {
   if (width < 640) return { stack: true, width };
@@ -353,34 +370,25 @@ export function Lab() {
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div ref={stage} className="min-h-[50vh] flex-1 overflow-auto p-4 md:p-6">
               {client && descriptor && stageSize.width > 0 && (
-                <div className="flex min-h-full flex-col items-center justify-center gap-6">
-                  {'stack' in layout
-                    ? views.map((format) => (
-                        <LabView
-                          key={format}
-                          client={client}
-                          format={format}
-                          height={layout.width / FORMATS[format].aspect}
-                          transparent={state?.transparent ?? false}
-                          guides={guides}
-                          stats={stats}
-                        />
-                      ))
-                    : layout.rows.map((row) => (
-                        <div key={row.join()} className="flex items-end justify-center gap-6">
-                          {row.map((format) => (
-                            <LabView
-                              key={format}
-                              client={client}
-                              format={format}
-                              height={layout.height}
-                              transparent={state?.transparent ?? false}
-                              guides={guides}
-                              stats={stats}
-                            />
-                          ))}
-                        </div>
-                      ))}
+                // One flat list keyed by format: layout changes (one row ↔ two, stacked on
+                // phones) must never remount a view — remounting re-attaches its canvas and
+                // leaves the worker's view without a design until the next state change.
+                <div className="flex min-h-full flex-wrap content-center items-end justify-center gap-x-6">
+                  {placed(layout, views).map((item) =>
+                    item.kind === 'break' ? (
+                      <div key={item.key} aria-hidden="true" className="h-0 basis-full" />
+                    ) : (
+                      <LabView
+                        key={item.format}
+                        client={client}
+                        format={item.format}
+                        height={item.height}
+                        transparent={state?.transparent ?? false}
+                        guides={guides}
+                        stats={stats}
+                      />
+                    ),
+                  )}
                 </div>
               )}
             </div>

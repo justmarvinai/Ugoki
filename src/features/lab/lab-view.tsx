@@ -52,7 +52,7 @@ export function LabView({ client, format, height, transparent, guides, stats }: 
   }, [client, format]);
 
   return (
-    <figure className="flex flex-col gap-2">
+    <figure className="my-3 flex flex-col gap-2">
       <div
         role="img"
         aria-label={`${info.label} preview`}
