@@ -100,9 +100,14 @@ export type {
 // Time
 export type { EnergyId, EnergyProfile } from './timeline/energy';
 export {
+  beatLength,
   readingTime,
   type SectionName,
+  type Sequence,
+  type SequenceBeat,
+  type SequenceOptions,
   type Structure,
+  sequence,
   type Timeline,
   type TimingSpec,
 } from './timeline/timeline';
