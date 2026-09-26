@@ -54,7 +54,10 @@ export type BuildContext<S extends ControlSchema> = {
   seed: number;
   /** Seeded random stream for an element key (stable across renders and exports). */
   rng(key: string): Rng;
-  /** A stagger gap scaled by the energy profile. */
+  /**
+   * A stagger gap for `in`/`out` windows, in Balanced seconds: after `tl.p` applies the energy's
+   * time scale, the real gap is `gap × energy.stagger`.
+   */
   stagger(gap: number): number;
   /** A travel distance scaled by the energy profile. */
   travel(distance: number): number;

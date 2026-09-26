@@ -319,7 +319,14 @@ export class CanvasDraw implements Draw {
     ctx.globalAlpha = this.opacity;
     ctx.globalCompositeOperation = this.composite;
     ctx.fillStyle = this.style(fill, 0, 0);
-    ctx.fillRect(0, 0, target.frame.width, target.frame.height);
+    // Cover the whole canvas: its pixel size is rounded, so the frame may not fill the last row.
+    const { width, height } = ctx.canvas;
+    ctx.fillRect(
+      0,
+      0,
+      Math.max(target.frame.width, width / this.s),
+      Math.max(target.frame.height, height / this.s),
+    );
   }
 
   group(options: GroupOptions, draw: (g: Draw) => void): void {

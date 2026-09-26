@@ -70,7 +70,9 @@ export function buildScene(
     transparent: state.transparent,
     seed,
     rng: (key) => rngFor(seed, key),
-    stagger: (gap) => gap * energy.stagger,
+    // `tl.p` already scales in/out windows by `energy.time`; compensate so real gaps are
+    // `gap × energy.stagger` (docs/04-motion-language.md §4).
+    stagger: (gap) => (gap * energy.stagger) / energy.time,
     travel: (distance) => distance * energy.travel,
   };
   const scene = template.build(context);
