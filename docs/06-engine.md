@@ -59,7 +59,7 @@ TypeScript snippets in this document are **contract sketches** for implementatio
 
 **Views** (ADR-022): the worker hosts any number of *views* — a canvas transferred from the page (the stage, the Lab's formats, later gallery tiles) — each with its own template, state and transport. Playback messages take a list of views so several play in lockstep. A hidden 1 × 1 *probe* view loads templates and sanitizes raw states.
 
-**Pixels come from the worker**: never read a transferred canvas back on the main thread (`drawImage`, `createImageBitmap`, `toDataURL`). Firefox then blocks the main thread until the worker answers (`gfx.offscreencanvas.snapshot-timeout-ms`, 10 s), and around a worker's first canvas frame the worker is waiting on the main thread itself — a 10 s freeze seen in CI. Stills, thumbnails and exports ask the worker (`snapshot`).
+**Pixels come from the worker**: never read a transferred canvas back on the main thread (`drawImage`, `createImageBitmap`, `toDataURL`). Firefox then blocks the main thread until the worker answers (`gfx.offscreencanvas.snapshot-timeout-ms`, 10 s), and right after the worker starts or resizes a canvas the worker can itself be waiting on the main thread — CI saw the page freeze for the full 10 s. Firefox's own snapshot paths (printing, screenshots) do the same, but on-screen display doesn't. Stills, thumbnails and exports ask the worker (`snapshot`).
 
 **Protocol** (typed, `src/engine/host/protocol.ts`; the client is `RenderClient`, the worker side `serveRenderWorker`):
 

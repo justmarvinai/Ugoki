@@ -10,9 +10,29 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * `page.goto`, working around Playwright's Firefox driver: about 1% of navigations never resolve
+ * although the page has loaded, and a second navigation settles it (microsoft/playwright#42183).
+ * A page that really didn't load still fails.
+ */
+async function open(page: Page, path: string): Promise<void> {
+  try {
+    await page.goto(path, { timeout: 15_000 });
+  } catch (error) {
+    const loaded = await page
+      .evaluate(
+        (target) => location.pathname === target && document.readyState === 'complete',
+        path,
+      )
+      .catch(() => false);
+    if (!loaded) throw error;
+    await page.goto(path);
+  }
+}
+
 test('home page shows the tagline', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/');
+  await open(page, '/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Motion,\s*made yours\./);
   await expect(page.getByRole('img', { name: 'Ugoki' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -40,11 +60,10 @@ function stageCoverage(page: Page, name: string): Promise<number | string> {
 }
 
 /**
- * Asserts that a view displays the worker's frames (the Paper background covers the whole view).
- * Waits for the view's render-cost meter before reading back: Firefox reads a worker-owned canvas
- * back by blocking the main thread until the worker answers (up to 10 s), and around a worker's
- * first canvas frame the worker waits for a setup task on the main thread — reading back then
- * stalls both until the timeout. A meter value means frames were presented and the page ran since.
+ * Asserts that a view displays the worker's frames (the Paper background covers the whole view):
+ * its render-cost meter reports frames, and its canvas reads back covered. In Firefox a read-back
+ * right after the worker started or resized the canvas can stall and come back empty (see
+ * `playwright.config.ts`), so the coverage is polled.
  */
 async function expectDisplayed(page: Page, name: string): Promise<void> {
   const caption = page
@@ -57,7 +76,7 @@ async function expectDisplayed(page: Page, name: string): Promise<void> {
 
 test('the Lab renders Rise in every format through the render worker', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/lab');
+  await open(page, '/lab');
   for (const name of [
     'Landscape preview',
     'Vertical preview',
@@ -130,7 +149,7 @@ test('the Lab renders Rise in every format through the render worker', async ({ 
 });
 
 test('PNG stills download with the ugoki- prefix', async ({ page }) => {
-  await page.goto('/lab');
+  await open(page, '/lab');
   await page.getByRole('button', { name: '16:9' }).click();
   await expect(page.getByText('Render worker · 1 view')).toBeVisible();
   await expectDisplayed(page, 'Landscape preview');

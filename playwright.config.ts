@@ -8,6 +8,14 @@ const chromiumLaunch = process.env.PW_CHROMIUM_PATH
   ? { executablePath: process.env.PW_CHROMIUM_PATH }
   : {};
 
+/**
+ * Firefox reads a worker-owned canvas back (the tests' pixel checks) by blocking the main thread
+ * until the worker answers, for up to this long (default 10 s). Right after the worker starts or
+ * resizes a canvas, the worker can itself be waiting on the main thread, so such a read stalls
+ * for the whole timeout. With a short one it comes back empty instead and the check polls again.
+ */
+const firefoxLaunch = { firefoxUserPrefs: { 'gfx.offscreencanvas.snapshot-timeout-ms': 250 } };
+
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
@@ -25,7 +33,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: chromiumLaunch } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: firefoxLaunch } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
 });
