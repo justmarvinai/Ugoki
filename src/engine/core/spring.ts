@@ -14,6 +14,8 @@ export const SPRINGS = {
   gentle: { stiffness: 120, damping: 20, mass: 1 },
   /** ζ=0.70, ~4.6% overshoot — UI, pills, bubbles, layout pushes. */
   snappy: { stiffness: 400, damping: 28, mass: 1 },
+  /** ζ≈0.56, ~12% overshoot — Punchy energy's entrances (motion language §4: ≤ 15%). */
+  lively: { stiffness: 500, damping: 25, mass: 1 },
   /** ζ≈0.35, ~31% overshoot — playful templates only. */
   bouncy: { stiffness: 300, damping: 12, mass: 1 },
   /** ζ≈1.03, no overshoot — slow, weighty settles. */
