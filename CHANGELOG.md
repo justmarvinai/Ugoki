@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-09-26 — Foundations & engine core
+
+The engine renders its first template. Nothing is public yet: the home page is a placeholder and the Lab is a review tool for preview deployments.
+
+### Added
+
+- **Rise** — the first template (*masked line reveal*): four formats, three Looks (Paper, Ink, Brand Bold), three energies, three exits, 3–12 s durations, left/center alignment, eyebrow and accent rule, the grotesk and editorial pairings. Lines rise inside their own masks, straighten from a skew while their words trail, and the hold breathes.
+- **The Lab** (`/lab`, local and preview deployments only): every format side by side with one transport, Looks, palettes incl. random brand colors, pairings, energies, durations, the template's controls, stress text, safe areas, transparent preview, render-cost meter, PNG stills, a JSON state editor and a readout of what the device can do.
+- **Engine**: a deterministic motion engine — named easings and closed-form springs (new `lively` spring for Punchy), staggers, seeded randomness, OKLCH color with contrast-safe palettes (21 library palettes, brand palettes from one color), timelines with energy profiles and reading-time warnings, sequences; a Canvas 2D renderer with per-glyph animation, trim paths, clips, gradients and images; HarfBuzz typography with balanced line breaking, auto-fit, optical margins and line masks; a render worker hosting many views with adaptive quality and atomic scene swaps.
+- **Fonts**: Mona Sans (served as Ugoki Sans), Inter and Instrument Serif, self-hosted, subsetted and built reproducibly.
+- Interface primitives: Button, SegmentedControl, Slider and Switch; icons; the `ugoki` wordmark; app icon.
+- Quality gates: 76 unit tests, 48 browser tests (Chromium, Firefox and WebKit in CI), 11 golden frames, end-to-end smoke tests, and a CI workflow that also fails the build if any route would need a server function.
+
+### Changed
+
+- Tagline is now **"Motion, made yours."** (owner decision; replaces "Motion, make yours.").
+- `main` is the default branch, and the repo is on Vercel with a preview deployment for every branch and PR.
+- Decisions ADR-018 – ADR-025 and the Phase 1 spike results (worker rendering, font delivery, transparent WebM, GIF encoder) are in `docs/08-decisions.md`.
+
 ## [0.0.2] — 2026-09-26 — Owner decisions recorded
 
 Still no application code — waiting for the explicit go-ahead.

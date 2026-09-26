@@ -55,23 +55,31 @@ TypeScript snippets in this document are **contract sketches** for implementatio
 | **Render worker** (one per page) | The stage canvas (editor) or all tile canvases (gallery), one WebGL2 context | Tiles use `bitmaprenderer` contexts fed with `ImageBitmap`s from the single shared renderer — browsers cap live WebGL contexts (~16), so we never create one per tile |
 | **Export worker** (per export) | An OffscreenCanvas at export resolution, encoders | Runs regardless of tab visibility; holds a Web Lock (see [`07-export.md`](07-export.md)) |
 
-**Clock**: the render worker drives playback with `requestAnimationFrame` on its OffscreenCanvas where available; otherwise the main thread posts ticks. *Phase 1 spike*: verify worker-rAF support across Chrome, Firefox and Safari.
+**Clock**: the render worker drives playback with `requestAnimationFrame` where the worker has it (Chromium verified in Phase 1; Firefox/WebKit in CI; Safari via the owner's device check), otherwise a 16 ms timer. Display frames closer than 10 ms are skipped, so 120/144 Hz screens render ~60–72 fps.
 
-**Protocol** (typed; Comlink or custom):
+**Views** (ADR-022): the worker hosts any number of *views* — a canvas transferred from the page (the stage, the Lab's formats, later gallery tiles) — each with its own template, state and transport. Playback messages take a list of views so several play in lockstep. A hidden 1 × 1 *probe* view loads templates and sanitizes raw states.
+
+**Pixels come from the worker**: never read a transferred canvas back on the main thread (`drawImage`, `createImageBitmap`, `toDataURL`). Firefox then blocks the main thread until the worker answers (`gfx.offscreencanvas.snapshot-timeout-ms`, 10 s), and right after the worker starts or resizes a canvas the worker can itself be waiting on the main thread — CI saw the page freeze for the full 10 s. Firefox's own snapshot paths (printing, screenshots) do the same, but on-screen display doesn't. Stills, thumbnails and exports ask the worker (`snapshot`).
+
+**Protocol** (typed, `src/engine/host/protocol.ts`; the client is `RenderClient`, the worker side `serveRenderWorker`):
 
 | Message | Direction | Payload |
 |---|---|---|
-| `init` | main → worker | OffscreenCanvas (transferred), DPR, capability probe results |
-| `load` | main → worker | `templateId` — the worker dynamic-imports the template module |
-| `setState` | main → worker | Resolved project state (props, format, duration, energy, palette, pairing, finish, layout, seed) + transient hover overrides |
-| `setAsset` | main → worker | `assetId`, `ImageBitmap` or parsed SVG (transferred) |
-| `play` / `pause` / `seek` / `setLoop` | main → worker | Playback control |
+| `attach` / `detach` | main → worker | View id, OffscreenCanvas (transferred), CSS size × DPR, `interactive` (report editor regions) |
 | `resize` | main → worker | CSS size × DPR |
-| `frame` | worker → main | `t`, render ms (for adaptive quality + timecode) |
-| `editables` | worker → main | Element registry for the current frame (throttled) — see §11 |
-| `error` | worker → main | Recoverable/unrecoverable errors |
+| `load` | main → worker | `templateId` (+ a raw state to sanitize/migrate, or a Look index) — the worker dynamic-imports the template |
+| `setState` | main → worker | Design state (props, format, duration, energy, palette, pairing, transparent, finish, seed, layout) — sanitized again in the worker |
+| `play` / `pause` / `seek` / `setLoop` / `setQuality` | main → worker | Playback control for a list of views; `seek` with `scrub` renders at the adaptive scale until 120 ms of stillness |
+| `snapshot` | main → worker | Renders a PNG still at a short-side resolution |
+| `probe` | main → worker | Capability probe (see `runtime/capabilities.ts`) |
+| `loaded` | worker → main | `TemplateDescriptor` (controls, Looks, formats, palettes, available pairings) + sanitized state |
+| `built` | worker → main | Duration, timeline sections, readability warnings, build ms |
+| `frame` | worker → main | `t`, playing, recording ms, render scale (timecode + cost meter) |
+| `regions` | worker → main | Movable/editable regions for the current frame (≤ 10 Hz while playing) — see §11 |
+| `snapshot` / `capabilities` | worker → main | PNG blob / probe results |
+| `error` | worker → main | View, phase (`load` · `build` · `render`), message |
 
-State changes rebuild the Scene **off to the side** and swap it in atomically, so the stage never shows a half-built frame.
+State changes rebuild the Scene **off to the side** (at most once per frame per view) and swap it in atomically, so the stage never shows a half-built frame; a build that throws keeps the last good scene. Asset transfer (`setAsset`) arrives with image controls in Phase 2.
 
 ---
 
@@ -124,15 +132,18 @@ export default defineTemplate({
 | Field | Provides |
 |---|---|
 | `props` | Validated control values with defaults applied |
-| `frame` | Design size in px, `u` (1% of short side), `format`, safe-area rects (`titleSafe`, `actionSafe`, `socialSafe`) |
-| `palette` | Resolved roles (`bg`, `fg`, `muted`, `accent`, `accent2`, `accent3`, `surface`) as color objects |
-| `fonts` | `display` and `text` font handles for the chosen pairing |
-| `energy` | Profile: `time`, `stagger`, `travel`, `overshoot`, `shutter`, preferred curves |
-| `stagger(gap)` | `gap × energy.stagger` |
-| `text` | Text engine (§7) |
-| `assets` | Decoded images/logos/placeholders by control key |
-| `rng(key)` | Seeded RNG stream for an element key (seed = template seed ⊕ hash(key)) |
-| `ui` | UI Kit components (for UI templates) |
+| `frame` | Design size (short side = 1080 units, ADR-021), `u` (1% of short side = 10.8), `format`, `vertical`, center, safe-area rects (`safe.title`, `safe.action`, `safe.social`) |
+| `palette` | `roles` (`bg`, `fg`, `muted`, `accent`, `accent2`, `accent3`, `surface`) as color objects, `dark` |
+| `pairing` | `display` and `text` font roles (font id, italic font, weight, width, tracking, line height, features) |
+| `energy` | Profile: `time`, `stagger`, `travel`, `overshoot`, `enter`/`move` curves, `spring`, `shutter`, `blur` |
+| `timeline` | The resolved timeline (§5) — also passed to `render` as `tl` |
+| `stagger(gap)` | A gap for `in`/`out` windows: `gap × energy.stagger ÷ energy.time`, so after `tl.p` scales windows by time the real gap is `gap × energy.stagger` |
+| `travel(distance)` | `distance × energy.travel` |
+| `text` | Text engine (§7): `layout`, `line`, `face`, `hasFont` |
+| `transparent` | The background will be left transparent (alpha export/preview) |
+| `seed`, `rng(key)` | Template seed (user seed mixed with the template id) and a seeded RNG stream per element key |
+| `assets` | Decoded images/logos/placeholders by control key (Phase 2) |
+| `ui` | UI Kit components (for UI templates, Phase 3) |
 
 ### Render context
 
@@ -159,7 +170,7 @@ Rules: `render` is **pure and synchronous** — no allocation-heavy work, no asy
 | `stagger(i, n, { each, pattern, seed })` | delay for item *i* | Patterns: forward, reverse, center-out, edges-in, random, accelerating |
 | `wave(t, i, { period, amplitude, phase })` | traveling sine | Breathing, accordion, width waves |
 | `stepped(t, fps)` | quantized time | Grain, scramble, flaps, pixel steps |
-| `sequence(items, { beat, min, max, pace })` | beat list + total | Auto duration for sequences |
+| `sequence(items, { pace, gap, fit })` · `beatLength(text, pace)` | beat list + total + `at(t)` | Auto duration for sequences; `fit` scales beats to a fixed duration within 0.3–1.2 s (implemented in Phase 1) |
 | `beats(bpm)` | beat grid | Hype, Punch |
 | `cut(t)` | coverage helper | Transitions: guarantees the ≥ 50 ms full-coverage plateau |
 | `logZoom`, `inertialScroll`, `gravityBounce`, `minimumJerk`, `areaEase` | special curves | See motion language §3 |
@@ -171,14 +182,14 @@ Easing names map 1:1 to [`04-motion-language.md`](04-motion-language.md) §3.
 
 ## 6. Draw API
 
-A thin, allocation-conscious layer over Canvas 2D that records FX boundaries for the compositor.
+A thin, allocation-conscious layer over Canvas 2D that records FX boundaries for the compositor. Implemented in Phase 1 (`draw/canvas-draw.ts`): `fill`, `group`, `rect`, `roundRect`, `circle`, `line`, `path`, `text`, `image`, `clip`, `movable`, `editable`. Planned with the compositor (Phase 2): `ellipse`, `polygon`, `mask`, `fx`, `plane3d`, conic gradients, patterns, `g.cache`. Until then group opacity and blend modes apply per primitive rather than to isolated layers (ADR-023). Circles start at 12 o'clock so trim paths draw on from the top; gradients get OKLab-interpolated intermediate stops (premultiplied, so fades to transparent never darken). The drawer keeps its own transform stack and sets one transform per primitive — per-glyph animation is one `setTransform` and one cached-path fill per glyph; static text draws as one cached path per line.
 
 | Call | Purpose |
 |---|---|
 | `fill(color)` | Full-frame background |
 | `group({ x, y, scale, rotate, skewX, skewY, origin, opacity, blend }, fn)` | Transform/opacity/blend scope |
 | `rect`, `roundRect`, `circle`, `ellipse`, `line`, `polygon`, `path(pathLike, paint)` | Shapes; `paint = { fill?, stroke?: { color, width, cap, join, dash?, trim?: [a, b] } }` |
-| `text(run, opts)` | Draws a shaped run; `opts.glyph?: (glyph, i) => GlyphTransform` for per-glyph motion; `opts.outline?` for stroke text |
+| `text(block \| line, opts)` | Draws shaped text at `opts.x/y`; `opts.glyph?: (glyph, line) => GlyphTransform \| null` for per-glyph motion (null hides the glyph; spaces are skipped); `opts.outline?` for stroke text (outline-only unless `fill` is given) |
 | `image(asset, dest, { fit, focal, radius, opacity, adjust })` | Cover/contain with focal point; `adjust` = saturation/contrast/brightness (done in compositor when animated) |
 | `clip(shape, fn)` | Hard clip (line masks, shape masks) |
 | `mask(matteFn, contentFn, { mode: 'alpha' \| 'luma', invert })` | Track matte (compositor) |
@@ -203,10 +214,10 @@ Why not `fillText`? Safari lacks `fontStretch`/`fontKerning`, `letterSpacing` ne
 3. **Shape**: HarfBuzz with features (`kern`, `liga`, `calt`, optional `tnum`, `ss0x`) → glyph ids, clusters, advances, offsets.
 4. **Break lines**: word-boundary candidates; user newlines are hard breaks; **balanced** breaking (minimize the variance of line widths, avoid a single-word last line, prefer breaks after punctuation).
 5. **Fit**: binary-search font size within `[min, max]` to satisfy `maxWidth` and `maxLines`; report overflow to the inspector.
-6. **Layout result**: `TextLayout { lines[{ glyphs[{ id, x, y, advance, cluster, grapheme, word, span }], width, baseline, ascent, descent, bounds, maskRect }], bounds, metrics }`.
+6. **Layout result** (`text/types.ts`): `TextBlock { lines[{ glyphs[{ id, face, x, y, advance, size, text, index, word, line, emphasis, ink, fallback }], words, x, baseline, width, ink, mask }], size, width, height, ink, overflow, capHeight }`. Vertical metrics are optical: the block's top is the first line's cap height and `height` ends at the last baseline. Left/right-aligned lines get optical margins (ink, not side bearings, touches the edge). Line **masks** share one height for the whole block — the block's ink extremes (at least cap height) plus 8% of the size — so lines rise in unison and descenders never clip at rest.
 7. **Draw**: each glyph's outline (`hb.Font.drawGlyph` → `Path2D`, cached by `font:glyph:axes`) is filled/stroked with its transform. Static runs can be cached as a single `Path2D`.
 
-**Variable axes**: `hb.Font.setVariations({ wght, wdth, opsz, … })`; animated axes are quantized (e.g. `wdth` 0.5, `wght` 5 units) so outline caches stay small. A **width solver** (binary search on `wdth`) makes a line hit an exact target width (*Stretch*).
+**Variable axes**: `hb.Font.setVariations({ wght, wdth, opsz, … })`; axis values are clamped and quantized (`wght` 1, `wdth` 0.25, `opsz` 1) so animated axes share cached instances and outlines. `opsz: 'auto'` maps the rendered size to the optical-size axis (`opsz = size × 0.6`, ADR-021). A **width solver** (binary search on `wdth`) makes a line hit an exact target width (*Stretch*, Phase 3).
 
 **Fallback**: characters the font can't render (glyph 0) — emoji, CJK typed into a Latin font — fall back to native `fillText` with a system font stack at the same size, laid out in the same line. These runs can differ slightly between operating systems (documented in the editor tooltip).
 
@@ -250,7 +261,7 @@ Responsibilities:
 ## 10. Player & adaptive quality
 
 - States: stopped · playing · scrubbing · paused. Loop on by default in the editor.
-- **Playing**: 1 motion-blur sample (2 on fast machines); render scale adapts to hold 60 fps — the scale steps between 1.0 × DPR and 0.5 based on a rolling average of frame cost, with hysteresis to avoid flicker.
+- **Playing**: 1 motion-blur sample (2 on fast machines); the render scale steps 1 → 0.75 → 0.5 (× DPR, capped at 2160p) to hold ~60 fps (`runtime/quality.ts`). Signals: the recording cost of `render` (budget 8 ms per frame shared by all views) and the achieved frame interval (> 22 ms = struggling), which also catches rasterization falling behind. Drops need 12 samples and 500 ms since the last change; stepping back up needs sustained headroom (interval < 18 ms, projected cost < 60% of budget) and a cooldown that doubles after every drop (2 s → 16 s).
 - **Paused/scrubbing**: a full-quality frame (full DPR, preview motion-blur samples) is rendered after 120 ms of stillness — what you see when paused is exactly what will export.
 - Gallery scheduler: a per-frame time budget (e.g. 6 ms) shared round-robin across visible tiles; off-screen tiles stop; tile render scale ≤ 1.5 × CSS size.
 
@@ -258,7 +269,7 @@ Responsibilities:
 
 ## 11. Editing overlay & hit testing
 
-- During render, `editable()` and `movable()` register `{ id, controlKey, bounds (frame units), movable, anchor }`. The worker posts the registry for the current frame (throttled to ~10 Hz while playing, immediately when paused).
+- During render, `editable()` and `movable()` register `{ id: 'movable:<group>' | 'editable:<controlKey>', kind, target, bounds }` with bounds transformed to frame units (repeated registrations of the same target are unioned). Only views attached as `interactive` collect regions. The worker posts the registry for the current frame (≤ 10 Hz while playing, immediately when paused).
 - The main thread draws selection outlines, handles and snapping guides in a DOM/SVG overlay aligned to the stage — crisp at any zoom and fully accessible.
 - Dragging updates `layout[groupId]` in the project store (transient during drag, one history step on release). Snapping: frame center lines, safe-area edges, other groups' edges (6 px threshold).
 - Clicking an editable text focuses its inspector field (and, in v1.x, opens inline editing).
@@ -289,4 +300,4 @@ Responsibilities:
 
 ## 14. The Lab (`/lab`, development only)
 
-The template workbench: choose a template → all four formats side by side · scrubber with frame stepping · energy toggles · duration extremes · stress-text presets (1 word, max length, diacritics, numbers) · palette cycling incl. random brand colors · safe-area overlays · render-cost meter per frame · "capture golden frames" · props JSON editor. Every template is built and reviewed here before it reaches the gallery.
+The template workbench: choose a template → all formats side by side (one or two rows by available space, stacked on phones) · one transport for all views (play, frame steps ←/→, Shift = 1 s, Home/End, loop `L`, scrubber showing lead · in · hold · out · tail) · Looks · palettes incl. random brand colors (Light/Dark/Bold) · pairings · energies · duration slider with min/max · the template's own controls · stress-text presets (1 word, max length, diacritics, numbers, hard lines) · safe areas `G` (title, action, social zone) · transparent preview on a checkerboard · adaptive/full render quality · render-cost meter (ms, fps, scale) per view · PNG stills at 1080p (`ugoki-` prefix) · JSON state editor · a *This device* capability readout. Every template is built and reviewed here before it reaches the gallery. Available on local and preview deployments (404 on production, ADR-024); `?worker=0` renders on the main thread. Golden frames are captured by `pnpm test:golden --update`, not from the Lab.

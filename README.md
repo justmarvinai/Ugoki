@@ -1,6 +1,6 @@
 # ugoki
 
-**Motion, make yours.** Ugoki (動き — *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, and export it — rendered entirely on your device. Free, no sign-up, no uploads, no watermark, no tracking.
+**Motion, made yours.** Ugoki (動き — *movement*) is a browser-based motion design tool. Pick a professionally art-directed template, make it yours, preview it live, and export it — rendered entirely on your device. Free, no sign-up, no uploads, no watermark, no tracking.
 
 **Choose → Customize → Preview → Export**
 
@@ -8,7 +8,20 @@
 
 ## Status
 
-**Phase 0 — Planning.** The complete plan is written and the owner's decisions are recorded in [`USER_QUESTIONS.md`](USER_QUESTIONS.md); no application code yet. Next step: the owner's go-ahead to start Phase 1.
+**Phase 1 — Foundations & engine core** is built (version 0.1.0, in review): the deterministic engine, HarfBuzz typography, the render worker, the first template (*Rise*) and the template Lab. The owner's decisions are recorded in [`USER_QUESTIONS.md`](USER_QUESTIONS.md). Progress: [`ROADMAP.md`](ROADMAP.md).
+
+## Run it locally
+
+Requirements: Node 24 and pnpm 10.34.5 (`corepack enable` picks it up from `package.json`).
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:3000 — the template Lab is at /lab
+pnpm check        # typecheck + lint + unit tests
+pnpm test:browser # engine tests in a real browser (needs Playwright's Chromium: pnpm exec playwright install chromium)
+```
+
+More commands in [CLAUDE.md](CLAUDE.md#commands).
 
 ## The plan
 

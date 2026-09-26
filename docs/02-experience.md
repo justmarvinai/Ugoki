@@ -53,7 +53,7 @@ Minimal, bold, "barely there". Seven moments, alternating Daylight and Cinema ba
 
 1. **Nav** — wordmark left; *Templates* and a quiet *Start creating* right. Solid background with a hairline appears after scrolling (no glass effect).
 2. **Hero** (Daylight, full viewport) — built around the tagline
-   - Headline **`Motion, make yours.`** in `display-xxl` (Mona Sans Expanded 800). The word *Motion,* breathes along the width axis — a CSS variable-font animation: no JavaScript, instant, paused for reduced motion.
+   - Headline **`Motion, made yours.`** in `display-xxl` (Mona Sans Expanded 800). The word *Motion,* breathes along the width axis — a CSS variable-font animation: no JavaScript, instant, paused for reduced motion.
    - One small line beneath: `Art-directed motion templates. Customize in seconds, export in your browser.`
    - The **hero stage**: a wide, borderless live canvas where the engine cycles every ~2.4 s through five real template styles (Rise → Stretch → Echo → Decode → Focus).
    - **Make it yours**: a single inline field under the stage, placeholder `Type anything` — as the visitor types, all five styles animate *their* words. The tagline, taken literally. The text carries into the gallery's personalization field.

@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/*
+ * Ugoki design tokens — docs/03-design-system.md.
+ * Two monochrome themes: Daylight (marketing) and Cinema (gallery, editor, lab).
+ * Color belongs to the work: the interface itself never adds hue except functional states.
+ */
+
+:root,
+[data-theme="daylight"] {
+  --bg: #ffffff;
+  --bg-2: #f2f2f2;
+  --bg-3: #e8e8e8;
+  --bg-4: #dcdcdc;
+  --fg: #0a0a0a;
+  --fg-2: #4a4a4f;
+  --fg-3: #737378;
+  --line: rgb(10 10 10 / 0.1);
+  --line-strong: rgb(10 10 10 / 0.18);
+  --focus: #0a5cff;
+  --select: #2f6bff;
+  --danger: #d93036;
+  --warning: #a35f00;
+  --success: #1e7f4f;
+  --dot: var(--fg);
+  color-scheme: light;
+}
+
+[data-theme="cinema"] {
+  --bg: #0a0a0b;
+  --bg-2: #111113;
+  --bg-3: #18181b;
+  --bg-4: #222226;
+  --fg: #f5f5f4;
+  --fg-2: #a1a1a6;
+  --fg-3: #7c7c82;
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.16);
+  --focus: #4d8dff;
+  --select: #2f6bff;
+  --danger: #e5484d;
+  --warning: #ffb224;
+  --success: #30a46c;
+  --dot: var(--fg);
+  color-scheme: dark;
+}
+
+@theme {
+  --color-*: initial;
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-bg-3: var(--bg-3);
+  --color-bg-4: var(--bg-4);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-focus: var(--focus);
+  --color-select: var(--select);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-dot: var(--dot);
+  --color-transparent: transparent;
+
+  --font-sans: var(--font-ugoki-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ugoki-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --breakpoint-3xl: 1920px;
+  --breakpoint-4xl: 2560px;
+
+  /* Motion tokens — docs/04-motion-language.md §3 (UI uses the same curves as templates). */
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.83, 0, 0.17, 1);
+  --ease-swift: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-drift: cubic-bezier(0.37, 0, 0.63, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-micro: 120ms;
+  --duration-small: 200ms;
+  --duration-medium: 320ms;
+  --duration-large: 500ms;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

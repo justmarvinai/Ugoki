@@ -2,7 +2,7 @@
 
 > Ugoki's visual identity and interface system: brand, voice, color, type, layout, components, UI motion and the rules that keep it from looking generic.
 
-Status: **decided** (2026-09-26) — typeface Mona Sans, monochrome color stance, `ugoki` wordmark with the Dot, 動き as a quiet signature, tagline *Motion, make yours.* (see [`USER_QUESTIONS.md`](../USER_QUESTIONS.md), ADR-015).
+Status: **decided** (2026-09-26) — typeface Mona Sans, monochrome color stance, `ugoki` wordmark with the Dot, 動き as a quiet signature, tagline *Motion, made yours.* (see [`USER_QUESTIONS.md`](../USER_QUESTIONS.md), ADR-015).
 
 ---
 
@@ -34,7 +34,7 @@ References, not templates: Apple (the product is the hero, the interface recedes
 - **The Dot's color**: ink/white by default; when a template plays, it **takes that template's accent** — the only color the interface ever shows is borrowed from the work.
 - **Wordmark motion**: on first paint the letters expand from condensed (wdth 75) to expanded (wdth 125) on a `snappy` spring while the Dot drops in and settles. On hover (footer), the letters breathe along the width axis.
 - **動き** (the Japanese word) is a quiet secondary signature: footer and About line only ("Ugoki — 動き — movement"), set in M PLUS 1 or Noto Sans JP (subset to two glyphs). Not part of the logo.
-- **Tagline**: *Motion, make yours.* — the landing headline; the hero stage makes it literal (visitors type their own words and watch them animate).
+- **Tagline**: *Motion, made yours.* — the landing headline; the hero stage makes it literal (visitors type their own words and watch them animate).
 
 ---
 
@@ -44,7 +44,7 @@ References, not templates: Apple (the product is the hero, the interface recedes
 
 | Do | Don't |
 |---|---|
-| "Motion, make yours." | "Unleash your creativity with AI-powered motion!" |
+| "Motion, made yours." | "Unleash your creativity with AI-powered motion!" |
 | "Pick a starting point." | "Browse our extensive library of stunning templates" |
 | "Done. 6.2 MB, ready to post." | "Your export has completed successfully!" |
 | "Your browser can't make MP4s. Try WebM, or open Ugoki in Chrome or Safari." | "Error: codec not supported" |
@@ -104,7 +104,9 @@ The dark-footage **checkerboard** (transparent stage) uses `#141416`/`#1B1B1E` s
 
 **One family: Mona Sans v2** (SIL OFL, self-hosted from the GitHub build for `opsz` and the Mono), plus **Mona Sans Mono** for timecodes and numeric readouts. The width axis is the brand's voice: Expanded for display, Normal for text and UI.
 
-To keep a distinct voice (Mona Sans is also GitHub's typeface): Expanded widths for display, custom-kerned wordmark, and a brand spike in Phase 1 to choose stylistic alternates.
+To keep a distinct voice (Mona Sans is also GitHub's typeface): Expanded widths for display, custom-kerned wordmark, and a brand spike with the landing page (Phase 6) to choose stylistic alternates.
+
+Our subsetted builds are served under the family names **Ugoki Sans** and **Ugoki Mono**: "Mona" is a Reserved Font Name, which modified versions may not use (ADR-019). Credits and the OFL text ship with them. The interface loads them with `next/font/local` (axes: `wght` 350–850, `wdth` 100–125).
 
 ### Marketing scale (Daylight)
 

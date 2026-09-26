@@ -1,0 +1,52 @@
+{
+  "name": "ugoki",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Motion, made yours. A browser-based motion design tool with on-device rendering.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && node scripts/assert-static.mjs",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "test": "vitest run --project unit",
+    "test:browser": "vitest run --project browser",
+    "test:golden": "vitest run --project golden",
+    "test:watch": "vitest --project unit",
+    "test:e2e": "playwright test",
+    "fonts": "python3 scripts/fonts.py",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.8.0",
+    "harfbuzzjs": "1.6.2",
+    "mediabunny": "1.60.0",
+    "motion": "13.4.4",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitest/browser-playwright": "5.0.2",
+    "babel-plugin-react-compiler": "1.0.0",
+    "playwright": "1.63.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

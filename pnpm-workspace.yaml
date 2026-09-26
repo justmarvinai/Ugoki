@@ -1,0 +1,5 @@
+# pnpm 10 only runs dependency build scripts that are explicitly allowed.
+onlyBuiltDependencies: []
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

@@ -1,0 +1,74 @@
+/**
+ * Render worker protocol (docs/06-engine.md §3). The worker hosts any number of *views* — a
+ * canvas transferred from the page (the editor stage, the Lab's four formats, gallery tiles) —
+ * each with its own template, state and transport.
+ */
+
+import type { EditableRegion } from '../draw/types';
+import type { Capabilities } from '../runtime/capabilities';
+import type { TemplateDescriptor } from '../template/describe';
+import type { DesignState } from '../template/state';
+import type { Section, SectionName, TimelineWarning } from '../timeline/timeline';
+
+export type ViewId = string;
+
+/** CSS size of a view's canvas and the device pixel ratio. */
+export type ViewSize = { width: number; height: number; dpr: number };
+
+export type QualityMode = 'adaptive' | 'full';
+
+export type HostMessage =
+  | {
+      type: 'attach';
+      view: ViewId;
+      canvas: OffscreenCanvas;
+      size: ViewSize;
+      /** Editor stage: report movable/editable regions for the overlay. */
+      interactive?: boolean;
+    }
+  | { type: 'detach'; view: ViewId }
+  | { type: 'resize'; view: ViewId; size: ViewSize }
+  /**
+   * Loads a template into a view. `state` (e.g. from a share link or a draft) is sanitized and
+   * migrated; without it the view starts from the Look at `look`.
+   */
+  | { type: 'load'; view: ViewId; templateId: string; state?: unknown; look?: number }
+  /** Replaces the view's design state (sanitized in the worker). */
+  | { type: 'setState'; view: ViewId; state: DesignState }
+  | { type: 'play'; views: readonly ViewId[] }
+  | { type: 'pause'; views: readonly ViewId[] }
+  /** `scrub` renders at the adaptive scale until 120 ms of stillness. */
+  | { type: 'seek'; views: readonly ViewId[]; t: number; scrub?: boolean }
+  | { type: 'setLoop'; views: readonly ViewId[]; loop: boolean }
+  | { type: 'setQuality'; views: readonly ViewId[]; mode: QualityMode }
+  /** Renders a still at `shortSide` resolution (PNG). */
+  | { type: 'snapshot'; requestId: number; view: ViewId; t: number; shortSide: number }
+  /** Asks what the rendering side can do; answered with `capabilities`. */
+  | { type: 'probe' };
+
+export type FrameInfo = {
+  view: ViewId;
+  t: number;
+  playing: boolean;
+  /** Milliseconds spent in `render` (recording). */
+  cost: number;
+  /** Render scale relative to full quality (1, 0.75, 0.5). */
+  quality: number;
+};
+
+export type WorkerMessage =
+  | { type: 'loaded'; view: ViewId; template: TemplateDescriptor; state: DesignState }
+  | {
+      type: 'built';
+      view: ViewId;
+      duration: number;
+      sections: Readonly<Record<SectionName, Section>>;
+      warnings: readonly TimelineWarning[];
+      /** Build time in milliseconds. */
+      cost: number;
+    }
+  | ({ type: 'frame' } & FrameInfo)
+  | { type: 'regions'; view: ViewId; regions: readonly EditableRegion[] }
+  | { type: 'snapshot'; requestId: number; blob: Blob | null; error?: string }
+  | { type: 'capabilities'; capabilities: Capabilities }
+  | { type: 'error'; view: ViewId | null; phase: 'load' | 'build' | 'render'; message: string };

@@ -37,7 +37,7 @@ Platform facts verified 2026-09-26 (browser source, MDN compat data v8.1.3, Medi
 | Firefox desktop | ✓ 130+ | VP8, VP9, AV1; H.264 via OS/OpenH264 (varies on Linux) | Opus, Vorbis (no AAC) | |
 | Firefox Android | ✗ | — | — | Offer GIF, PNG sequence, Still |
 
-- **WebCodecs' own `alpha: "keep"` is implemented by no engine.** Mediabunny encodes alpha itself: it splits color and alpha on the CPU in a blob-URL worker, encodes the alpha plane with a second VideoEncoder, and writes standard WebM alpha (BlockAdditional, `AlphaMode=1`). Works wherever VP9 encoding works → requires CSP `worker-src blob:`.
+- **WebCodecs' own `alpha: "keep"` is implemented by no engine.** Mediabunny encodes alpha itself: it splits color and alpha on the CPU in a blob-URL worker, encodes the alpha plane with a second VideoEncoder, and writes standard WebM alpha (BlockAdditional, `AlphaMode=1`). Works wherever VP9 encoding works → requires CSP `worker-src blob:`. *Phase 1 spike (CI, all three engines)*: Firefox's `isConfigSupported({ alpha: 'keep' })` is true for VP9 — the only engine with native alpha encoding; Chromium and WebKit report false. Mediabunny 1.60's round trip keeps clear, opaque and anti-aliased alpha in all three (`tests/spikes/webm-alpha.browser.test.ts`); file sizes vary with each encoder's rate control (8–121 KB for the same 60 frames), so export presets should set bitrates explicitly.
 - **The only codec pair every engine encodes natively is WebM (VP9 + Opus)** — our universal fallback.
 - MP4 with audio (later) needs `@mediabunny/aac-encoder` (WASM, ~254 KB gz, LGPL code inside, lazy-loaded) on Firefox, Chrome/Linux and Safari < 26.
 - HEVC with alpha cannot be produced through WebCodecs anywhere.
@@ -90,7 +90,7 @@ Motion graphics have flat colors and sharp edges; the table errs high to avoid b
 
 ## 5. GIF
 
-- Encoder: `gifenc` (MIT, tiny, fast, unmaintained) or `modern-gif` (MIT, maintained) — decided by a Phase 2 spike on quality and speed. gifski (best quality) is AGPL and excluded.
+- Encoder: **`modern-gif`** (MIT, maintained; ADR-025). The Phase 1 spike measured it against `gifenc` on real frames: 10× smaller files on gradients (global palette + frame differencing) and higher fidelity, at ~21–30 ms/frame for 480 × 270 in a worker. Its built-in dithering stalls in 2.1.0 — if banding shows up in QA, dither with our own ordered-dither pre-pass. gifski (best quality) is AGPL and excluded.
 - Global palette per export (256 colors) built from sampled frames — templates use few colors, so global palettes avoid per-frame flicker; optional ordered dithering for gradients.
 - Defaults: width 640 (480/640/720), 20 fps (15/20/25), infinite loop; motion blur off (it only adds colors).
 - Size guard: estimate and warn above ~15 MB.

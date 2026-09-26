@@ -1,0 +1,161 @@
+/** Draw API types (docs/06-engine.md §6). Coordinates are design units (1080p px), y down. */
+
+import type { Color } from '../core/color';
+import type { Rect } from '../core/math';
+import type { FrameSpec } from '../template/formats';
+import type { Glyph, TextBlock, TextLine } from '../text/types';
+
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'difference'
+  | 'lighter';
+
+export type GradientStop = { offset: number; color: Color };
+
+export type Gradient =
+  | {
+      kind: 'linear';
+      x0: number;
+      y0: number;
+      x1: number;
+      y1: number;
+      stops: readonly GradientStop[];
+    }
+  | {
+      kind: 'radial';
+      cx: number;
+      cy: number;
+      r: number;
+      /** Inner circle (defaults to the center, radius 0). */
+      fx?: number;
+      fy?: number;
+      fr?: number;
+      stops: readonly GradientStop[];
+    };
+
+export type Fill = Color | Gradient;
+
+export type Stroke = {
+  color: Color;
+  width: number;
+  cap?: CanvasLineCap;
+  join?: CanvasLineJoin;
+  dash?: readonly number[];
+  /** Draw only the [start, end] fraction of the path length (trim path, 0..1). */
+  trim?: readonly [number, number];
+};
+
+export type Paint = { fill?: Fill; stroke?: Stroke; opacity?: number };
+
+export type Transform = {
+  x?: number;
+  y?: number;
+  scale?: number;
+  scaleX?: number;
+  scaleY?: number;
+  /** Degrees. */
+  rotate?: number;
+  /** Degrees. */
+  skewX?: number;
+  /** Degrees. */
+  skewY?: number;
+  /** Pivot for scale/rotate/skew in local coordinates. */
+  originX?: number;
+  originY?: number;
+};
+
+export type GroupOptions = Transform & { opacity?: number; blend?: BlendMode };
+
+/** Per-glyph animation state; returning null skips the glyph. */
+export type GlyphTransform = {
+  dx?: number;
+  dy?: number;
+  scale?: number;
+  scaleX?: number;
+  scaleY?: number;
+  rotate?: number;
+  skewX?: number;
+  opacity?: number;
+  /** Pivot relative to the glyph origin (default: horizontal center of the advance, baseline). */
+  originX?: number;
+  originY?: number;
+  color?: Fill;
+};
+
+export type TextDrawOptions = {
+  fill?: Fill;
+  outline?: Stroke;
+  /** Offset of the block/line origin. */
+  x?: number;
+  y?: number;
+  opacity?: number;
+  /** Per-glyph animation. Glyphs are visited in reading order. */
+  glyph?: (glyph: Glyph, line: TextLine) => GlyphTransform | null;
+};
+
+/** Path commands in design units (SVG-like). */
+export type PathCommand =
+  | readonly ['M', number, number]
+  | readonly ['L', number, number]
+  | readonly ['Q', number, number, number, number]
+  | readonly ['C', number, number, number, number, number, number]
+  | readonly ['Z'];
+
+export type PathData = readonly PathCommand[];
+
+export type ClipShape = Rect | { rect: Rect; radius: number } | { path: PathData };
+
+/** A decoded image (ImageBitmap, OffscreenCanvas, VideoFrame…) with its pixel size. */
+export type ImageAsset = {
+  readonly source: CanvasImageSource;
+  readonly width: number;
+  readonly height: number;
+};
+
+export type ImageOptions = {
+  /** `cover` fills `dest` and crops (default); `contain` fits inside it. */
+  fit?: 'cover' | 'contain';
+  /** Point of the image kept in view when cropping (0..1, default center). */
+  focal?: { x: number; y: number };
+  radius?: number;
+  opacity?: number;
+};
+
+export type EditableKind = 'movable' | 'editable';
+
+export type EditableRegion = {
+  id: string;
+  kind: EditableKind;
+  /** Control key focused by clicking the region (editable) or the movable group id. */
+  target: string;
+  /** Axis-aligned bounds in frame (design) coordinates. */
+  bounds: Rect;
+};
+
+export type LayoutOffset = { x: number; y: number; scale: number };
+
+export interface Draw {
+  readonly frame: FrameSpec;
+  /** Size of one output pixel in design units (for hairlines and pixel snapping). */
+  readonly pixel: number;
+  /** Fills the whole frame (skipped when the background is transparent and `background` is true). */
+  fill(fill: Fill, options?: { background?: boolean }): void;
+  group(options: GroupOptions, draw: (g: Draw) => void): void;
+  rect(r: Rect, paint: Paint): void;
+  roundRect(r: Rect, radius: number, paint: Paint): void;
+  circle(cx: number, cy: number, radius: number, paint: Paint): void;
+  line(x1: number, y1: number, x2: number, y2: number, stroke: Stroke): void;
+  path(path: PathData, paint: Paint): void;
+  text(text: TextBlock | TextLine, options?: TextDrawOptions): void;
+  image(asset: ImageAsset, dest: Rect, options?: ImageOptions): void;
+  clip(shape: ClipShape, draw: (g: Draw) => void): void;
+  /** A user-draggable group: applies the stored layout offset and registers it for the editor. */
+  movable(id: string, bounds: Rect, draw: (g: Draw) => void): void;
+  /** Registers a clickable region that focuses `controlKey` in the inspector. */
+  editable(controlKey: string, bounds: Rect): void;
+}
