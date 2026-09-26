@@ -5,9 +5,10 @@
  */
 
 import type { EditableRegion } from '../draw/types';
+import type { Capabilities } from '../runtime/capabilities';
 import type { TemplateDescriptor } from '../template/describe';
 import type { DesignState } from '../template/state';
-import type { TimelineWarning } from '../timeline/timeline';
+import type { Section, SectionName, TimelineWarning } from '../timeline/timeline';
 
 export type ViewId = string;
 
@@ -41,7 +42,9 @@ export type HostMessage =
   | { type: 'setLoop'; views: readonly ViewId[]; loop: boolean }
   | { type: 'setQuality'; views: readonly ViewId[]; mode: QualityMode }
   /** Renders a still at `shortSide` resolution (PNG). */
-  | { type: 'snapshot'; requestId: number; view: ViewId; t: number; shortSide: number };
+  | { type: 'snapshot'; requestId: number; view: ViewId; t: number; shortSide: number }
+  /** Asks what the rendering side can do; answered with `capabilities`. */
+  | { type: 'probe' };
 
 export type FrameInfo = {
   view: ViewId;
@@ -59,6 +62,7 @@ export type WorkerMessage =
       type: 'built';
       view: ViewId;
       duration: number;
+      sections: Readonly<Record<SectionName, Section>>;
       warnings: readonly TimelineWarning[];
       /** Build time in milliseconds. */
       cost: number;
@@ -66,4 +70,5 @@ export type WorkerMessage =
   | ({ type: 'frame' } & FrameInfo)
   | { type: 'regions'; view: ViewId; regions: readonly EditableRegion[] }
   | { type: 'snapshot'; requestId: number; blob: Blob | null; error?: string }
+  | { type: 'capabilities'; capabilities: Capabilities }
   | { type: 'error'; view: ViewId | null; phase: 'load' | 'build' | 'render'; message: string };

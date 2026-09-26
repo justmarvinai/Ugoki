@@ -8,6 +8,7 @@
  */
 
 import { CanvasDraw } from '../draw/canvas-draw';
+import { probeCapabilities } from '../runtime/capabilities';
 import { AdaptiveQuality } from '../runtime/quality';
 import { type BuiltScene, buildScene, renderScene } from '../runtime/scene';
 import type { AnyTemplate } from '../template/define';
@@ -133,6 +134,11 @@ export class RenderRuntime {
         break;
       case 'snapshot':
         void this.snapshot(message.requestId, message.view, message.t, message.shortSide);
+        break;
+      case 'probe':
+        void probeCapabilities().then((capabilities) =>
+          this.post({ type: 'capabilities', capabilities }),
+        );
         break;
     }
   }
@@ -270,6 +276,7 @@ export class RenderRuntime {
         type: 'built',
         view: view.id,
         duration: built.timeline.duration,
+        sections: built.timeline.sections,
         warnings: built.timeline.warnings,
         cost: now() - started,
       });

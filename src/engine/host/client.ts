@@ -83,6 +83,11 @@ export class RenderClient {
     });
   }
 
+  /** Asks the rendering side for its capabilities (answered with a `capabilities` message). */
+  probe(): void {
+    this.send({ type: 'probe' });
+  }
+
   /** Subscribes to worker messages; returns the unsubscribe function. */
   subscribe(listener: (message: WorkerMessage) => void): () => void {
     this.listeners.add(listener);
