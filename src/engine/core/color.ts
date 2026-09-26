@@ -156,6 +156,23 @@ export function mixOklch(from: Color, to: Color, t: number): Color {
   );
 }
 
+/**
+ * Interpolation in premultiplied OKLab (as CSS Color 4 gradients do): perceptually even ramps
+ * without muddy midpoints, and fading to a transparent stop never darkens the visible color.
+ */
+export function mixOklab(from: Color, to: Color, t: number): Color {
+  if (t <= 0) return from;
+  if (t >= 1) return to;
+  const alpha = lerp(from.a, to.a, t);
+  if (alpha <= 0) return { r: from.r, g: from.g, b: from.b, a: 0 };
+  const a = toOklab(from);
+  const b = toOklab(to);
+  const mix = (x: number, y: number) => lerp(x * from.a, y * to.a, t) / alpha;
+  return clampColor(
+    fromOklabUnclamped({ L: mix(a.L, b.L), a: mix(a.a, b.a), b: mix(a.b, b.b) }, alpha),
+  );
+}
+
 // --- WCAG ---------------------------------------------------------------------------------
 
 export function relativeLuminance(color: Color): number {

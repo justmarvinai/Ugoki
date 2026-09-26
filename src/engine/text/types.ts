@@ -125,7 +125,7 @@ export type TextBlock = {
   readonly lineHeight: number;
   /** Widest line. */
   readonly width: number;
-  /** From the first line's top (baseline − ascender) to the last line's descender. */
+  /** Optical height: from the first line's cap top (y = 0) to the last line's baseline. */
   readonly height: number;
   /** Union of all glyph ink (block coordinates). */
   readonly ink: Rect;

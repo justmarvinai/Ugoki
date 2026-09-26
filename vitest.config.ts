@@ -16,18 +16,17 @@ const browsers = (process.env.VITEST_BROWSERS ?? 'chromium')
   .map((name) => name.trim())
   .filter(Boolean) as Array<'chromium' | 'firefox' | 'webkit'>;
 
-const provider = playwright({
-  launchOptions: process.env.PW_CHROMIUM_PATH
-    ? { executablePath: process.env.PW_CHROMIUM_PATH }
-    : {},
-});
-
-const browser = {
+/** A fresh config per project: Vitest annotates the instance objects, so they can't be shared. */
+const browser = () => ({
   enabled: true,
   headless: true,
-  provider,
+  provider: playwright({
+    launchOptions: process.env.PW_CHROMIUM_PATH
+      ? { executablePath: process.env.PW_CHROMIUM_PATH }
+      : {},
+  }),
   instances: browsers.map((name) => ({ browser: name })),
-};
+});
 
 export default defineConfig({
   resolve: {
@@ -50,7 +49,7 @@ export default defineConfig({
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
-          browser,
+          browser: browser(),
         },
       },
       {
@@ -58,7 +57,7 @@ export default defineConfig({
         test: {
           name: 'golden',
           include: ['tests/golden/**/*.test.ts'],
-          browser,
+          browser: browser(),
         },
       },
     ],

@@ -8,6 +8,7 @@
 /test-results
 /playwright-report
 /blob-report
+/.vitest/
 /.vitest-attachments
 __screenshots__/**/*-actual.png
 __screenshots__/**/*-diff.png

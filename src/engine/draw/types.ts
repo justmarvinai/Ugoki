@@ -110,6 +110,22 @@ export type PathData = readonly PathCommand[];
 
 export type ClipShape = Rect | { rect: Rect; radius: number } | { path: PathData };
 
+/** A decoded image (ImageBitmap, OffscreenCanvas, VideoFrame…) with its pixel size. */
+export type ImageAsset = {
+  readonly source: CanvasImageSource;
+  readonly width: number;
+  readonly height: number;
+};
+
+export type ImageOptions = {
+  /** `cover` fills `dest` and crops (default); `contain` fits inside it. */
+  fit?: 'cover' | 'contain';
+  /** Point of the image kept in view when cropping (0..1, default center). */
+  focal?: { x: number; y: number };
+  radius?: number;
+  opacity?: number;
+};
+
 export type EditableKind = 'movable' | 'editable';
 
 export type EditableRegion = {
@@ -136,6 +152,7 @@ export interface Draw {
   line(x1: number, y1: number, x2: number, y2: number, stroke: Stroke): void;
   path(path: PathData, paint: Paint): void;
   text(text: TextBlock | TextLine, options?: TextDrawOptions): void;
+  image(asset: ImageAsset, dest: Rect, options?: ImageOptions): void;
   clip(shape: ClipShape, draw: (g: Draw) => void): void;
   /** A user-draggable group: applies the stored layout offset and registers it for the editor. */
   movable(id: string, bounds: Rect, draw: (g: Draw) => void): void;
