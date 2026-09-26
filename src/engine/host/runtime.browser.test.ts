@@ -183,6 +183,18 @@ describe('RenderRuntime', () => {
     client.dispose();
   });
 
+  it('answers snapshots requested before the scene is built', async () => {
+    const { client, canvas } = setup();
+    client.attach('a', canvas, { width: 100, height: 100, dpr: 1 });
+    client.load('a', 'probe');
+    // Requested in the same task as the load: the template, fonts and scene aren't ready yet.
+    const blob = await client.snapshot('a', 1, 360);
+    const bitmap = await createImageBitmap(blob);
+    expect([bitmap.width, bitmap.height]).toEqual([360, 360]);
+    await expect(client.snapshot('nope', 1, 360)).rejects.toThrow('no scene');
+    client.dispose();
+  });
+
   it('reports unknown templates', async () => {
     const { client, next, canvas } = setup();
     client.attach('a', canvas, { width: 100, height: 100, dpr: 1 });

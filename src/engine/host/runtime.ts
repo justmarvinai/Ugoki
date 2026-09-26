@@ -47,6 +47,10 @@ type View = {
   size: ViewSize;
   template: AnyTemplate | null;
   loadVersion: number;
+  /** A template is being imported for this view. */
+  loading: boolean;
+  /** Snapshots requested before the view had a scene; answered after its next build. */
+  waiting: { requestId: number; t: number; shortSide: number }[];
   /** Latest state waiting to be built. */
   pending: DesignState | null;
   built: BuiltScene | null;
@@ -138,7 +142,7 @@ export class RenderRuntime {
         });
         break;
       case 'snapshot':
-        void this.snapshot(message.requestId, message.view, message.t, message.shortSide);
+        this.snapshot(message.requestId, message.view, message.t, message.shortSide);
         break;
       case 'probe':
         void probeCapabilities().then((capabilities) =>
@@ -172,6 +176,8 @@ export class RenderRuntime {
       size,
       template: null,
       loadVersion: 0,
+      loading: false,
+      waiting: [],
       pending: null,
       built: null,
       playing: false,
@@ -193,6 +199,7 @@ export class RenderRuntime {
     const view = this.views.get(id);
     if (!view) return;
     if (view.scrubTimer) clearTimeout(view.scrubTimer);
+    this.failWaiting(view, 'The view was detached');
     this.views.delete(id);
     this.updateBudgets();
   }
@@ -224,6 +231,7 @@ export class RenderRuntime {
 
   private async load(view: View, templateId: string, raw: unknown, look: number): Promise<void> {
     const version = ++view.loadVersion;
+    view.loading = true;
     try {
       const template = await this.template(templateId);
       if (version !== view.loadVersion || this.views.get(view.id) !== view) return;
@@ -233,7 +241,10 @@ export class RenderRuntime {
       this.post({ type: 'loaded', view: view.id, template: describeTemplate(template), state });
       this.queueBuild(view, state);
     } catch (error) {
+      if (version === view.loadVersion) this.failWaiting(view, messageOf(error));
       this.post({ type: 'error', view: view.id, phase: 'load', message: messageOf(error) });
+    } finally {
+      if (version === view.loadVersion) view.loading = false;
     }
   }
 
@@ -286,7 +297,9 @@ export class RenderRuntime {
         cost: now() - started,
       });
       this.invalidate(view);
+      this.answerWaiting(view);
     } catch (error) {
+      this.failWaiting(view, messageOf(error));
       this.post({ type: 'error', view: view.id, phase: 'build', message: messageOf(error) });
     }
   }
@@ -304,7 +317,10 @@ export class RenderRuntime {
       },
       (error) => {
         this.textLoading = false;
-        for (const view of this.views.values()) view.pending = null;
+        for (const view of this.views.values()) {
+          view.pending = null;
+          this.failWaiting(view, messageOf(error));
+        }
         this.post({ type: 'error', view: null, phase: 'build', message: messageOf(error) });
       },
     );
@@ -322,6 +338,7 @@ export class RenderRuntime {
       (error) => {
         this.loadingFonts.delete(key);
         view.pending = null;
+        this.failWaiting(view, messageOf(error));
         this.post({ type: 'error', view: view.id, phase: 'build', message: messageOf(error) });
       },
     );
@@ -469,12 +486,35 @@ export class RenderRuntime {
     return w / frame.width;
   }
 
-  private async snapshot(requestId: number, id: ViewId, t: number, shortSide: number) {
-    const built = this.views.get(id)?.built;
-    if (!built) {
-      this.post({ type: 'snapshot', requestId, blob: null, error: 'The view has no scene yet' });
+  /** Renders a still; a view that is still loading or building answers once it has a scene. */
+  private snapshot(requestId: number, id: ViewId, t: number, shortSide: number): void {
+    const view = this.views.get(id);
+    if (view && !view.built && (view.loading || view.pending)) {
+      view.waiting.push({ requestId, t, shortSide });
       return;
     }
+    if (!view?.built) {
+      this.post({ type: 'snapshot', requestId, blob: null, error: 'The view has no scene' });
+      return;
+    }
+    void this.renderSnapshot(requestId, view.built, t, shortSide);
+  }
+
+  private answerWaiting(view: View): void {
+    const built = view.built;
+    if (!built) return;
+    for (const { requestId, t, shortSide } of view.waiting.splice(0)) {
+      void this.renderSnapshot(requestId, built, t, shortSide);
+    }
+  }
+
+  private failWaiting(view: View, error: string): void {
+    for (const { requestId } of view.waiting.splice(0)) {
+      this.post({ type: 'snapshot', requestId, blob: null, error });
+    }
+  }
+
+  private async renderSnapshot(requestId: number, built: BuiltScene, t: number, shortSide: number) {
     try {
       const size = outputSize(built.state.format, shortSide);
       const canvas = new OffscreenCanvas(size.width, size.height);
