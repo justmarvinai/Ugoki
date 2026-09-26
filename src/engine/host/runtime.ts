@@ -67,10 +67,15 @@ type View = {
 
 const now = () => performance.now();
 
-const requestFrame: (callback: (time: number) => void) => void =
+/**
+ * Schedules the next frame: the worker's `requestAnimationFrame` where it exists, else a timer.
+ * Callbacks read `performance.now()` themselves — rAF timestamps in workers aren't guaranteed
+ * to share its time base, and mixing the two can stall playback.
+ */
+const requestFrame: (callback: () => void) => void =
   typeof globalThis.requestAnimationFrame === 'function'
-    ? (callback) => globalThis.requestAnimationFrame(callback)
-    : (callback) => setTimeout(() => callback(now()), 16);
+    ? (callback) => globalThis.requestAnimationFrame(() => callback())
+    : (callback) => setTimeout(callback, 16);
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -370,9 +375,10 @@ export class RenderRuntime {
     requestFrame(this.tick);
   }
 
-  private readonly tick = (time: number): void => {
+  private readonly tick = (): void => {
     this.frameRequested = false;
     if (this.disposed) return;
+    const time = now();
     this.buildPending();
     let again = false;
     for (const view of this.views.values()) {
