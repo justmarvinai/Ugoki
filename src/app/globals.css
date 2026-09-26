@@ -6,23 +6,6 @@
  * Color belongs to the work: the interface itself never adds hue except functional states.
  */
 
-@font-face {
-  font-family: "Mona Sans";
-  src: url("/fonts/ui/MonaSans-VF.woff2") format("woff2");
-  font-weight: 200 900;
-  font-stretch: 75% 125%;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Mona Sans Mono";
-  src: url("/fonts/ui/MonaSansMono-VF.woff2") format("woff2");
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root,
 [data-theme="daylight"] {
   --bg: #ffffff;
@@ -81,8 +64,8 @@
   --color-dot: var(--dot);
   --color-transparent: transparent;
 
-  --font-sans: "Mona Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Mona Sans Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-sans: var(--font-ugoki-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ugoki-mono), ui-monospace, "SFMono-Regular", monospace;
 
   --radius-sm: 6px;
   --radius-md: 10px;

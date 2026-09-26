@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { ugokiMono, ugokiSans } from './fonts';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" data-theme="daylight">
+    <html lang="en" data-theme="daylight" className={`${ugokiSans.variable} ${ugokiMono.variable}`}>
       <body>{children}</body>
     </html>
   );

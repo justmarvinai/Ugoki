@@ -41,8 +41,8 @@ const nextConfig: NextConfig = {
     return [
       { source: '/:path*', headers: securityHeaders },
       {
-        // Fonts and WASM are content-addressed by version; cache them hard.
-        source: '/fonts/:path*',
+        // Engine fonts carry a content hash in their file name; cache them forever.
+        source: '/fonts/engine/:path*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
     ];
