@@ -29,14 +29,19 @@ export function LabView({ client, format, height, transparent, guides, stats }: 
   useEffect(() => {
     const element = host.current;
     if (!element) return;
-    const canvas = document.createElement('canvas');
-    canvas.className = 'block size-full';
-    element.append(canvas);
     const size = () => {
       const rect = element.getBoundingClientRect();
       return { width: rect.width, height: rect.height, dpr: window.devicePixelRatio || 1 };
     };
-    client.attach(format, canvas.transferControlToOffscreen(), size());
+    const initial = size();
+    const canvas = document.createElement('canvas');
+    canvas.className = 'block size-full';
+    // Start at the backing size the worker will choose, so it rarely has to resize a
+    // transferred canvas (the Lab only mounts views once the stage has been measured).
+    canvas.width = Math.max(1, Math.round(initial.width * initial.dpr));
+    canvas.height = Math.max(1, Math.round(initial.height * initial.dpr));
+    element.append(canvas);
+    client.attach(format, canvas.transferControlToOffscreen(), initial);
     const observer = new ResizeObserver(() => client.resize(format, size()));
     observer.observe(element);
     return () => {

@@ -7,7 +7,7 @@
  */
 
 import { MotionConfig } from 'motion/react';
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Wordmark } from '@/components/wordmark';
 import {
   type Capabilities,
@@ -28,6 +28,13 @@ import { type Focus, Inspector } from './inspector';
 import { LabView } from './lab-view';
 import { createPlayhead, createStats } from './stores';
 import { STEP, Transport } from './transport';
+
+declare global {
+  interface Window {
+    /** Lab debugging and end-to-end tests: the live render client. */
+    __ugokiLab?: { client: RenderClient };
+  }
+}
 
 /** A hidden 1 × 1 view used to load templates and sanitize states. */
 const PROBE = 'probe';
@@ -170,7 +177,11 @@ export function Lab() {
     if (!client) return;
     const unsubscribe = client.subscribe((message) => onMessage(message));
     client.probe();
-    return unsubscribe;
+    window.__ugokiLab = { client };
+    return () => {
+      unsubscribe();
+      delete window.__ugokiLab;
+    };
   }, [client]);
 
   // Templates load through the probe view, which also sanitizes raw states (JSON edits).
@@ -212,14 +223,22 @@ export function Lab() {
     if (client && views.length > 0) client.setQuality(views, quality);
   }, [client, views, quality]);
 
-  // Stage size → view layout.
-  useEffect(() => {
+  // Stage size → view layout. Measured before the first paint, so views never mount at 0 × 0
+  // (their canvases would be handed to the worker at a zero size and resized afterwards).
+  useLayoutEffect(() => {
     const element = stage.current;
     if (!element) return;
-    // contentRect excludes the padding: exactly the room the views may use.
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-    });
+    const measure = () => {
+      const style = getComputedStyle(element);
+      const padX = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+      const padY = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+      setStageSize({
+        width: Math.max(0, element.clientWidth - padX),
+        height: Math.max(0, element.clientHeight - padY),
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -333,7 +352,7 @@ export function Lab() {
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <main className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div ref={stage} className="min-h-[50vh] flex-1 overflow-auto p-4 md:p-6">
-              {client && descriptor && (
+              {client && descriptor && stageSize.width > 0 && (
                 <div className="flex min-h-full flex-col items-center justify-center gap-6">
                   {'stack' in layout
                     ? views.map((format) => (
