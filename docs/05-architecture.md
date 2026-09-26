@@ -287,7 +287,7 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 - `packageManager: "pnpm@10.34.5"`, `engines.node: "24.x"`.
 - Build: `next build` (Turbopack). The build output must show **no serverless functions** — CI fails otherwise.
 - Domain: the free Vercel domain (`<project>.vercel.app`) for now; a `.app` domain later (decision A4 — outside the €0 budget today).
-- One-time owner setup: import the GitHub repo into Vercel (Hobby); make `main` the default branch (see USER_QUESTIONS O2/O3).
+- One-time owner setup (done 2026-09-26): import the GitHub repo into Vercel (Hobby); make `main` the default branch (see USER_QUESTIONS O2/O3).
 
 ## 17. Testing strategy
 
@@ -308,7 +308,7 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 - **browser** (matrix: Chromium, Firefox, WebKit): `pnpm test:browser`.
 - **e2e**: golden frames (Chromium) → `pnpm build` → `pnpm test:e2e` (Playwright, three engines); test output and diff images are uploaded as artifacts on failure.
 
-Bundle budgets join the check job with the landing page (Phase 6). Vercel posts the preview URL once the repo is imported (USER_QUESTIONS O3).
+Bundle budgets join the check job with the landing page (Phase 6). Vercel posts each PR's preview URL as a comment and a commit status.
 
 ## 19. Conventions
 

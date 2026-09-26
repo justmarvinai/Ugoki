@@ -22,7 +22,7 @@ The engine renders its first template. Nothing is public yet: the home page is a
 ### Changed
 
 - Tagline is now **"Motion, made yours."** (owner decision; replaces "Motion, make yours.").
-- `main` is the default branch; the Vercel import follows this phase.
+- `main` is the default branch, and the repo is on Vercel with a preview deployment for every branch and PR.
 - Decisions ADR-018 – ADR-025 and the Phase 1 spike results (worker rendering, font delivery, transparent WebM, GIF encoder) are in `docs/08-decisions.md`.
 
 ## [0.0.2] — 2026-09-26 — Owner decisions recorded

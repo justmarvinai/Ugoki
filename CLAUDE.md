@@ -5,7 +5,7 @@ Ugoki (動き, "movement") is a browser-based motion design tool: users pick an 
 ## Current phase: 1 — Foundations & engine core (built, in review)
 
 - The owner gave the go-ahead to code on 2026-09-26. Work phase by phase as laid out in `ROADMAP.md`; don't start a new phase's scope without finishing (or explicitly re-planning) the current one.
-- Phase 1 goes to `main` as one PR. Next: the owner imports the repo into Vercel (O3) and checks the Lab in Safari (O6); then Phase 2 (editor & export MVP). Until the import there are no preview deployments — verify locally and in CI.
+- Phase 1 goes to `main` as one PR. The repo is on Vercel (O3, 2026-09-26): every branch and PR gets a preview deployment (Vercel comments its URL on the PR) — link it in the PR. Next: the owner checks the Lab in Safari (O6); then Phase 2 (editor & export MVP).
 - The owner's decisions (2026-09-26) are recorded in `USER_QUESTIONS.md` — a decision table plus open items (O1 = the go-ahead). New product/brand questions go there too; when answered, update the affected docs and ADRs.
 - Progress is tracked in `ROADMAP.md` (tick boxes as work lands).
 

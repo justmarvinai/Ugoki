@@ -2,7 +2,7 @@
 
 > From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
 
-**Now**: Phase 1 — foundations & engine core is built and in review (PR to `main`). Next: the owner imports the repo into Vercel (O3) and checks the Lab in Safari (O6); then Phase 2. Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
+**Now**: Phase 1 — foundations & engine core is built and in review (PR to `main`, with a Vercel preview). Next: the owner checks the Lab in Safari (O6); then Phase 2. Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
 
 | Phase | Outcome | Version |
 |---|---|---|
@@ -35,12 +35,13 @@
 
 **Owner setup** (one-time, a few minutes — see USER_QUESTIONS O2/O3)
 - [x] `main` exists and is the repository's default branch
-- [ ] GitHub repo imported into Vercel (Hobby) — owner does this **after Phase 1**; until then PRs have no preview links
+- [x] GitHub repo imported into Vercel (Hobby) — done 2026-09-26; every branch and PR gets a preview deployment
 
 **Scaffold**
 - [x] Next.js 16.3 · React 19.3 (React Compiler on) · TypeScript 7 · Tailwind 4.3 · Biome 2.5 · Vitest 5 · Playwright 1.63 · pnpm 10 · Node 24
 - [x] GitHub Actions CI (typecheck, Biome, tests, build with "no serverless functions" assertion)
-- [ ] Vercel project, preview deployments per branch, security headers — *headers (CSP etc.) are in `next.config.ts`; the Vercel project follows the owner's import (O3)*
+- [x] Vercel project with a preview deployment per branch (owner's import, O3)
+- [ ] Security headers (CSP etc., set in `next.config.ts`) checked on a deployment
 - [x] Design tokens (Daylight/Cinema) in Tailwind `@theme`; Mona Sans self-hosted; first primitives (Button, SegmentedControl, Slider)
 
 **Spikes** (each ends with a short note in `docs/08-decisions.md` if it changes anything)
