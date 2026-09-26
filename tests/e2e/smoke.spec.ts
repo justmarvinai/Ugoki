@@ -89,6 +89,23 @@ test('the Lab renders Rise in every format through the render worker', async ({ 
     .catch(explain);
   await page.getByRole('button', { name: 'Pause (Space)' }).click();
 
+  // Layout changes (one row ↔ two) keep every view rendering (views must not be remounted).
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 2400, height: 700 });
+  await page.waitForTimeout(300);
+  if (size) await page.setViewportSize(size);
+  for (const name of [
+    'Landscape preview',
+    'Vertical preview',
+    'Square preview',
+    'Portrait preview',
+  ]) {
+    await expect
+      .poll(() => stageCoverage(page, name), { timeout: 5000 })
+      .toBeGreaterThan(0.99)
+      .catch(explain);
+  }
+
   // Every Look and energy rebuilds without errors.
   const looks = page.getByRole('group', { name: 'Looks' });
   for (const look of ['Ink', 'Brand Bold', 'Paper']) {
@@ -106,6 +123,9 @@ test('PNG stills download with the ugoki- prefix', async ({ page }) => {
   await page.goto('/lab');
   await page.getByRole('button', { name: '16:9' }).click();
   await expect(page.getByText('Render worker · 1 view')).toBeVisible();
+  await expect
+    .poll(() => stageCoverage(page, 'Landscape preview'), { timeout: 5000 })
+    .toBeGreaterThan(0.99);
   // Arrow/Home/End keys belong to the focused segmented control; transport shortcuts are global.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('End');
