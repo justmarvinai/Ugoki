@@ -104,7 +104,9 @@ The dark-footage **checkerboard** (transparent stage) uses `#141416`/`#1B1B1E` s
 
 **One family: Mona Sans v2** (SIL OFL, self-hosted from the GitHub build for `opsz` and the Mono), plus **Mona Sans Mono** for timecodes and numeric readouts. The width axis is the brand's voice: Expanded for display, Normal for text and UI.
 
-To keep a distinct voice (Mona Sans is also GitHub's typeface): Expanded widths for display, custom-kerned wordmark, and a brand spike in Phase 1 to choose stylistic alternates.
+To keep a distinct voice (Mona Sans is also GitHub's typeface): Expanded widths for display, custom-kerned wordmark, and a brand spike with the landing page (Phase 6) to choose stylistic alternates.
+
+Our subsetted builds are served under the family names **Ugoki Sans** and **Ugoki Mono**: "Mona" is a Reserved Font Name, which modified versions may not use (ADR-019). Credits and the OFL text ship with them. The interface loads them with `next/font/local` (axes: `wght` 350–850, `wdth` 100–125).
 
 ### Marketing scale (Daylight)
 

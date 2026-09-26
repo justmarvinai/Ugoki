@@ -2,10 +2,10 @@
 
 Ugoki (動き, "movement") is a browser-based motion design tool: users pick an art-directed template, customize it (text, colors, images, timing, layout), preview it live and export video — **rendered entirely on the user's device**. Flow: **Choose → Customize → Preview → Export.**
 
-## Current phase: 1 — Foundations & engine core
+## Current phase: 1 — Foundations & engine core (built, in review)
 
 - The owner gave the go-ahead to code on 2026-09-26. Work phase by phase as laid out in `ROADMAP.md`; don't start a new phase's scope without finishing (or explicitly re-planning) the current one.
-- Vercel import happens after Phase 1 (owner's call): until then there are no preview deployments — verify locally and in CI.
+- Phase 1 goes to `main` as one PR. Next: the owner imports the repo into Vercel (O3) and checks the Lab in Safari (O6); then Phase 2 (editor & export MVP). Until the import there are no preview deployments — verify locally and in CI.
 - The owner's decisions (2026-09-26) are recorded in `USER_QUESTIONS.md` — a decision table plus open items (O1 = the go-ahead). New product/brand questions go there too; when answered, update the affected docs and ADRs.
 - Progress is tracked in `ROADMAP.md` (tick boxes as work lands).
 
@@ -20,7 +20,7 @@ Ugoki (動き, "movement") is a browser-based motion design tool: users pick an 
 | `docs/05-architecture.md` | Stack, structure, state, persistence, security, testing, CI |
 | `docs/06-engine.md` | Engine work and the template contract |
 | `docs/07-export.md` | Encoding, codecs per browser, alpha, file saving |
-| `docs/08-decisions.md` | Why something is the way it is (ADRs); append new decisions |
+| `docs/08-decisions.md` | Why something is the way it is (ADRs); append new decisions; Phase 1 spike results |
 | `docs/templates/00-foundations.md` | Palettes, fonts, placeholders, quality bar — before any template |
 | `docs/templates/NN-*.md` | The spec of the template you are implementing |
 
@@ -39,44 +39,54 @@ Ugoki (動き, "movement") is a browser-based motion design tool: users pick an 
 
 ## Stack (verified 2026-09-26)
 
-Next.js ^16.3.6 (App Router, Turbopack) · React ^19.3.0 (React Compiler on) · TypeScript ~7.0.2 · Tailwind CSS ^4.3.3 · Biome 2.5.14 (lint + format; no ESLint — typescript-eslint doesn't support TS 7 yet) · Base UI ^1.8.0 · Motion ^13.4.4 (`motion/react`) · Zustand ^5.0.15 · Zod ^4.6.5 · Dexie ^4.4.6 · culori ^4.0.2 · harfbuzzjs ^1.6.2 · Mediabunny ^1.60.0 · fflate ~0.8.3 · Vitest ^5.0.2 · Playwright ^1.63.0 · pnpm 10.34.5 (Vercel doesn't detect pnpm 11/12) · Node 24.x.
+Next.js 16.3.6 (App Router, Turbopack) · React 19.3.0 (React Compiler on) · TypeScript 7.0.2 · Tailwind CSS 4.3.3 · Biome 2.5.14 (lint + format; no ESLint — typescript-eslint doesn't support TS 7 yet) · Base UI 1.8.0 · Motion 13.4.4 (`motion/react`) · harfbuzzjs 1.6.2 · Mediabunny 1.60.0 · Vitest 5.0.2 · Playwright 1.63.0 · pnpm 10.34.5 (Vercel doesn't detect pnpm 11/12) · Node 24.x. Versions are pinned exactly in `package.json`.
+
+Added with the features that need them: Zustand ^5.0.15, Zod ^4.6.5 (share-link envelope — the engine sanitizes its own inputs, ADR-018), Dexie ^4.4.6, fflate ~0.8.3, modern-gif ^2.1.0 (ADR-025). The engine has its own OKLCH color code (no culori).
 
 Don't add dependencies casually: check license (MIT/ISC/Apache/BSD/MPL-2.0 OK), size, maintenance; record notable additions in `docs/05-architecture.md` §2.
 
-## Commands (planned — become real in Phase 1)
+## Commands
 
 ```bash
-pnpm dev            # Next.js dev server (Turbopack)
-pnpm build          # production build (must emit no serverless functions)
+pnpm dev            # Next.js dev server (Turbopack) — the Lab is at /lab
+pnpm build          # production build + scripts/assert-static.mjs (fails if any route isn't prerendered)
+pnpm start          # serve the production build
 pnpm typecheck      # tsc --noEmit (TypeScript 7)
-pnpm lint           # biome check .
+pnpm lint           # biome check .   (pnpm lint:fix to apply fixes)
 pnpm format         # biome format --write .
-pnpm test           # vitest (unit)
-pnpm test:browser   # vitest browser mode (Chromium) — engine tests
-pnpm test:e2e       # playwright e2e
-pnpm test:golden    # golden frames (add --update to accept intentional changes)
-pnpm fonts          # subset fonts from sources into public/fonts
-pnpm og             # render Open Graph images
+pnpm test           # vitest unit tests (Node; HarfBuzz runs in Node too)
+pnpm test:browser   # vitest browser mode: engine, runtime, worker, template checks, spikes
+pnpm test:golden    # golden frames (Chromium references; add --update to accept intentional changes)
+pnpm test:e2e       # playwright against the production build (run pnpm build first)
+pnpm fonts          # rebuild fonts from pinned sources (python3 + fonttools[woff]==4.60.1)
+pnpm check          # typecheck + lint + unit
 ```
 
-Update this section when the scaffold lands.
+- Browser tests pick browsers with `VITEST_BROWSERS=chromium,firefox,webkit` (default Chromium). Without Playwright's own browsers installed, point `PW_CHROMIUM_PATH` at a Chromium binary (both Vitest and Playwright honour it).
+- `pnpm og` (Open Graph renders) arrives with the landing page (Phase 6).
 
 ## Structure & boundaries
 
 ```
-src/app/         routes only (thin)
-src/engine/      DOM-free, React-free, worker-safe engine — public API in src/engine/index.ts
-src/templates/   registry.ts (metadata) + <category>/<id>/index.ts (one defineTemplate each)
-src/features/    React features: landing, gallery, editor, inspector, stage, transport, export, drafts, share
-src/components/  design-system primitives
-src/design/      tokens (Tailwind @theme), motion tokens, icons
-src/stores/      Zustand stores + history
-src/lib/         db, share codec, capabilities, utils
+src/app/         routes only (thin); design tokens in globals.css (@theme)
+src/engine/      DOM-free, React-free, worker-safe engine — public API in src/engine/index.ts;
+                 engine/host = main-thread client + pure data for features
+src/templates/   registry.ts (metadata + lazy loaders) + <category>/<id>/index.ts (one defineTemplate each)
+src/workers/     composition root: render.worker.ts + createRenderEndpoint()
+src/features/    React features: lab (now); landing, gallery, editor, inspector, stage, transport, export, drafts, share
+src/components/  design-system primitives (Button, SegmentedControl, Slider, Switch, Wordmark)
+src/design/      motion tokens, icons
+src/fonts/       UI WOFF2s for next/font/local
+src/stores/      Zustand stores + history (Phase 2)
+src/lib/         small utilities
+tests/           support/ (render harness), templates/, integration/, golden/, spikes/, e2e/
+scripts/         fonts.py, assert-static.mjs
 ```
 
-- `engine/**` must never import React, DOM APIs, `app`, `features`, `components` or `stores`.
+- `engine/**` must never import React, DOM APIs, `app`, `features`, `components`, `stores`, `templates` or `workers`.
 - `templates/**` import only from `@/engine`.
-- `features/**` reach the engine only through `engine/host` (the worker client).
+- `features/**` reach the engine only through `engine/host` (the worker client) and create workers via `src/workers`.
+- Template tests live in `tests/` (they need engine internals such as the renderer, which `templates/**` may not import).
 
 ## Engine rules (read `docs/06-engine.md` before engine work)
 
@@ -92,16 +102,16 @@ src/lib/         db, share codec, capabilities, utils
 ## Implementing a template
 
 1. Read its spec in `docs/templates/` and `00-foundations.md`.
-2. Build it in `/lab`: all formats, all three energies, min/max duration, stress text (1 word, max length, diacritics, numbers), all its palettes + Brand palettes, transparent background if supported.
+2. Register it in `src/templates/registry.ts` (metadata + loader), then build it in `/lab`: all formats, all three energies, min/max duration, stress text (1 word, max length, diacritics, numbers), all its palettes + Brand palettes, transparent background if supported.
 3. Implement "the expensive detail" from the spec — it is not optional.
 4. Check the quality bar (foundations §9), render-cost budget (≤ 8 ms/frame @1080p-eq on the reference desktop), determinism (two renders identical).
-5. Add golden frames; register metadata in `src/templates/registry.ts`.
+5. Add browser checks in `tests/templates/<id>.browser.test.ts` (see `rise.browser.test.ts`: clean edit points per format × Look × energy, stress text inside safe areas, transparency, determinism) and golden frames in `tests/golden/`.
 6. If you deviate from the spec, update the spec in the same PR and say why.
 
 ## Workflow
 
 - Develop on the branch you were given; Conventional Commits (`feat(engine): …`, `feat(template/rise): …`, `fix(export): …`, `docs: …`).
 - One PR per roadmap phase (target branch `main`), with a Vercel preview link and a short written walkthrough for the owner (decision E2).
-- Before pushing: `pnpm typecheck && pnpm lint && pnpm test` (and golden frames when templates/engine changed).
+- Before pushing: `pnpm check` (typecheck + lint + unit) and `pnpm test:browser`; golden frames when templates/engine changed; `pnpm build && pnpm test:e2e` when routes or the worker path changed.
 - Keep docs alive: `CHANGELOG.md` (Keep a Changelog) for user-visible changes, `ROADMAP.md` checkboxes, new ADRs in `docs/08-decisions.md` for architectural changes.
 - Product/brand questions go to the user (add them to `USER_QUESTIONS.md`); technical choices within these docs' constraints can be made and logged as ADRs.

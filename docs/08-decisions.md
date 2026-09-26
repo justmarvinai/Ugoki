@@ -37,7 +37,7 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Status**: Accepted · 2026-09-26
 **Decision**: Shape all template text with harfbuzzjs and draw glyph outlines as paths; native `fillText` only as a fallback for glyphs the font lacks (emoji, CJK).
 **Why**: Identical output across browsers, kerning-safe per-glyph animation, OpenType features, continuous variable axes (Safari lacks `fontStretch`/`fontKerning`; `letterSpacing` needs 18.4+).
-**Consequences**: ~174 KB gz WASM (lazy, cached); fonts must be available as sfnt bytes (TTF) — WOFF2 handling is a Phase 1 spike.
+**Consequences**: ~174 KB gz WASM (lazy, cached); fonts must be available as sfnt bytes (TTF) — WOFF2 handling is a Phase 1 spike (resolved by ADR-020: gzip TTF).
 
 ### ADR-005 — Engine runs in Web Workers
 **Status**: Accepted · 2026-09-26
@@ -108,3 +108,65 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Status**: Accepted · 2026-09-26 (owner decision A3)
 **Decision**: Ship an Impressum and a Datenschutzerklärung (German, with English versions), linked from every page footer. Keep the data footprint minimal: no cookies, no analytics, no accounts, no third-party runtime requests (self-hosted fonts — never Google Fonts' CDN), all user content processed and stored on the user's device. The only personal data the operator's infrastructure sees is the hosting provider's request logs (Vercel).
 **Consequences**: The owner provides Impressum details before launch (USER_QUESTIONS O4) and has the final legal texts checked (reputable generator or lawyer) — the planning docs are not legal advice. No cookie banner is needed while there are no cookies or tracking.
+
+### ADR-018 — The engine validates its own inputs (no Zod or culori inside the engine)
+**Status**: Accepted · 2026-09-26 (Phase 1)
+**Decision**: Control values, palette references and design states are sanitized by small, dependency-free functions in `src/engine/template/` (`sanitizeValue`, `sanitizePaletteRef`, `sanitizeState`): they never throw, drop unknown keys, clamp numbers, strip unsafe characters and fall back to defaults. Color science (OKLab/OKLCH, gamut mapping, contrast) is the engine's own `core/color.ts`.
+**Why**: The engine runs in workers and must stay small and synchronous; sanitizers that repair rather than reject fit untrusted share links better than schema errors. Zod stays planned for the share-link *envelope* on the main thread (Phase 2); culori only if the UI color picker needs it.
+**Consequences**: The roadmap's "validation (Zod)" item is delivered as engine sanitizers; the Phase 2 share codec adds Zod around them.
+
+### ADR-019 — Modified Mona Sans ships as "Ugoki Sans" and "Ugoki Mono"
+**Status**: Accepted · 2026-09-26 (Phase 1)
+**Decision**: Our subsetted, instanced builds of Mona Sans / Mona Sans Mono are renamed "Ugoki Sans" / "Ugoki Mono" (name table), keep the original copyright, designer, vendor and license records, and ship with the OFL text (`public/fonts/licenses/`).
+**Why**: "Mona" is a Reserved Font Name; under OFL §3 a modified version (subsetting counts) must not use it. Other families (Inter, Instrument Serif) declare no RFN and keep their names.
+**Consequences**: The brand face is still Mona Sans in every design sense; CSS and the manifest refer to the renamed families. `scripts/fonts.py` does the renaming reproducibly.
+
+### ADR-020 — Engine fonts are gzip-compressed TTF, inflated in the worker
+**Status**: Accepted · 2026-09-26 (Phase 1 spike: HarfBuzz font loading)
+**Decision**: `scripts/fonts.py` builds subsetted TTFs from SHA-256-pinned sources and writes them gzip-compressed with content-hashed names (`public/fonts/engine/*.ttf.gz`, immutable cache headers). The engine inflates them with the platform `DecompressionStream`; a magic-byte check skips inflation if a proxy already decoded the transfer.
+**Why**: HarfBuzz needs sfnt bytes; shipping gzip ourselves makes transfer size independent of the host's compression of `.ttf` (the open question of the spike) and avoids a WOFF2 WASM decoder. Mona Sans (all Phase 1 axes) is 314 KB compressed.
+**Alternatives**: WOFF2 + a WASM decoder (extra download and code), raw TTF relying on Vercel compression (unverified, larger if uncompressed).
+**Consequences**: DecompressionStream is required (Chrome 80, Firefox 113, Safari 16.4 — within our browser matrix).
+
+### ADR-021 — A 1080-unit design space; optical sizes from rendered size
+**Status**: Accepted · 2026-09-26 (Phase 1)
+**Decision**: Templates draw in design units where the frame's short side is always 1080 (16:9 = 1920 × 1080, 9:16 = 1080 × 1920, 1:1 = 1080², 4:5 = 1080 × 1350) and `u` = 10.8 units; the renderer scales to any output size (even dimensions for H.264). Variable fonts with an `opsz` axis get `opsz = size × 0.6` (clamped), because videos are usually watched scaled down.
+**Why**: Resolution-independent templates, vector-crisp 4K, and one set of numbers for every format; the 0.6 bias picks sturdier cuts for text that is viewed smaller than it is rendered.
+
+### ADR-022 — One render worker hosts many views; templates are described, not shipped, to the main thread
+**Status**: Accepted · 2026-09-26 (Phase 1)
+**Decision**: The render worker hosts any number of *views* (stage, the Lab's formats, gallery tiles), each with its own template, state and transport; playback commands take a list of views so several play in lockstep. Templates load inside the worker; the main thread receives a plain-data `TemplateDescriptor` (controls, Looks, formats, palettes, available pairings, duration) and sanitized states. A hidden 1 × 1 *probe* view loads templates and sanitizes raw states (share links, drafts, JSON edits). Scenes rebuild at most once per frame per view and swap atomically; a failed build keeps the last good scene. `engine/host` is the main-thread entry: the client plus the engine's pure data (formats, palettes, pairings, energies).
+**Why**: Keeps template code and the renderer off the main thread (architecture §9) without duplicating control schemas; one worker, one clock.
+**Consequences**: Migrations (`migrate`) run only in the worker; the main thread never needs template code.
+
+### ADR-023 — Canvas 2D direct-path semantics until the compositor lands
+**Status**: Accepted · 2026-09-26 (Phase 1)
+**Decision**: Phase 1 renders with Canvas 2D only. Group opacity multiplies into each primitive and blend modes apply per primitive (not isolated layers); `mask`, `fx`, `plane3d`, motion blur and finishes arrive with the WebGL2 compositor in Phase 2 and need no template changes.
+**Why**: The direct path covers the reference template at < 0.2 ms of recording per 1080p frame; isolated layers cost an offscreen pass each and belong in the compositor.
+**Consequences**: Templates that need group-isolated opacity (overlapping children fading together) wait for the compositor or avoid overlaps.
+
+### ADR-024 — The Lab ships to local and preview deployments
+**Status**: Accepted · 2026-09-26 (Phase 1; refines architecture §5)
+**Decision**: `/lab` is built everywhere but answers 404 when `VERCEL_ENV === 'production'`; it is `noindex`. `?worker=0` renders on the main thread.
+**Why**: The owner reviews templates on Vercel preview URLs (decision E2), which are production *builds*; excluding the Lab from every production build would hide it from exactly those reviews.
+
+### ADR-025 — GIF export with modern-gif
+**Status**: Accepted · 2026-09-26 (Phase 1 spike: GIF encoder choice)
+**Decision**: Use `modern-gif` (MIT) for GIF export in the export worker; don't use its built-in dithering.
+**Why**: On real frames (Chromium, 480 × 270) it produced 10× smaller files than `gifenc` on gradients (91 KB vs 906 KB for 30 frames — global palette plus frame differencing) and higher fidelity (PSNR 42.6 vs 38.1 dB on gradients, 77.5 vs 67.5 dB on Rise) at 21–30 ms/frame vs 4–9 ms. Encoding speed is irrelevant at GIF sizes (≤ 720 px, a few hundred frames in a worker). Its Floyd–Steinberg option did not finish within minutes even for 5 frames.
+**Alternatives**: `gifenc` (MIT, fastest, unmaintained since 2022, per-frame palettes, no frame differencing).
+**Revisit when**: banding appears in QA — then add our own ordered-dither pre-pass before quantization.
+
+---
+
+## Phase 1 spike results (2026-09-26)
+
+| Spike | Result | Follow-up |
+|---|---|---|
+| Worker `requestAnimationFrame` + OffscreenCanvas + WebGL2 | Chromium: worker rAF, OffscreenCanvas 2D/WebGL2, `EXT_color_buffer_float` and half-float all available. The runtime falls back to a timer where worker rAF is missing. Firefox and WebKit run the same real-worker integration test in CI. | Real Safari (macOS/iOS) is checked by the owner via the Lab's *This device* panel (USER_QUESTIONS O6). |
+| Turbopack worker bundling + dynamic template imports | Works: `new Worker(new URL('./render.worker.ts', import.meta.url), { type: 'module' })`, lazy template chunks and HarfBuzz's WASM (`new URL(…, import.meta.url)`). One fix: harfbuzzjs's Emscripten glue imports Node's `module` on a Node-only branch → browser resolve alias to a stub (`next.config.ts`). | — |
+| HarfBuzz font loading | ADR-020: gzip TTF + `DecompressionStream`. | — |
+| Float accumulation | Chromium supports float color buffers in workers. RGBA8 fallback quality is judged with the compositor (Phase 2). | Safari/iOS via the owner check (O6). |
+| Transparent WebM (Mediabunny) | WebCodecs can't encode VP9 with `alpha: 'keep'` natively; Mediabunny 1.60 encodes the alpha plane as side data. Round trip in Chromium keeps clear, opaque and anti-aliased alpha (60 frames, 480 × 270 → 46 KB in ~180 ms). | Importing into DaVinci Resolve / After Effects is checked by hand once export exists (Phase 2). |
+| GIF encoder | ADR-025: modern-gif. | — |
+| Codec availability | Chromium builds without proprietary codecs have no H.264 encoder (Google Chrome has it); VP9 and AV1 are available. | The export sheet only offers what `probeCapabilities()` confirms (as planned). |

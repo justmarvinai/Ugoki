@@ -2,7 +2,7 @@
 
 > From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
 
-**Now**: Phase 1 — foundations & engine core (go-ahead given 2026-09-26). Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
+**Now**: Phase 1 — foundations & engine core is built and in review (PR to `main`). Next: the owner imports the repo into Vercel (O3) and checks the Lab in Safari (O6); then Phase 2. Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
 
 | Phase | Outcome | Version |
 |---|---|---|
@@ -38,33 +38,34 @@
 - [ ] GitHub repo imported into Vercel (Hobby) — owner does this **after Phase 1**; until then PRs have no preview links
 
 **Scaffold**
-- [ ] Next.js 16.3 · React 19.3 (React Compiler on) · TypeScript 7 · Tailwind 4.3 · Biome 2.5 · Vitest 5 · Playwright 1.63 · pnpm 10 · Node 24
-- [ ] GitHub Actions CI (typecheck, Biome, tests, build with "no serverless functions" assertion)
-- [ ] Vercel project, preview deployments per branch, security headers
-- [ ] Design tokens (Daylight/Cinema) in Tailwind `@theme`; Mona Sans self-hosted; first primitives (Button, SegmentedControl, Slider)
+- [x] Next.js 16.3 · React 19.3 (React Compiler on) · TypeScript 7 · Tailwind 4.3 · Biome 2.5 · Vitest 5 · Playwright 1.63 · pnpm 10 · Node 24
+- [x] GitHub Actions CI (typecheck, Biome, tests, build with "no serverless functions" assertion)
+- [ ] Vercel project, preview deployments per branch, security headers — *headers (CSP etc.) are in `next.config.ts`; the Vercel project follows the owner's import (O3)*
+- [x] Design tokens (Daylight/Cinema) in Tailwind `@theme`; Mona Sans self-hosted; first primitives (Button, SegmentedControl, Slider)
 
 **Spikes** (each ends with a short note in `docs/08-decisions.md` if it changes anything)
-- [ ] Worker `requestAnimationFrame` + OffscreenCanvas WebGL2 in Chrome, Safari 17+, Firefox
-- [ ] Turbopack worker bundling + dynamic template imports inside workers
-- [ ] HarfBuzz font loading: Vercel compression for `.ttf` vs WOFF2 + WASM decoder
-- [ ] Float accumulation (`EXT_color_buffer_float`) on Safari/iOS; RGBA8 fallback quality
-- [ ] Mediabunny WebM-alpha round trip (encode → import in Resolve/After Effects)
-- [ ] GIF encoder choice (gifenc vs modern-gif): quality, speed, size
+- [x] Worker `requestAnimationFrame` + OffscreenCanvas WebGL2 — *verified in Chromium; Firefox and WebKit run the real-worker test in CI; real Safari via the Lab's device panel (O6)*
+- [x] Turbopack worker bundling + dynamic template imports inside workers — *works; harfbuzzjs needs a browser alias for Node's `module`*
+- [x] HarfBuzz font loading — *gzip TTF + `DecompressionStream` (ADR-020)*
+- [ ] Float accumulation (`EXT_color_buffer_float`) on Safari/iOS; RGBA8 fallback quality — *Chromium ✓; Safari/iOS via O6; fallback quality is judged with the compositor (Phase 2)*
+- [ ] Mediabunny WebM-alpha round trip (encode → import in Resolve/After Effects) — *encode → decode keeps alpha (Chromium, regression test); the Resolve/After Effects import needs the exporter (Phase 2)*
+- [x] GIF encoder choice (gifenc vs modern-gif): quality, speed, size — *modern-gif (ADR-025)*
 
 **Engine core**
-- [ ] `core`: easing library, closed-form springs, stagger patterns, seeded RNG, OKLCH color utils
-- [ ] `template`: `defineTemplate`, control schema, validation (Zod), defaults, Looks, migrations
-- [ ] `timeline`: sections, energy profiles, reading-time rules, sequences, cut points, stepped time
-- [ ] `draw`: Draw API over Canvas 2D (groups, shapes, trims, clips, images, movable/editable registry)
-- [ ] `text`: HarfBuzz loader, font registry, shaping, balanced line breaking, auto-fit, glyph path cache, fallback runs
-- [ ] `host` + `runtime`: render worker, typed protocol, player, adaptive quality, atomic scene swaps
-- [ ] `/lab` workbench (formats side by side, scrubber, energies, stress text, render-cost meter)
-- [ ] Golden-frame harness (Playwright + committed references)
+- [x] `core`: easing library, closed-form springs, stagger patterns, seeded RNG, OKLCH color utils
+- [x] `template`: `defineTemplate`, control schema, validation, defaults, Looks, migrations — *validation by engine sanitizers; Zod joins for share links in Phase 2 (ADR-018)*
+- [x] `timeline`: sections, energy profiles, reading-time rules, sequences, cut points, stepped time
+- [x] `draw`: Draw API over Canvas 2D (groups, shapes, trims, clips, images, movable/editable registry)
+- [x] `text`: HarfBuzz loader, font registry, shaping, balanced line breaking, auto-fit, glyph path cache, fallback runs
+- [x] `host` + `runtime`: render worker, typed protocol, player, adaptive quality, atomic scene swaps
+- [x] `/lab` workbench (formats side by side, scrubber, energies, stress text, render-cost meter)
+- [x] Golden-frame harness (Vitest browser mode + committed Chromium references)
 
 **Reference template 1**
-- [ ] **Rise** — all formats, 3 Looks, 3 energies, duration extremes, stress text
+- [x] **Rise** — all formats, 3 Looks, 3 energies, duration extremes, stress text
 
 **Exit**: Rise plays at 60 fps in the Lab in Chrome, Safari and Firefox; two renders are pixel-identical; golden frames run in CI.
+*Status*: 60 fps with four views measured in Chromium (≈ 0.1 ms recording per view per frame); determinism and golden frames are tested; Firefox/WebKit run the engine tests in CI; Safari needs the owner's device check (O6).
 
 ---
 

@@ -8,7 +8,20 @@
 
 ## Status
 
-**Phase 1 — Foundations & engine core** (in progress). The plan is complete and the owner's decisions are recorded in [`USER_QUESTIONS.md`](USER_QUESTIONS.md). Progress: [`ROADMAP.md`](ROADMAP.md).
+**Phase 1 — Foundations & engine core** is built (version 0.1.0, in review): the deterministic engine, HarfBuzz typography, the render worker, the first template (*Rise*) and the template Lab. The owner's decisions are recorded in [`USER_QUESTIONS.md`](USER_QUESTIONS.md). Progress: [`ROADMAP.md`](ROADMAP.md).
+
+## Run it locally
+
+Requirements: Node 24 and pnpm 10.34.5 (`corepack enable` picks it up from `package.json`).
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:3000 — the template Lab is at /lab
+pnpm check        # typecheck + lint + unit tests
+pnpm test:browser # engine tests in a real browser (needs Playwright's Chromium: pnpm exec playwright install chromium)
+```
+
+More commands in [CLAUDE.md](CLAUDE.md#commands).
 
 ## The plan
 

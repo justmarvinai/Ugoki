@@ -50,6 +50,7 @@ Springs are solved **analytically** (closed-form damped harmonic oscillator), so
 |---|---|---|---|---|---|---|---|
 | `gentle` | 120 | 20 | 1 | 0.91 | ~0.1% | ~0.45 s | Large, calm moves (devices, cameras) |
 | `snappy` | 400 | 28 | 1 | 0.70 | ~4.6% | ~0.30 s | UI, pills, bubbles, layout pushes |
+| `lively` | 500 | 25 | 1 | 0.56 | ~12% | ~0.26 s | Punchy energy's spring: pronounced but controlled pop |
 | `bouncy` | 300 | 12 | 1 | 0.35 | ~31% | ~0.65 s | Playful templates only (Bounce, stickers) |
 | `heavy` | 40 | 13 | 1 | 1.03 | 0% | ~0.95 s | Slow, weighty settles (Stack photos) |
 
@@ -76,11 +77,13 @@ Users never touch curves. They choose **Energy**, and every template maps it con
 | In/out durations | ×1.35 | ×1.0 | ×0.75 |
 | Stagger gaps | ×1.4 | ×1.0 | ×0.7 |
 | Travel distances | ×0.6 | ×1.0 | ×1.35 |
-| Overshoot | none (springs → `gentle`/`heavy`) | subtle (`snappy`) | pronounced (`pop`, ≤ 15%) |
+| Overshoot | none (springs → `gentle`/`heavy`) | subtle (`snappy`) | pronounced (`pop`, `lively` spring; ≤ 15%) |
 | Preferred curves | `glide` long, `drift` | `glide`, `snap` | `snap`, `pop`, hard cuts |
 | Motion blur shutter | 90° | 180° | 270° |
 | Blur-in amounts | ×1.2 | ×1.0 | ×0.8 |
 | Hold micro-motion | slow drift | drift | beat pulses |
+
+Stagger gaps are real seconds: `ctx.stagger(gap)` compensates for the time scale that `tl.p` applies to entrance/exit windows, so a 0.08 s line gap becomes 0.112 s in Calm and 0.056 s in Punchy — not 0.08 × 1.4 × 1.35.
 
 Rules: *Calm is not slow Balanced* (it changes character: fewer overshoots, softer reveals). *Punchy is not fast Balanced* (it adds cuts, pops and bigger travel). Templates may override individual rows in their spec where the genre demands it (e.g. Cinematic has no Punchy overshoot).
 

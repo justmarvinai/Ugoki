@@ -40,6 +40,14 @@ Category slug: `text-titles` · Conventions: [`00-foundations.md`](00-foundation
 
 **Engine needs.** `text.block` (balanced wrap, auto-fit) · per-line clip · word/line stagger · motion blur · hold breath helper.
 
+**Implementation notes (Phase 1, `src/templates/text-titles/rise`).**
+- *Sizes*: headline 16u (16:9), 19.2u (9:16, the +20%), 13u (1:1), 13.5u (4:5); auto-fit shrinks to 40% before flagging overflow. 16:9 lines use up to 72% of the title-safe width, so headlines stay a lockup rather than a banner. Eyebrow 3.4u (4u in 9:16) in the text face, `muted` color; gaps 2.4u eyebrow → rule and 3.6u rule → cap height (3.2u without a rule).
+- *Placement*: "9:16 → centered" is read as *vertically centered in the social-safe zone*; horizontal alignment still follows the Alignment control. 1:1/4:5 seat the lockup on the bottom of the safe area (with room for descenders); choosing Center centers the composition in every format. Center alignment is symmetric around the frame's center even where the social zone isn't.
+- *Energy*: skew angle and hold drift scale with Energy's travel (skew 3.6° Calm · 6° Balanced · 8.1° Punchy; drift 0.36u · 0.6u · 0.81u); the rise uses Energy's entrance curve (`glide`, or `snap` for Punchy).
+- *Skew pivot*: the line's left ink edge, so the skew only ever lowers glyphs and nothing peeks out of a mask before the rise (frame 0 stays clean in every alignment).
+- *Exits*: Up (top line first) · Down (bottom line first, into the masks) · Fade (1u upward drift while fading).
+- *Motion blur*: arrives with the compositor (Phase 2) for every template at once; Rise needs no change.
+
 ---
 
 ## 1.2 Stretch — *variable-width poster type*

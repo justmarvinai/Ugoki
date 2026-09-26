@@ -34,20 +34,22 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | UI animation | **Motion** (`motion/react`) | ^13.4.4 | MIT; springs, layout animations, `AnimateView` on top of View Transitions |
 | State | **Zustand** | ^5.0.15 | Tiny, selector-based, usable outside React (engine host) |
 | Undo/redo | Own history middleware | — | `zundo` is dormant; snapshot history with coalescing is ~80 lines |
-| Validation | **Zod** (`zod/mini` in client bundles) | ^4.6.5 | Share-link and draft parsing, control-schema validation |
+| Validation | Engine sanitizers + **Zod** (`zod/mini`, Phase 2) | ^4.6.5 | The engine repairs untrusted input itself (ADR-018); Zod parses the share-link/draft envelope on the main thread |
 | Persistence | **Dexie** (IndexedDB) | ^4.4.6 | Versioned schema, indexes, reactive queries for drafts |
-| Color | **culori** (+ `@types/culori`) | ^4.0.2 | OKLCH conversion, contrast, palette derivation |
+| Color | Engine's own OKLab/OKLCH (`core/color.ts`) | — | Conversion, gamut mapping, contrast, palette derivation, premultiplied OKLab gradients (ADR-018); culori only if the UI color picker needs it |
 | Text shaping | **harfbuzzjs** (HarfBuzz 14.5) | ^1.6.2 | Identical shaping/glyphs in every browser; variable axes; glyph outlines (MIT) |
 | Video muxing/encoding | **Mediabunny** (WebCodecs) | ^1.60.0 | MP4/WebM muxing, CanvasSource, WebM alpha, backpressure (MPL-2.0) |
-| GIF | **gifenc** or **modern-gif** | spike decides | MIT; gifski is AGPL and excluded |
+| GIF | **modern-gif** | ^2.1.0 (Phase 2) | MIT; 10× smaller than gifenc on gradients, higher fidelity (ADR-025); gifski is AGPL and excluded |
 | ZIP | **fflate** | ~0.8.3 | Streaming ZIP for PNG sequences, deflate for share links (MIT) |
 | Geometry | **delaunator** | latest | Shard triangulation (ISC), tiny |
-| Worker RPC | **Comlink** or a typed custom protocol | spike decides | Control-plane calls; transferables for canvases/bitmaps |
+| Worker RPC | Typed custom protocol (`engine/host`) | — | Views, transport, snapshots, capability probing; transferables for canvases/bitmaps (ADR-022) |
 | Unit & browser tests | **Vitest** (+ `@vitest/browser-playwright`) | ^5.0.2 | Browser Mode is stable; engine tests in real Chromium |
-| E2E & golden frames | **Playwright** | ^1.63.0 | Flows, visual regression of template frames |
+| E2E & golden frames | **Playwright** · Vitest `toMatchScreenshot` | ^1.63.0 | Flows against the production build; golden frames of template renders |
 | Package manager | **pnpm** | 10.34.5 (pinned via `packageManager`) | Vercel does not auto-detect pnpm 11/12 yet |
 | Runtime | **Node.js** | 24.x (Active LTS, Vercel default) | Node 20 is EOL; Vitest 5 needs ≥ 22.12 |
 | Hosting | **Vercel Hobby** | — | Static pages on the CDN; free Vercel domain; no analytics products |
+
+Dependencies are added with the feature that uses them: Phase 1 installs the framework, Base UI, Motion, harfbuzzjs and Mediabunny (for the export spike); Zustand, Zod, Dexie, fflate, delaunator and modern-gif arrive in Phase 2+.
 
 ### Deliberately not used
 
@@ -102,43 +104,53 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 
 ```
 .
-├── CLAUDE.md · README.md · ROADMAP.md · CHANGELOG.md · USER_QUESTIONS.md
+├── CLAUDE.md · AGENTS.md · README.md · ROADMAP.md · CHANGELOG.md · USER_QUESTIONS.md
 ├── docs/                          # planning & specifications (this folder)
+├── .github/workflows/ci.yml       # CI (§18)
 ├── public/
-│   ├── fonts/                     # subsetted OFL fonts (TTF for the engine, WOFF2 for UI CSS)
-│   ├── og/                        # pre-rendered Open Graph images
-│   └── favicon.svg, icons
-├── scripts/                       # font subsetting, OG + golden-frame rendering, license report
+│   ├── fonts/engine/              # gzip TTFs for the engine (content-hashed)
+│   ├── fonts/licenses/            # OFL texts
+│   └── og/                        # pre-rendered Open Graph images (Phase 6)
+├── scripts/                       # fonts.py (reproducible font builds), assert-static.mjs
 ├── src/
 │   ├── app/                       # Next.js routes — thin; compose features
-│   │   ├── page.tsx               # landing
-│   │   ├── templates/page.tsx
-│   │   ├── templates/[category]/page.tsx
-│   │   ├── editor/[templateId]/page.tsx
-│   │   ├── legal/{imprint,privacy,licenses}/page.tsx
-│   │   ├── lab/                   # dev-only engine lab
-│   │   ├── layout.tsx · globals.css · not-found.tsx · sitemap.ts · robots.ts
+│   │   ├── page.tsx               # landing (placeholder until Phase 6)
+│   │   ├── templates/page.tsx · templates/[category]/page.tsx      (Phase 4)
+│   │   ├── editor/[templateId]/page.tsx                            (Phase 2)
+│   │   ├── legal/{imprint,privacy,licenses}/page.tsx               (Phase 6)
+│   │   ├── lab/page.tsx           # template workbench (404 in production, ADR-024)
+│   │   ├── layout.tsx · globals.css · fonts.ts · icon.svg
+│   │   ├── not-found.tsx · sitemap.ts · robots.ts                   (Phase 6)
 │   ├── engine/                    # framework-agnostic, DOM-free, worker-safe (see 06-engine.md)
-│   │   ├── core/ template/ timeline/ draw/ text/ assets/ compositor/ ui-kit/ runtime/ host/ export/
+│   │   ├── core/ template/ timeline/ draw/ text/ runtime/ host/   (Phase 1)
+│   │   ├── assets/ compositor/ ui-kit/ export/                    (Phase 2+)
 │   │   └── index.ts               # the public engine API templates may import
 │   ├── templates/                 # the 50 templates
 │   │   ├── registry.ts            # metadata (tiny, server-safe) + lazy loaders
-│   │   ├── categories.ts
 │   │   └── <category>/<id>/index.ts (+ looks.ts, layout.ts as needed)
+│   ├── workers/                   # composition root: render.worker.ts, createRenderEndpoint()
 │   ├── features/                  # React feature modules
-│   │   └── landing/ gallery/ editor/ inspector/ stage/ transport/ export/ drafts/ share/
-│   ├── components/                # design-system primitives (Button, Slider, SegmentedControl…)
-│   ├── design/                    # tokens.css (Tailwind @theme), motion tokens, icons
-│   ├── stores/                    # Zustand stores + history middleware
-│   └── lib/                       # db (Dexie), share codec, capabilities, utils
-├── tests/                         # e2e, golden frames, fixtures
+│   │   └── lab/ · landing/ gallery/ editor/ inspector/ stage/ transport/ export/ drafts/ share/
+│   ├── components/                # design-system primitives (Button, Slider, SegmentedControl, Switch…)
+│   ├── design/                    # motion tokens, icons (color/type tokens live in app/globals.css @theme)
+│   ├── fonts/                     # UI WOFF2 (Ugoki Sans, Ugoki Mono) for next/font/local
+│   ├── stores/                    # Zustand stores + history middleware (Phase 2)
+│   └── lib/                       # small utilities (cn, …); db, share codec later
+├── tests/
+│   ├── support/                   # render harness + test worker
+│   ├── templates/                 # per-template browser checks
+│   ├── integration/               # real-worker end-to-end render path
+│   ├── golden/                    # golden frames + __screenshots__ references
+│   ├── spikes/                    # platform spikes kept as regression tests
+│   └── e2e/                       # Playwright against the production build
 └── biome.json · next.config.ts · tsconfig.json · vitest.config.ts · playwright.config.ts · package.json
 ```
 
 **Import boundaries** (enforced by Biome `noRestrictedImports` rules + review):
 - `engine/**` imports nothing from `app`, `features`, `components`, `stores` or React. It must run inside a worker.
 - `templates/**` import only from `@/engine` (the public API).
-- `features/**` talk to the engine only through `engine/host` (the worker client).
+- `features/**` talk to the engine only through `engine/host` (the worker client plus the engine's pure data), and create workers through `src/workers`.
+- `workers/**` is the only place that joins the engine and the template registry.
 
 ---
 
@@ -150,7 +162,7 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | `/templates`, `/templates/[category]` | SSG (10 category params) | Tile shells rendered statically; live previews hydrate |
 | `/editor/[templateId]` | SSG (50 params) + client editor | Editor feature is a client component; state from `#d=` or `?draft=` |
 | `/legal/*` | SSG | Content in MDX or TSX |
-| `/lab` | Excluded from production builds | Guarded by `process.env.NODE_ENV` |
+| `/lab` | SSG; 404 on the production deployment | Built for local and preview deployments so templates can be reviewed there; `VERCEL_ENV === 'production'` → `notFound()`, `noindex` (ADR-024) |
 
 **Code splitting**: the engine, each template, HarfBuzz WASM, and each export encoder are separate lazy chunks. The landing loads only what the hero needs; the export modules load when the export sheet opens.
 
@@ -197,18 +209,18 @@ Dexie schema v1:
 ## 9. Templates: registry & loading
 
 - `templates/registry.ts` exports **metadata only** (id, name, tagline, category, formats, duration, structure, alpha, tags, use cases) — tiny and server-safe, used by SSG pages, search, sitemap and OG generation.
-- Template code is imported lazily **inside the workers** (`import('./<category>/<id>/index.ts')`), so the main thread never loads template code.
+- Template code is imported lazily **inside the workers** (`import('./<category>/<id>/index.ts')`), so the main thread never loads template code. The worker answers with a plain-data `TemplateDescriptor` (controls, Looks, formats, palettes, available pairings, duration) and sanitized states (ADR-022). A unit test keeps registry metadata and template definitions in sync.
+- `src/workers/` is the composition root: `render.worker.ts` binds the engine's runtime to the registry; `createRenderEndpoint()` returns the module worker (or the in-thread fallback).
 - Each template exports one `defineTemplate({...})` (contract in [`06-engine.md`](06-engine.md) §4).
 
 ---
 
 ## 10. Fonts pipeline
 
-- **Sources**: OFL families only (see [`templates/00-foundations.md`](templates/00-foundations.md) §6). Mona Sans from the GitHub repository build (v2.0.27: includes `opsz` and Mona Sans Mono); others from `google/fonts`. Every family's license text ships in `public/fonts/LICENSES/` and on `/legal/licenses`.
-- **Subsetting** (`scripts/fonts.ts` via fontTools `pyftsubset`, run locally/CI, outputs committed): Latin, Latin-1 Supplement, Latin Extended-A, general punctuation, currency (€ £ ¥ ₹), arrows and UI symbols (⌘ ↵ ↑ ↓ ← →), math (× − ÷), keeping variation axes and OpenType features (`kern`, `liga`, `calt`, `tnum`, `ss0x`).
-- **Formats**: TTF for the engine (HarfBuzz needs sfnt data) and WOFF2 for the interface's CSS `@font-face` (Mona Sans only).
-- **Spike (Phase 1)**: confirm Vercel serves `.ttf` compressed (brotli/gzip); if not, ship WOFF2 and decode in the worker with a small WASM WOFF2 decoder.
-- Fonts load on demand per pairing; the hero preloads only what it needs.
+- **Sources**: OFL families only (see [`templates/00-foundations.md`](templates/00-foundations.md) §6), downloaded from pinned URLs and verified by SHA-256. Mona Sans from the GitHub repository build (v2.0.27: includes `opsz` and Mona Sans Mono); others from `google/fonts`. Every family's license text ships in `public/fonts/licenses/` and on `/legal/licenses`.
+- **Build** (`pnpm fonts` → `scripts/fonts.py`, fontTools 4.60.1, outputs committed, byte-for-byte reproducible): instancing to the axis ranges we use, then subsetting to Latin, Latin-1 Supplement, Latin Extended-A, Romanian, general punctuation, currency (€ £ ¥ ₹), arrows and UI symbols (⌘ ↵ ↑ ↓ ← →) and math (× − ÷), keeping variation axes and OpenType features (`kern`, `liga`, `calt`, `tnum`, `ss0x`). Modified Mona Sans builds are renamed "Ugoki Sans"/"Ugoki Mono" (Reserved Font Name, ADR-019).
+- **Formats**: gzip-compressed TTF for the engine (`public/fonts/engine/<id>.<hash>.ttf.gz`, inflated with `DecompressionStream`, ADR-020) and WOFF2 for the interface (`src/fonts/`, loaded with `next/font/local`). `src/engine/text/font-manifest.json` lists URLs, hashes, axes and metrics.
+- Fonts load on demand per pairing; the hero preloads only what it needs. Phase 1 builds Mona Sans, Inter and Instrument Serif (the `grotesk` and `editorial` pairings); a pairing is offered only when all its fonts are built.
 
 ---
 
@@ -281,9 +293,9 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 
 | Layer | Tool | What |
 |---|---|---|
-| Unit | Vitest (node) | Easing/springs/stagger/rng math, timeline, control schemas & migrations, share codec, palette derivation & contrast, text layout (HarfBuzz runs in Node), layout solvers |
-| Engine in browser | Vitest Browser Mode (Chromium via Playwright) | Draw API, compositor effects, determinism (render twice → identical pixels) |
-| Golden frames | Playwright + engine | Each template × (default format + one contrasting format) × 3 times (start of hold, poster, end of hold) at 480 px, compared with committed PNGs (small tolerance); `--update` to accept intentional changes |
+| Unit | Vitest (node) | Easing/springs/stagger/rng math, timeline & sequences, control schemas & migrations, share codec, palette derivation & contrast, text layout (HarfBuzz runs in Node), adaptive quality, registry ↔ template metadata |
+| Engine in browser | Vitest Browser Mode (Playwright; Chromium, Firefox, WebKit in CI) | Draw API, runtime & protocol, a real module worker end to end, compositor effects, template checks (`tests/templates/`: clean edit points for every format × Look × energy × exit, stress text inside safe areas, transparency, determinism — render twice → identical pixels) |
+| Golden frames | Vitest `toMatchScreenshot` (`tests/golden/`) | Key frames per template (hold, entrance, exit, each format, each Look, stress text, transparency) at 0.4× scale, Chromium references with a small pixelmatch tolerance; `pnpm test:golden --update` accepts intentional changes |
 | E2E | Playwright | Flows A–D from the experience doc; export smoke test (WebM in Chromium) verified by decoding the file (duration, size, frame count) |
 | Accessibility | Playwright + axe-core | Landing, gallery, editor, export sheet |
 | Performance | `/lab` benchmark | Per-template render cost vs. budget |
@@ -291,7 +303,12 @@ Everything is **feature-detected at runtime** (`VideoEncoder.isConfigSupported`,
 
 ## 18. CI (GitHub Actions)
 
-On every PR: install → `tsc --noEmit` (TS 7) → `biome ci` → Vitest (unit + browser) → `next build` (assert no functions, check bundle budgets) → Playwright e2e → golden frames (diff images uploaded as artifacts on failure). Vercel posts the preview URL.
+`.github/workflows/ci.yml`, on every PR and on pushes to `main`:
+- **check**: install → `pnpm typecheck` (TS 7) → `pnpm lint` (Biome) → `pnpm test` (unit) → `pnpm build` (fails if any route isn't prerendered — no serverless functions).
+- **browser** (matrix: Chromium, Firefox, WebKit): `pnpm test:browser`.
+- **e2e**: golden frames (Chromium) → `pnpm build` → `pnpm test:e2e` (Playwright, three engines); test output and diff images are uploaded as artifacts on failure.
+
+Bundle budgets join the check job with the landing page (Phase 6). Vercel posts the preview URL once the repo is imported (USER_QUESTIONS O3).
 
 ## 19. Conventions
 
