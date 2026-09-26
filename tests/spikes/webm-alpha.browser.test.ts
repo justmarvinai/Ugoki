@@ -83,7 +83,10 @@ test('transparent WebM round trip keeps the alpha channel', async (context) => {
   }
   const total = data.length / 4;
   console.info(`alpha histogram: clear ${clear}, solid ${solid}, partial ${partial}`);
-  expect(clear / total).toBeGreaterThan(0.7); // background stays transparent
-  expect(solid).toBeGreaterThan(total * 0.02); // the headline is opaque
-  expect(partial).toBeGreaterThan(0); // anti-aliased edges keep intermediate alpha
+  // Encoders pick different bitrates (Chromium ~46 KB, WebKit ~8 KB for these 60 frames), so a
+  // lossy alpha plane softens edges by different amounts; assert the property, not a count.
+  expect(clear / total).toBeGreaterThan(0.7); // the background stays transparent
+  expect((solid + partial) / total).toBeGreaterThan(0.03); // the headline keeps its coverage
+  expect(solid / total).toBeGreaterThan(0.01); // with an opaque core
+  expect(partial).toBeGreaterThan(0); // and anti-aliased edges keep intermediate alpha
 });

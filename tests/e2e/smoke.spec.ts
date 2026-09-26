@@ -18,6 +18,27 @@ test('home page shows the tagline', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+/** Share of opaque pixels in a view's canvas, read back from the worker-owned placeholder. */
+function stageCoverage(page: Page, name: string): Promise<number | string> {
+  return page.evaluate(async (label) => {
+    const canvas = document.querySelector(`[aria-label="${label}"] canvas`);
+    if (!(canvas instanceof HTMLCanvasElement)) return 'no canvas';
+    try {
+      const bitmap = await createImageBitmap(canvas);
+      const probe = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = probe.getContext('2d');
+      if (!ctx) return 'no 2d';
+      ctx.drawImage(bitmap, 0, 0);
+      const data = ctx.getImageData(0, 0, probe.width, probe.height).data;
+      let opaque = 0;
+      for (let i = 3; i < data.length; i += 4) if ((data[i] ?? 0) > 0) opaque++;
+      return opaque / (data.length / 4);
+    } catch (error) {
+      return String(error);
+    }
+  }, name);
+}
+
 test('the Lab renders Rise in every format through the render worker', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/lab');
@@ -31,11 +52,41 @@ test('the Lab renders Rise in every format through the render worker', async ({ 
   }
   await expect(page.getByText('Render worker · 4 views')).toBeVisible();
 
+  // Record the worker's messages, to explain a failure below.
+  await page.waitForFunction(() => Boolean(window.__ugokiLab));
+  await page.evaluate(() => {
+    const log: string[] = [];
+    (window as unknown as { __ugokiLog: string[] }).__ugokiLog = log;
+    window.__ugokiLab?.client.subscribe((m) => {
+      if (m.type === 'regions') return;
+      const at = Math.round(performance.now());
+      log.push(
+        m.type === 'frame'
+          ? `${at} frame ${m.view} t=${m.t.toFixed(3)} ${m.playing ? 'playing' : 'still'}`
+          : `${at} ${m.type} ${'view' in m ? m.view : ''} ${m.type === 'error' ? m.message : ''}`,
+      );
+      if (log.length > 300) log.shift();
+    });
+  });
+  const explain = async (error: unknown) => {
+    const log = await page.evaluate(
+      () => (window as unknown as { __ugokiLog?: string[] }).__ugokiLog,
+    );
+    console.log(`worker messages (latest last):\n${(log ?? []).slice(-60).join('\n')}`);
+    throw error;
+  };
+
+  // The stage displays the worker's frames (the Paper background covers the whole view).
+  await expect
+    .poll(() => stageCoverage(page, 'Landscape preview'), { timeout: 5000 })
+    .toBeGreaterThan(0.99)
+    .catch(explain);
+
   // Playback advances the shared transport.
   await page.getByRole('button', { name: 'Play (Space)' }).click();
-  await expect(page.locator('output[aria-label="Time"]')).not.toHaveText(/^00:00\.00/, {
-    timeout: 5000,
-  });
+  await expect(page.locator('output[aria-label="Time"]'))
+    .not.toHaveText(/^00:00\.00/, { timeout: 5000 })
+    .catch(explain);
   await page.getByRole('button', { name: 'Pause (Space)' }).click();
 
   // Every Look and energy rebuilds without errors.
