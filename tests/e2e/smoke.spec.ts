@@ -39,6 +39,22 @@ function stageCoverage(page: Page, name: string): Promise<number | string> {
   }, name);
 }
 
+/**
+ * Asserts that a view displays the worker's frames (the Paper background covers the whole view).
+ * Waits for the view's render-cost meter before reading back: Firefox reads a worker-owned canvas
+ * back by blocking the main thread until the worker answers (up to 10 s), and around a worker's
+ * first canvas frame the worker waits for a setup task on the main thread — reading back then
+ * stalls both until the timeout. A meter value means frames were presented and the page ran since.
+ */
+async function expectDisplayed(page: Page, name: string): Promise<void> {
+  const caption = page
+    .locator('figure')
+    .filter({ has: page.getByRole('img', { name }) })
+    .locator('figcaption');
+  await expect(caption).toContainText(/\d\.\d\d ms/, { timeout: 10_000 });
+  await expect.poll(() => stageCoverage(page, name), { timeout: 5000 }).toBeGreaterThan(0.99);
+}
+
 test('the Lab renders Rise in every format through the render worker', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/lab');
@@ -76,11 +92,8 @@ test('the Lab renders Rise in every format through the render worker', async ({ 
     throw error;
   };
 
-  // The stage displays the worker's frames (the Paper background covers the whole view).
-  await expect
-    .poll(() => stageCoverage(page, 'Landscape preview'), { timeout: 5000 })
-    .toBeGreaterThan(0.99)
-    .catch(explain);
+  // The stage displays the worker's frames.
+  await expectDisplayed(page, 'Landscape preview').catch(explain);
 
   // Playback advances the shared transport.
   await page.getByRole('button', { name: 'Play (Space)' }).click();
@@ -100,10 +113,7 @@ test('the Lab renders Rise in every format through the render worker', async ({ 
     'Square preview',
     'Portrait preview',
   ]) {
-    await expect
-      .poll(() => stageCoverage(page, name), { timeout: 5000 })
-      .toBeGreaterThan(0.99)
-      .catch(explain);
+    await expectDisplayed(page, name).catch(explain);
   }
 
   // Every Look and energy rebuilds without errors.
@@ -123,9 +133,7 @@ test('PNG stills download with the ugoki- prefix', async ({ page }) => {
   await page.goto('/lab');
   await page.getByRole('button', { name: '16:9' }).click();
   await expect(page.getByText('Render worker · 1 view')).toBeVisible();
-  await expect
-    .poll(() => stageCoverage(page, 'Landscape preview'), { timeout: 5000 })
-    .toBeGreaterThan(0.99);
+  await expectDisplayed(page, 'Landscape preview');
   // Arrow/Home/End keys belong to the focused segmented control; transport shortcuts are global.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('End');
