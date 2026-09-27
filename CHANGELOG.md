@@ -14,12 +14,15 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 - **Logos and images**: add your own SVG, PNG, JPG or WebP — read and hashed on your device, never uploaded; SVGs become vector artwork (or a safe raster when they use what we don't support). The placeholder brands Halden, Nova and Aero are built in.
 - **Preview backdrops** for transparent designs: moving, defocused footage, or Scene A → B swapping at a transition's cut point, or your own still ("Preview on my footage") — preview only, never exported unless you bake it in.
 - **Compositor**: isolated layers, masks and effects (blur, bloom, soft shadow) on WebGL2 with a Canvas 2D fallback; motion blur on paused previews; Grain and Soft glow finishes.
-- The Lab: image controls, select-style choices, the Layout group, the backdrop picker and a cut marker on the transport.
+- **Export** — rendered on your device in a worker, with the same engine as the preview: MP4 (H.264), transparent WebM (VP9 with alpha), PNG sequences (a ZIP with straight alpha and a README), looping GIFs and PNG stills; 720p to 4K, 24–60 fps, three qualities; transitions can bake Scene A → B underneath and name their cut frame. Where the browser allows it the file is written as it renders; progress, a live preview of the frame being exported, cancel, and *Copy details* when something fails.
+- **Adaptive motion blur**: fast motion gets more sub-frames, so fast edges smear smoothly instead of in steps.
+- The Lab: image controls, select-style choices, the Layout group, the backdrop picker, a cut marker on the transport and an export panel.
 
 ### Fixed
 
 - The Lab's playhead no longer jumps back when frames rendered for an earlier seek arrive late (e.g. End, then Shift+← twice gave 4.00 s instead of 3.00 s).
 - GPU blur and bloom were slightly too strong or too weak on odd-sized layers (the downsample pyramid skipped part of its averaging).
+- The last frame of an export is clean: exits now finish 1/15 s before the end.
 
 ## [0.1.0] — 2026-09-26 — Foundations & engine core
 

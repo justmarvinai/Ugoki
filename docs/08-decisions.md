@@ -167,7 +167,7 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Status**: Accepted · 2026-09-27 (Phase 2)
 **Decision**: `FrameRenderer` renders N sub-frames centered on `t` across the shutter (`(θ / 360) / fps`; θ from Energy — 90° / 180° / 270° — or the template's `shutter`) and averages them in the compositor; two 48 px probes at the shutter's edges detect frames without motion, which render once. Previews use 1 sample while playing or scrubbing and 8 when paused; stills are sharp but finished; exports choose their own count. Grain changes at 24 fps whatever the frame rate.
 **Why**: Templates are pure functions of `t`, so this is exact and needs no per-template work; the static check keeps holds as cheap as sharp frames. Previews and exports share the code, so a paused preview shows what exports.
-**Revisit when**: fixed sample counts band on very fast edges (seen on Layers at 8 samples) — the planned adaptive count raises samples with the measured displacement.
+**Update**: fixed counts banded on very fast edges (Layers at 8 samples) — sample counts are now adaptive (ADR-032).
 
 ### ADR-028 — Logos and images: our own SVG importer; files referenced by content hash
 **Status**: Accepted · 2026-09-27 (Phase 2)
@@ -190,6 +190,18 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Status**: Accepted · 2026-09-27 (Phase 2)
 **Decision**: `play`, `pause` and `seek` carry the client's sequence number; the worker echoes the latest one applied to a view with every frame, and `RenderClient.isCurrent(frame)` tells a page whether a frame reflects its last command. Playheads that follow frames ignore the others.
 **Why**: The worker renders on its own clock, so frames can be in flight when the page seeks. Once paused frames got slower (motion blur), a frame for an earlier seek arrived after the next key press and pulled the Lab's playhead back — CI saved a still named 4.00 s instead of 3.00 s.
+
+### ADR-032 — Adaptive motion-blur sampling
+**Status**: Accepted · 2026-09-27 (Phase 2; refines ADR-027)
+**Decision**: The two probes at the shutter's edges (now 160 px on the short side) also measure how far things move: a moving edge sweeps a band of pixels as wide as its travel, so the shorter of the longest row and column runs of strongly changed pixels approximates the displacement. Moving frames get the requested sub-frames, and more for fast motion — until each sub-frame moves at most `maxStep` output pixels — up to `maxSamples`. Budgets: paused previews 8 (≤ 24, 4 px); exports Standard 4 (≤ 16, 4 px), High 8 (≤ 32, 2.5 px), Max 16 (≤ 64, 1.5 px).
+**Why**: Fixed counts band on fast edges — at 8 samples Layers' panels smeared in eight visible steps; small, fast objects are rare in our templates, while large fast edges (transitions, whip pans) are common. Cost goes where motion is.
+**Consequences**: Small objects moving farther than their own size per shutter are underestimated (they still get the base count). Preview and export use the same code and budgets per quality, so frame N still equals the preview rendered with that budget.
+
+### ADR-033 — Exports: one worker per export, streamed into the user's file where possible
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: Each export runs in its own module worker (`src/workers/export.worker.ts`) with its own compositor and text engine: the page sends the design state, the settings and the user's files it uses (decoded again from the files kept on the device), and — in browsers with a save picker — the handle of the file the user picked, which the worker opens and writes as it goes. Video goes through Mediabunny (H.264 in MP4, VP9 with alpha in WebM; bitrates from the quality table; key frame every 2 s), PNG sequences into a stored ZIP (fflate) with a README, GIFs through modern-gif with one global palette, stills as PNG. Frames are rendered by the same `FrameRenderer` as previews at t = f / fps; exits end 1/15 s early so the last frame is clean. The page holds a Web Lock while exporting and a screen Wake Lock while visible; errors carry their stage and a *Copy details* report without user content.
+**Why**: Previews keep playing during exports; streaming keeps memory flat for 4K; the same renderer makes exported frame N the preview at N / fps (tested pixel for pixel on PNG sequences).
+**Consequences**: A file used by the design is decoded twice (preview and export worker). Browsers without a save picker assemble files in memory (Blobs).
 
 ---
 

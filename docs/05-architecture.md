@@ -39,8 +39,8 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | Color | Engine's own OKLab/OKLCH (`core/color.ts`) | — | Conversion, gamut mapping, contrast, palette derivation, premultiplied OKLab gradients (ADR-018); culori only if the UI color picker needs it |
 | Text shaping | **harfbuzzjs** (HarfBuzz 14.5) | ^1.6.2 | Identical shaping/glyphs in every browser; variable axes; glyph outlines (MIT) |
 | Video muxing/encoding | **Mediabunny** (WebCodecs) | ^1.60.0 | MP4/WebM muxing, CanvasSource, WebM alpha, backpressure (MPL-2.0) |
-| GIF | **modern-gif** | ^2.1.0 (Phase 2) | MIT; 10× smaller than gifenc on gradients, higher fidelity (ADR-025); gifski is AGPL and excluded |
-| ZIP | **fflate** | ~0.8.3 | Streaming ZIP for PNG sequences, deflate for share links (MIT) |
+| GIF | **modern-gif** | 2.1.0 (Phase 2, pinned) | MIT (with modern-palette, MIT); 10× smaller than gifenc on gradients, higher fidelity (ADR-025); gifski is AGPL and excluded |
+| ZIP | **fflate** | 0.8.3 (Phase 2, pinned) | Streaming ZIP for PNG sequences, deflate for share links (MIT) |
 | Geometry | **delaunator** | latest | Shard triangulation (ISC), tiny |
 | Worker RPC | Typed custom protocol (`engine/host`) | — | Views, transport, snapshots, capability probing; transferables for canvases/bitmaps (ADR-022) |
 | Unit & browser tests | **Vitest** (+ `@vitest/browser-playwright`) | ^5.0.2 | Browser Mode is stable; engine tests in real Chromium |
@@ -49,7 +49,7 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | Runtime | **Node.js** | 24.x (Active LTS, Vercel default) | Node 20 is EOL; Vitest 5 needs ≥ 22.12 |
 | Hosting | **Vercel Hobby** | — | Static pages on the CDN; free Vercel domain; no analytics products |
 
-Dependencies are added with the feature that uses them: Phase 1 installs the framework, Base UI, Motion, harfbuzzjs and Mediabunny (for the export spike); Zustand, Zod, Dexie, fflate, delaunator and modern-gif arrive in Phase 2+.
+Dependencies are added with the feature that uses them: Phase 1 installs the framework, Base UI, Motion, harfbuzzjs and Mediabunny (for the export spike); fflate and modern-gif arrived with exports (Phase 2); Zustand, Zod, Dexie and delaunator follow with the editor, drafts, share links and later templates.
 
 ### Deliberately not used
 

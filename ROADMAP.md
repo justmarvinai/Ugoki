@@ -86,9 +86,9 @@
 - [ ] Image/logo import (raster + sanitized SVG → vector paths), focal points, logo color modes
 
 **Export**
-- [ ] Export worker pipeline; capability probing; Web Lock + Wake Lock
-- [ ] MP4 (H.264), WebM (VP9 + alpha), PNG sequence ZIP, GIF, PNG still
-- [ ] Streaming save (File System Access) + Blob/OPFS fallback; progress/ETA/cancel; errors with fallbacks
+- [x] Export worker pipeline; capability probing; Web Lock + Wake Lock
+- [x] MP4 (H.264), WebM (VP9 + alpha), PNG sequence ZIP, GIF, PNG still
+- [x] Streaming save (File System Access) + Blob fallback; progress/ETA/cancel; errors with *Copy details* (OPFS spill only if QA needs it)
 - [ ] Export QA matrix (see `docs/07-export.md` §9) on Chrome, Safari, Firefox
 
 **Reference templates 2–4**

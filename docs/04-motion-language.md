@@ -156,7 +156,7 @@ Rules: *Calm is not slow Balanced* (it changes character: fewer overshoots, soft
 ## 9. Motion blur & finish
 
 - **Motion blur = temporal supersampling.** The engine renders *N* sub-frames across the shutter interval `(θ / 360) × (1 / fps)` and averages them in a float buffer. Because templates are pure functions of `t`, this is exact and needs no per-template work.
-- **Samples**: live playback 1 (2 on fast machines) · paused/scrubbing: full preview quality · export: Standard 4 · High 8 · Max 16.
+- **Samples**: live playback and scrubbing 1 · paused previews 8 · export Standard 4 · High 8 · Max 16 — and fast motion gets more (paused up to 24, export up to 16 · 32 · 64) until each sub-frame moves at most 4 / 4 · 2.5 · 1.5 px, so fast edges smear smoothly instead of in steps (ADR-032). Frames without motion always render once.
 - **Shutter** comes from Energy (90° / 180° / 270°); templates may set a genre shutter (Hype whip pans: 360°).
 - **Finish** (global control): *Clean* (none) · *Grain* (animated at stepped 24 fps, applied after motion blur so grain stays crisp) · *Soft glow* (thresholded bloom). All finishes are subtle by design.
 - Never blur: UI chrome in UI templates at rest, text during its readable hold, anything in a still (PNG) export.

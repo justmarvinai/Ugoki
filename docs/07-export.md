@@ -65,7 +65,8 @@ Export sheet (main) ──job──► Export worker
 
 - **Video settings**: H.264 High profile; VP9 profile 0; keyframe every 2 s; bitrate from a quality table (below); `latencyMode: 'quality'`; hardware acceleration "no-preference".
 - **Backpressure**: `await source.add(...)` (Mediabunny) keeps the encoder queue bounded; the worker never races ahead of the encoder.
-- **Motion-blur samples** by quality: Standard 4 · High 8 · Max 16. Static frames (no motion between shutter start/end, detected on a low-res probe) render with 1 sample.
+- **Motion-blur samples** by quality (ADR-032): Standard 4 · High 8 · Max 16 for anything that moves, and more for fast motion — up to 16 · 32 · 64 — until each sub-frame moves at most 4 · 2.5 · 1.5 px. Frames without motion (compared on 160 px probes at the shutter's edges) render once. GIFs and stills are sharp.
+- **Frames**: f = 0 … round(duration × fps) − 1 at t = f / fps — the end itself isn't a frame, so exits finish 1/15 s early (`CLEAN_END`) and the last frame is clean at every export frame rate (ADR-033).
 - **Progress & ETA**: rolling average of frame cost; the sheet shows percentage, frame count and time remaining; the stage fast-forwards through the frames.
 - **Cancel**: aborts the loop, closes encoders, discards partial output.
 
@@ -100,6 +101,7 @@ Motion graphics have flat colors and sharp edges; the table errs high to avoid b
 - `OffscreenCanvas.convertToBlob({ type: 'image/png' })` per frame in the worker → streamed into a ZIP with fflate (store mode; PNGs are already compressed).
 - Names: `ugoki-{template}-{w}x{h}-{fps}fps/frame_00001.png` (+ a `README.txt` with fps, frame count, cut point for transitions).
 - Still: the current stage time rendered at export resolution with full motion-blur quality off (a still should be sharp).
+- GIFs are opaque: a transparent design gets its own background (or the baked backdrop) — GIF's 1-bit transparency would fringe every anti-aliased edge.
 
 ---
 
@@ -108,7 +110,9 @@ Motion graphics have flat colors and sharp edges; the table errs high to avoid b
 | Browser | Method |
 |---|---|
 | Chromium desktop & Android | `showSaveFilePicker` → Mediabunny `StreamTarget`/ZIP stream written directly to disk (no memory ceiling) |
-| Safari, Firefox | In-memory `BufferTarget` → Blob download; for large jobs, spill to OPFS (`createWritable`: Firefox 111+, Safari 26+) and download from there |
+| Safari, Firefox | In-memory `BufferTarget` → Blob download (browsers page large Blobs to disk); *later*, if QA hits memory limits: spill to OPFS (`createWritable`: Firefox 111+, Safari 26+) and download from there |
+
+As built (Phase 2): the page opens the save picker in the click (it needs the user's gesture) and hands the file handle to the export worker, which opens the writable itself. MP4s written this way reserve their metadata at the start of the file (`fastStart: 'reserve'`), so they still play while downloading; in memory they're assembled with metadata up front. Cancelling aborts the writable, so no partial file is left.
 
 Memory guard: estimate output size up front; above ~1 GB without streaming, suggest a lower resolution or PNG → video split.
 
