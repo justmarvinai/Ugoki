@@ -30,15 +30,19 @@ Category slug: `showcase` · Conventions: [`00-foundations.md`](00-foundations.m
 - Loop on: no in/out; frame N+1 ≡ frame 0.
 
 **Controls**
-- Content: Images (4–12) · Title · Subtitle
+- Content: Images (4–8: eight image slots, 1–4 required, 5–8 optional; the columns cycle through the filled slots) · Title · Subtitle
 - Style: Columns (3–5) · Gap · Radius · Title style (Difference · Band · Plain)
 - Motion: Direction (Vertical · Horizontal) · Speed · Loop (on/off)
 
+*Deviation (Phase 3):* the spec asked for 4–12 images; without a list control each image is its own slot, and eight keep the inspector sane.
+
 **Defaults.** 8 *Artworks* · `HALDEN STUDIO` · `Selected work 2020—2026`
 
-**Looks.** Ink · Paper · Swiss
+**Looks.** Ink (Difference) · Paper (Band, `classic`) · Swiss (Band)
 
 **The expensive detail.** Loop math is exact (each column's travel per loop equals its content height), and a subtle directional motion blur scales with column speed.
+
+**Implementation notes.** Each column's content is fitted to the length its speed covers a whole number of times per loop (never less than about two tiles, so no tile follows itself); the directional blur is the engine's temporal motion blur, whose length follows each column's speed. Energy changes character in the loop: Calm drifts every column the same way with a tight speed spread, Balanced alternates 0.9× / 1.2× / 1.0×, Punchy alternates faster with a wider spread. Difference titles are drawn in white (the only color that inverts) a step heavier than the pairing's display weight; the subtitle sits on a chip of the page color so it reads over any artwork. With Loop off, each column slides in and away as one block a viewport long.
 
 **Engine needs.** Seamless loop helper · blend modes (difference) · image tiles with radius.
 
@@ -155,14 +159,18 @@ Category slug: `showcase` · Conventions: [`00-foundations.md`](00-foundations.m
 - Out: photos slide off to the sides (`exit`, staggered).
 
 **Controls**
-- Content: Photos (2–8) with captions · Title
+- Content: Photos (count 2–8) · Photo 1–8 (image slots; the first *count* are used) · Captions (one per line, in photo order) · Title
 - Style: Border (Polaroid · Thin · None) · Surface (Paper · Linen · Concrete · Solid)
 - Motion: Scatter (Tidy · Casual · Messy)
 
+*Deviation (Phase 3):* without a list control, photos are eight image slots plus a count, and captions are one multiline field. Captions sit on the Polaroid and Thin borders (None has no border to write on).
+
 **Defaults.** 5 *Scenes* captioned `Lisbon`, `Kyoto`, `Reykjavík`, `Oaxaca`, `Hydra` · Title `Summer, archived.`
 
-**Looks.** Sand · Paper · Film
+**Looks.** Sand (`editorial`) · Paper (`soft`, linen) · Film (`classic`, concrete, thin borders)
 
 **The expensive detail.** Each photo's shadow (size, blur, offset) is derived from its height above the surface, and landings nudge the stack — it feels physical.
+
+**Implementation notes.** Prints lie around a squarish ring with one in the middle and land bottom-up, so every caption (on a print's lower border) comes to rest on top of the prints below it; the title label sits below the pile. Shadows are drawn analytically (a nine-piece soft rectangle from two unit gradients) — a contact shadow that vanishes as a print lifts, and a key shadow whose offset, blur and size grow with height. The landing springs keep their named damping (Calm `heavy`, Balanced `snappy`, Punchy `lively`) on a slower clock, so a print takes a moment to fall.
 
 **Engine needs.** Height-based shadows · springs · procedural surfaces.
