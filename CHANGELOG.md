@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+### Added
+
+- **Line** — a lower third (*minimal accent bar*): name and title slide out of the bar as if from a slot, the bar runs from the name's cap height to the title's baseline; four formats, Ink · Paper · Brand Bold, nine anchors, three sizes, an optional soft shadow; transparent by default.
+- **Sheen** — a logo reveal (*light sweep*): the logo emerges from darkness and a specular band, masked to the logo's own shape, lights it on its way across, blooming on dark grounds; tagline tracking in; optional second sweep and exit; white, warm or accent light; original, mono or accent logo colors.
+- **Layers** — a transition (*stacked panel wipe*): 2–5 skewed panels sweep across in any of 8 directions with slightly different speeds, cover the whole frame around the cut point and leave in reverse order; Speed compresses it around the cut; colors from the palette's roles or brand tints.
+- **Logos and images**: add your own SVG, PNG, JPG or WebP — read and hashed on your device, never uploaded; SVGs become vector artwork (or a safe raster when they use what we don't support). The placeholder brands Halden, Nova and Aero are built in.
+- **Preview backdrops** for transparent designs: moving, defocused footage, or Scene A → B swapping at a transition's cut point, or your own still ("Preview on my footage") — preview only, never exported unless you bake it in.
+- **Compositor**: isolated layers, masks and effects (blur, bloom, soft shadow) on WebGL2 with a Canvas 2D fallback; motion blur on paused previews; Grain and Soft glow finishes.
+- The Lab: image controls, select-style choices, the Layout group, the backdrop picker and a cut marker on the transport.
+
+### Fixed
+
+- The Lab's playhead no longer jumps back when frames rendered for an earlier seek arrive late (e.g. End, then Shift+← twice gave 4.00 s instead of 3.00 s).
+- GPU blur and bloom were slightly too strong or too weak on odd-sized layers (the downsample pyramid skipped part of its averaging).
+
 ## [0.1.0] — 2026-09-26 — Foundations & engine core
 
 The engine renders its first template. Nothing is public yet: the home page is a placeholder and the Lab is a review tool for preview deployments.

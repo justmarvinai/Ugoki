@@ -130,7 +130,7 @@ Dependencies are added with the feature that uses them: Phase 1 installs the fra
 │   │   └── <category>/<id>/index.ts (+ looks.ts, layout.ts as needed)
 │   ├── workers/                   # composition root: render.worker.ts, createRenderEndpoint()
 │   ├── features/                  # React feature modules
-│   │   └── lab/ · landing/ gallery/ editor/ inspector/ stage/ transport/ export/ drafts/ share/
+│   │   └── lab/ assets/ (file import) · landing/ gallery/ editor/ inspector/ stage/ transport/ export/ drafts/ share/
 │   ├── components/                # design-system primitives (Button, Slider, SegmentedControl, Switch…)
 │   ├── design/                    # motion tokens, icons (color/type tokens live in app/globals.css @theme)
 │   ├── fonts/                     # UI WOFF2 (Ugoki Sans, Ugoki Mono) for next/font/local

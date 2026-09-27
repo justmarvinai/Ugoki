@@ -157,6 +157,40 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Alternatives**: `gifenc` (MIT, fastest, unmaintained since 2022, per-frame palettes, no frame differencing).
 **Revisit when**: banding appears in QA — then add our own ordered-dither pre-pass before quantization.
 
+### ADR-026 — WebGL2 compositor with a Canvas 2D fallback, chosen per worker
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: Templates keep drawing with Canvas 2D; isolated layers, masks and effects are offscreen canvases that the compositor processes: blur (separable Gaussian over a downsample pyramid), bloom (threshold → blur → add), luma mattes, motion-blur accumulation (RGBA16F where the worker supports float color buffers) and the finish (grain, soft glow). One WebGL2 context per worker (`GpuCompositor`); where WebGL2 is missing or the context is lost, `CpuCompositor` does the same with Canvas 2D (`filter` blur or a downsample blur, additive accumulation, overlay grain, screen glow). `AdaptiveCompositor` switches when a context is lost; premultiplied alpha throughout.
+**Why**: Safari has no Canvas `filter`, and effects must look the same in preview and export on every browser; keeping shapes and text in Canvas 2D avoids re-implementing them in GL. Firefox and WebKit workers on GPU-less machines (CI) have no WebGL2 — they still get effects and motion blur.
+**Consequences**: The Canvas 2D path differs slightly (grain pattern, blur approximation): golden frames use it deterministically, and parity tests keep the GPU path close (blur spread and peak).
+
+### ADR-027 — Motion blur by temporal supersampling, frames without motion render once
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: `FrameRenderer` renders N sub-frames centered on `t` across the shutter (`(θ / 360) / fps`; θ from Energy — 90° / 180° / 270° — or the template's `shutter`) and averages them in the compositor; two 48 px probes at the shutter's edges detect frames without motion, which render once. Previews use 1 sample while playing or scrubbing and 8 when paused; stills are sharp but finished; exports choose their own count. Grain changes at 24 fps whatever the frame rate.
+**Why**: Templates are pure functions of `t`, so this is exact and needs no per-template work; the static check keeps holds as cheap as sharp frames. Previews and exports share the code, so a paused preview shows what exports.
+**Revisit when**: fixed sample counts band on very fast edges (seen on Layers at 8 samples) — the planned adaptive count raises samples with the measured displacement.
+
+### ADR-028 — Logos and images: our own SVG importer; files referenced by content hash
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: Image controls store an `AssetRef` — a built-in placeholder (Halden, Nova, Aero) or the SHA-256 of the user's file. SVGs are parsed by a small DOM-free importer (XML subset without DTD or entities; paths, shapes, `use`, transforms, presentation attributes, a CSS subset, `currentColor`) into vector artwork the drawer paints, tints and masks; anything it doesn't support is sanitized (whitelist) and rasterized on the main thread. Files are read, hashed and decoded on the device and reach the worker as vector data or transferred bitmaps.
+**Why**: Logo techniques (*Sheen*, *Draw*, *Shards*) need vector shapes and exact alpha; `DOMParser` isn't available in workers; hashing dedupes files and keeps share links and drafts free of file contents.
+**Alternatives**: rasterize every SVG (loses crisp 4K and vector effects); a full SVG renderer library (large, DOM-bound).
+
+### ADR-029 — Preview backdrops belong to the view, not to the design
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: What shows behind a transparent design while it's previewed — procedural footage, *Scene A → B* swapping at a transition's cut, a color, or the user's own still ("Preview on my footage") — is a per-view setting in the worker (`setBackdrop`), composited under the rendered frame. It is never part of the design state, stills or exports; baking it into an export is an explicit export option. The procedural plates are original (drawn by the engine), cached per size.
+**Why**: Overlays (lower thirds, logos, transitions) are hard to judge on a checkerboard, but their exports must stay transparent. Rendering the backdrop in the worker keeps the preview one canvas and lets it move with the timeline.
+
+### ADR-030 — Bounded layers
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: `layer`, `mask` and `fx` take `bounds` — where the content lies, in design units in the current coordinate space. The drawer sizes the layer to those bounds on the output, grown by the effects' reach (3σ of blur and bloom) and kept within the parent layer; content outside is cut off. Without bounds a layer covers its parent.
+**Why**: Frame-sized layers made effects on small elements cost the whole frame: Line's soft shadow took 38 ms per 1080p frame and Sheen's masked, blooming sweep 32 ms (headless Chromium, Canvas 2D path); bounded, 2 ms and 6 ms.
+**Consequences**: Templates bound their effects (it's part of the performance guidelines). The GPU compositor now sees layers of any size, which exposed a registration bug in its pyramid for odd sizes (fixed: every pass samples exactly the texels it covers).
+
+### ADR-031 — Transport commands are sequenced
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: `play`, `pause` and `seek` carry the client's sequence number; the worker echoes the latest one applied to a view with every frame, and `RenderClient.isCurrent(frame)` tells a page whether a frame reflects its last command. Playheads that follow frames ignore the others.
+**Why**: The worker renders on its own clock, so frames can be in flight when the page seeks. Once paused frames got slower (motion blur), a frame for an earlier seek arrived after the next key press and pulled the Lab's playhead back — CI saved a still named 4.00 s instead of 3.00 s.
+
 ---
 
 ## Phase 1 spike results (2026-09-26)

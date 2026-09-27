@@ -73,7 +73,7 @@ src/engine/      DOM-free, React-free, worker-safe engine — public API in src/
                  engine/host = main-thread client + pure data for features
 src/templates/   registry.ts (metadata + lazy loaders) + <category>/<id>/index.ts (one defineTemplate each)
 src/workers/     composition root: render.worker.ts + createRenderEndpoint()
-src/features/    React features: lab (now); landing, gallery, editor, inspector, stage, transport, export, drafts, share
+src/features/    React features: lab, assets (file import); landing, gallery, editor, inspector, stage, transport, export, drafts, share
 src/components/  design-system primitives (Button, SegmentedControl, Slider, Switch, Wordmark)
 src/design/      motion tokens, icons
 src/fonts/       UI WOFF2s for next/font/local

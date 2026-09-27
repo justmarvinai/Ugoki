@@ -74,7 +74,7 @@
 
 **Compositor**
 - [ ] WebGL2 layers (segmented compositing), blend modes, blur, bloom, masks/mattes, color adjust
-- [ ] Motion-blur accumulation (sub-frames, shutter from Energy), finish (grain, soft glow)
+- [x] Motion-blur accumulation (sub-frames, shutter from Energy), finish (grain, soft glow)
 
 **Editor**
 - [ ] Stage with checkerboard, guides, preview backdrop (+ "Preview on my footage"), fit/100%
@@ -92,7 +92,7 @@
 - [ ] Export QA matrix (see `docs/07-export.md` §9) on Chrome, Safari, Firefox
 
 **Reference templates 2–4**
-- [ ] **Line** (transparent overlay) · **Sheen** (logo, compositor) · **Layers** (transition, cut point, motion blur)
+- [x] **Line** (transparent overlay) · **Sheen** (logo, compositor) · **Layers** (transition, cut point, motion blur) — in the Lab, with preview backdrops (footage, A → B) and logo import
 
 **Exit**: Choose → Customize → Preview → Export works end-to-end for 4 templates in all target browsers; exported frame N equals preview at `t = N / fps`.
 
