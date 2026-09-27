@@ -181,38 +181,20 @@ describe.each(backends)('bounded layers (%s)', (_, effects) => {
       // Pyramid blurs aren't exactly shift-invariant: allow a few levels.
       expect(maxDiff(full, bounded)).toBeLessThanOrEqual(6);
     }
-    const masked = (bounds?: typeof around) =>
-      pixels(
-        render((g) => g.mask((g) => g.circle(540, 540, 90, { fill: WHITE }), square, { bounds })),
-      );
-    const full = masked();
-    const bounded = masked(around);
-    // Same content in the same place: equal coverage and centroid. Engines may anti-alias a few
-    // edge pixels differently (WebKit), so per-pixel differences are reported, not required 0.
-    const moments = (data: Uint8ClampedArray) => {
-      let sum = 0;
-      let sx = 0;
-      let sy = 0;
-      for (let i = 3; i < data.length; i += 4) {
-        const a = data[i] ?? 0;
-        const p = (i - 3) / 4;
-        sum += a;
-        sx += a * (p % 270);
-        sy += a * Math.floor(p / 270);
-      }
-      return { sum, cx: sx / sum, cy: sy / sum };
+    // An L-shaped matte across the square's corner, with pixel-aligned edges so any engine
+    // rasterizes it exactly: the comparison checks placement and bounds, pixel for pixel.
+    // (Curves can't be compared across layer sizes in WebKit, which rasterizes large canvases on
+    // the GPU and small ones on the CPU — they anti-alias differently.)
+    const matte = (g: Draw) => {
+      g.rect({ x: 400, y: 400, w: 160, h: 80 }, { fill: WHITE });
+      g.rect({ x: 400, y: 480, w: 80, h: 120 }, { fill: WHITE });
     };
-    const m = moments(full);
-    const n = moments(bounded);
-    expect(Math.abs(n.sum - m.sum) / m.sum).toBeLessThan(0.002);
-    expect(Math.abs(n.cx - m.cx)).toBeLessThan(0.05);
-    expect(Math.abs(n.cy - m.cy)).toBeLessThan(0.05);
-    let differing = 0;
-    for (let i = 0; i < full.length; i += 4) {
-      if (full[i + 3] !== bounded[i + 3]) differing++;
-    }
-    if (differing > 0) console.info(`bounded mask: ${differing} pixels differ in alpha`);
-    expect(differing).toBeLessThan(40);
+    const masked = (bounds?: typeof around) => render((g) => g.mask(matte, square, { bounds }));
+    const full = masked();
+    expect(near(at(full, 460, 460), RED)).toBe(true);
+    expect(near(at(full, 460, 590), RED)).toBe(true);
+    expect(near(at(full, 540, 540), RED, 0)).toBe(true);
+    expect(maxDiff(pixels(full), pixels(masked(around)))).toBe(0);
   });
 
   it('keeps blur that spreads beyond the bounds (the effect adds its reach)', () => {

@@ -49,7 +49,12 @@ async function exportOf(
   return { result, template, state };
 }
 
-/** The preview's pixels for the same frame: the frame renderer at the export's size and samples. */
+/**
+ * The preview's pixels for the same frame: the frame renderer at the export's size and samples,
+ * into a canvas made like the export's (and the stage's). Not `willReadFrequently`: engines may
+ * rasterize such canvases differently (WebKit draws large canvases on the GPU, anti-aliasing
+ * edges differently, but never ones meant for reading back).
+ */
 async function preview(
   templateId: string,
   state: DesignState,
@@ -60,7 +65,7 @@ async function preview(
   const built = buildScene(template, state, await textEngine());
   const { width, height } = exportSize(state.format, exportSettings);
   const canvas = new OffscreenCanvas(width, height);
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('no 2d context');
   new FrameRenderer(createCompositor({ gpu: false })).render(built, ctx, {
     t,
@@ -93,6 +98,27 @@ function psnr(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
   }
   const mse = sum / n;
   return mse === 0 ? Number.POSITIVE_INFINITY : 10 * Math.log10((255 * 255) / mse);
+}
+
+/**
+ * Whether this browser session can write files (in the origin-private file system, standing in
+ * for the file the user picks). WebKit's test sessions can't — nor does the product stream into
+ * files there: only where it can ask where to save (Chromium).
+ */
+async function canWriteFiles(): Promise<boolean> {
+  try {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('ugoki-probe', { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(new Uint8Array([1]));
+    await writable.close();
+    const written = (await handle.getFile()).size === 1;
+    await root.removeEntry('ugoki-probe');
+    return written;
+  } catch (error) {
+    console.info(`No writable files in this browser session: ${String(error)}`);
+    return false;
+  }
 }
 
 const canEncode = async (codec: string) =>
@@ -166,17 +192,29 @@ describe('exports', () => {
   it('encodes transparent WebM (VP9 + alpha) for transparent designs', async (context) => {
     if (!(await canEncode('vp09.00.10.08'))) context.skip();
     const exportSettings = settings({ format: 'webm', fps: 15 });
-    const { result } = await exportOf('line', { duration: 3 }, exportSettings);
+    const { result, state } = await exportOf('line', { duration: 3 }, exportSettings);
     expect(result.name).toBe('ugoki-line-320x180-15fps.webm');
     const input = new Input({ source: new BlobSource(result.blob as Blob), formats: ALL_FORMATS });
     const track = await input.getPrimaryVideoTrack();
     if (!track) throw new Error('no video track');
     expect(await track.canBeTransparent()).toBe(true);
-    const frame = await new CanvasSink(track, { alpha: true }).getCanvas(25 / 15 + 0.001);
+    const t = 25 / 15;
+    const frame = await new CanvasSink(track, { alpha: true }).getCanvas(t + 0.001);
     if (!frame) throw new Error('no frame');
     const data = await pixels(frame.canvas as OffscreenCanvas, 320, 180);
-    expect(data[3]).toBeLessThan(8);
-    expect(data.some((v, i) => i % 4 === 3 && v > 240)).toBe(true);
+    // The alpha plane is lossy, and each browser's encoder spends different bits on it (WebKit's
+    // far fewer), softening edges by different amounts: compare coverage, not peaks.
+    const coverage = (rgba: Uint8ClampedArray) => {
+      let sum = 0;
+      for (let i = 3; i < rgba.length; i += 4) sum += rgba[i] ?? 0;
+      return sum / 255;
+    };
+    const expected = coverage(await preview('line', state, exportSettings, t));
+    const share = coverage(data) / expected;
+    console.info(`WebM alpha coverage: ${share.toFixed(3)} × the preview's`);
+    expect(data[3], 'the background stays clear').toBeLessThan(8);
+    expect(share, `alpha coverage: ${share.toFixed(3)} × the preview's`).toBeGreaterThan(0.8);
+    expect(share, `alpha coverage: ${share.toFixed(3)} × the preview's`).toBeLessThan(1.25);
   });
 
   it('bakes Scene A → B under a transition and names its cut frame', async (context) => {
@@ -214,7 +252,8 @@ describe('exports', () => {
     expect(exported).toEqual(await preview('sheen', state, exportSettings, 1.25));
   });
 
-  it('streams into the file the user picked', async () => {
+  it('streams into the file the user picked', async (context) => {
+    if (!(await canWriteFiles())) context.skip();
     const root = await navigator.storage.getDirectory();
     const handle = await root.getFileHandle('ugoki-export-test.zip', { create: true });
     const writable = await handle.createWritable();
@@ -234,7 +273,7 @@ describe('exports', () => {
   });
 
   it('streams MP4 into the file with its metadata up front', async (context) => {
-    if (!(await canEncode('avc1.42001f'))) context.skip();
+    if (!(await canEncode('avc1.42001f')) || !(await canWriteFiles())) context.skip();
     const root = await navigator.storage.getDirectory();
     const handle = await root.getFileHandle('ugoki-export-test.mp4', { create: true });
     const writable = await handle.createWritable();
