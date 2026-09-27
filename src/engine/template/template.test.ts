@@ -3,7 +3,14 @@ import { contrastRatio, parseHex, toHex } from '../core/color';
 import { createRng } from '../core/rng';
 import { ENERGIES } from '../timeline/energy';
 import { createTimeline, readingTime } from '../timeline/timeline';
-import { c, defaultProps, primaryTextKey, resolveProps, sanitizeText } from './controls';
+import {
+  c,
+  defaultProps,
+  primaryTextKey,
+  resolveProps,
+  sanitizeAssetRef,
+  sanitizeText,
+} from './controls';
 import { defineTemplate } from './define';
 import { createFrame, FORMAT_IDS, outputSize } from './formats';
 import { isPairingAvailable, PAIRING_IDS, pairingFonts } from './pairings';
@@ -99,6 +106,25 @@ describe('controls', () => {
       amount: 1,
     });
     expect('extra' in props).toBe(false);
+  });
+
+  it('keeps a clamped focal point on image references', () => {
+    const image = c.image({
+      label: 'Image',
+      accept: 'scene',
+      default: { kind: 'placeholder', id: 'scene-coast' },
+    });
+    expect(
+      sanitizeAssetRef(image, {
+        kind: 'placeholder',
+        id: 'scene-dusk',
+        focal: { x: 1.4, y: 0.25 },
+      }),
+    ).toEqual({ kind: 'placeholder', id: 'scene-dusk', focal: { x: 1, y: 0.25 } });
+    expect(
+      sanitizeAssetRef(image, { kind: 'placeholder', id: 'scene-dusk', focal: { x: 'a' } }),
+    ).toEqual({ kind: 'placeholder', id: 'scene-dusk' });
+    expect(sanitizeAssetRef(image, { kind: 'placeholder', id: 'nova' })).toEqual(image.default);
   });
 
   it('truncates by graphemes and strips unsafe characters', () => {

@@ -9,6 +9,7 @@ export { PROCEDURAL_IMAGES, type ProceduralSet } from './assets/procedural';
 // Assets
 export type {
   AssetRef,
+  FocalPoint,
   Graphic,
   RasterGraphic,
   ShapePaint,

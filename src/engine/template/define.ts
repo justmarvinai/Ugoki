@@ -5,7 +5,7 @@
  * per state change and returns a Scene whose `render` draws any frame synchronously.
  */
 
-import type { Graphic } from '../assets/types';
+import type { FocalPoint, Graphic } from '../assets/types';
 import type { Rng } from '../core/rng';
 import type { Draw } from '../draw/types';
 import type { TextEngine } from '../text/types';
@@ -67,6 +67,11 @@ export type BuildContext<S extends ControlSchema> = {
    * the file is missing. Null only for an optional slot the user emptied.
    */
   graphic(controlKey: keyof S & string): Graphic | null;
+  /**
+   * The focal point the user set for an image control (0..1; the center by default) — pass it
+   * as `focal` when drawing the image with `fit: 'cover'`.
+   */
+  focal(controlKey: keyof S & string): FocalPoint;
 };
 
 export type RenderContext = {

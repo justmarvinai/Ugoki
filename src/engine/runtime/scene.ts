@@ -5,7 +5,7 @@
  */
 
 import { placeholderGraphic } from '../assets/placeholders';
-import type { AssetRef, Graphic } from '../assets/types';
+import { type AssetRef, CENTER, type FocalPoint, type Graphic } from '../assets/types';
 import type { Effects } from '../compositor/effects';
 import { clamp } from '../core/math';
 import { hashString, mixSeeds, rngFor } from '../core/rng';
@@ -98,6 +98,11 @@ export function buildScene(
     }
     return control.default.kind === 'placeholder' ? placeholderGraphic(control.default.id) : null;
   };
+  const focal = (key: string): FocalPoint => {
+    const control = controls[key];
+    if (control?.kind !== 'image') throw new Error(`"${key}" is not an image control`);
+    return (props[key] as AssetRef | null)?.focal ?? CENTER;
+  };
   const context: BuildContext<ControlSchema> = {
     props,
     frame,
@@ -114,6 +119,7 @@ export function buildScene(
     stagger: (gap) => (gap * energy.stagger) / energy.time,
     travel: (distance) => distance * energy.travel,
     graphic,
+    focal,
   };
   const scene = template.build(context);
   return { template, state, frame, palette, pairing, timeline, scene, missingAssets };

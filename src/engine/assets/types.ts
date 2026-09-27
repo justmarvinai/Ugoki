@@ -47,9 +47,17 @@ export type Graphic = VectorGraphic | RasterGraphic;
  * What an image/logo control stores: a built-in placeholder, or a file the user added — kept
  * only on their device and referenced by the SHA-256 of its bytes.
  */
-export type AssetRef =
+export type AssetRef = (
   | { readonly kind: 'placeholder'; readonly id: string }
-  | { readonly kind: 'user'; readonly hash: string; readonly name?: string };
+  | { readonly kind: 'user'; readonly hash: string; readonly name?: string }
+) & {
+  /** Point of the image kept in view when it is cropped (0..1 each; default: the center). */
+  readonly focal?: FocalPoint;
+};
+
+export type FocalPoint = { readonly x: number; readonly y: number };
+
+export const CENTER: FocalPoint = { x: 0.5, y: 0.5 };
 
 /** The frame a graphic is fitted by. */
 export const graphicInk = (graphic: Graphic): Rect => graphic.ink;

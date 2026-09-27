@@ -6,7 +6,7 @@
  */
 
 import { isPlaceholder, type PlaceholderKind } from '../assets/placeholders';
-import type { AssetRef } from '../assets/types';
+import type { AssetRef, FocalPoint } from '../assets/types';
 
 export type ControlGroup = 'content' | 'style' | 'motion' | 'layout';
 
@@ -124,16 +124,30 @@ export function sanitizeAssetRef(control: ImageControl, value: unknown): AssetRe
   if (value === null) return control.optional ? null : control.default;
   if (typeof value !== 'object' || value === undefined) return control.default;
   const ref = value as Record<string, unknown>;
+  const focal = sanitizeFocal(ref.focal);
+  const withFocal = <T extends AssetRef>(asset: T): T => (focal ? { ...asset, focal } : asset);
   if (ref.kind === 'placeholder' && typeof ref.id === 'string') {
     return isPlaceholder(control.accept, ref.id)
-      ? { kind: 'placeholder', id: ref.id }
+      ? withFocal({ kind: 'placeholder', id: ref.id })
       : control.default;
   }
   if (ref.kind === 'user' && typeof ref.hash === 'string' && HASH.test(ref.hash)) {
     const name = typeof ref.name === 'string' ? stripUnsafe(ref.name).slice(0, 120) : undefined;
-    return name ? { kind: 'user', hash: ref.hash, name } : { kind: 'user', hash: ref.hash };
+    return withFocal(
+      name ? { kind: 'user', hash: ref.hash, name } : { kind: 'user', hash: ref.hash },
+    );
   }
   return control.default;
+}
+
+/** A focal point with both coordinates clamped to 0..1, or undefined when it isn't one. */
+function sanitizeFocal(value: unknown): FocalPoint | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { x, y } = value as Record<string, unknown>;
+  if (typeof x !== 'number' || typeof y !== 'number') return undefined;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+  const clamp = (n: number) => Math.round(Math.min(1, Math.max(0, n)) * 1000) / 1000;
+  return { x: clamp(x), y: clamp(y) };
 }
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
