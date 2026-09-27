@@ -18,8 +18,7 @@ import { type BuiltScene, buildScene, userAssets } from '../runtime/scene';
 import type { AnyTemplate } from '../template/define';
 import { describeTemplate } from '../template/describe';
 import { outputSize } from '../template/formats';
-import { pairingFonts } from '../template/pairings';
-import { type DesignState, initialState, sanitizeState } from '../template/state';
+import { type DesignState, designFonts, initialState, sanitizeState } from '../template/state';
 import { createTextEngine, type TextEngineHandle } from '../text/engine';
 import { createFetchLoader, type FontBytesLoader } from '../text/font-source';
 import { createFallbackMeasure } from '../text/measure';
@@ -341,7 +340,7 @@ export class RenderRuntime {
         this.loadText();
         continue;
       }
-      const fonts = pairingFonts(state.pairing);
+      const fonts = designFonts(view.template, state);
       if (!fonts.every((font) => text.hasFont(font))) {
         this.loadFonts(text, fonts, view);
         continue;

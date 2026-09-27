@@ -65,6 +65,9 @@
   --color-success: var(--success);
   --color-dot: var(--dot);
   --color-transparent: transparent;
+  /* Absolute white and black, for overlays over the work (stage handles, sheet backdrops). */
+  --color-white: #fff;
+  --color-black: #000;
 }
 
 @theme {

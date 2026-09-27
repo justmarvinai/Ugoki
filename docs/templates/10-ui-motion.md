@@ -37,10 +37,14 @@ These templates are built from the engine's **UI Kit**: procedurally drawn, *unb
 - `hold` Cursor drifts away subtly. Out: card and headline fade/slide.
 
 **Controls**
-- Content: Scenario (Send money · Sign up · Generate · Book · Custom) · Field label & value · Button label · Success message · Headline
+- Content: Scenario (Send money · Sign up · Generate · Book · Custom) · Headline · Card title · Field label & value · Recipient (the row under the field) · Button label · Done label · Success message
 - Style: Theme (Light · Dark) · Cursor (Arrow · Hand)
 
-**Defaults.** Scenario *Send money* · `€250.00` · to `Alex Novak` · Button `Send` · Success `Sent. Instantly.` · Headline `Payments in one tap.`
+Every visible label is editable, so the card title, the recipient row and the button's done label have controls too. A Scenario fills in its own example copy (and field kind: Send money types a live-formatted amount) for every text the user hasn't edited — edits always win.
+
+**Defaults.** Scenario *Send money* · Card title `Send money` · `Amount` `€250.00` · to `Alex Novak` · Button `Send` → `Sent` · Success `Sent. Instantly.` · Headline `Payments in one tap.`
+
+**Implementation notes (0.3.0).** The card rises in `in`; the interaction plays from the start of the hold at human speed and is compressed (down to ~0.6×) at short durations so the success state keeps ≥ 0.5 s to be read. The success pill keeps the accent (the toast's badge carries the green). The toast lands as a banner over the card's title and, on long holds, dismisses itself after ~3.4 s.
 
 **Looks.** Light/Cobalt · Dark/Mint · Light/Ink
 
@@ -135,10 +139,14 @@ These templates are built from the engine's **UI Kit**: procedurally drawn, *unb
 - `hold` A new data point appears on the line chart (live feel). Out: cards fade in reverse grid order.
 
 **Controls**
-- Content: Headline · KPIs (2–4: label, value, delta) · Line data (comma-separated) · Bar data · Donut value
+- Content: Headline · KPIs (2–4, one per line: `label value change`, e.g. `Revenue €48.2k +12.4%`, or `label | value | change`) · Line data (comma-separated) · Bar data · Donut value · Donut label
 - Style: Theme (Light · Dark) · Density (Comfortable · Compact)
 
-**Defaults.** `Revenue` `€48.2k` `+12.4%` · `Active users` `8,431` `+5.1%` · `Conversion` `3.8%` `+0.6 pt` · Line `12, 18, 15, 22, 28, 26, 34, 39, 37, 45, 52, 58`
+The line chart is titled with the first KPI's label and uses its units on the axis and tooltip (`€58k`); the bar chart is titled with the second KPI's label (7 bars read as a week). The donut's title is its own control (every visible label is editable).
+
+**Defaults.** Headline `See growth as it happens.` · `Revenue` `€48.2k` `+12.4%` · `Active users` `8,431` `+5.1%` · `Conversion` `3.8%` `+0.6 pt` · Line `12, 18, 15, 22, 28, 26, 34, 39, 37, 45, 52, 58` · Bars `34, 42, 39, 51, 47, 62, 58` · Donut `72%` `Monthly goal`
+
+**Implementation notes (0.3.0).** The live data point scrolls the chart one step (new segment drawn on, tooltip following the newest value, a pulse on the newest point); long holds get up to three updates.
 
 **Looks.** Light/Cobalt · Dark/Graphite · Light/Mint
 

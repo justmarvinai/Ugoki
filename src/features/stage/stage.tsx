@@ -5,7 +5,8 @@
  * worker as an interactive view, fitted to the space with 32 px of breathing room (or at 100%:
  * one device pixel per pixel of the 1080p frame). A checkerboard shows through transparent
  * designs without a preview backdrop; safe-area guides on request. The frame box springs to a
- * new format's shape while the worker re-lays the design out.
+ * new format's shape while the worker re-lays the design out. Image files dragged over the stage
+ * show what they'd fill (`drop`).
  */
 
 import { motion } from 'motion/react';
@@ -18,8 +19,15 @@ import {
   useState,
 } from 'react';
 import { uiSpring } from '@/design/motion';
-import { createFrame, FORMATS, type FormatId, type RenderClient } from '@/engine/host';
+import {
+  createFrame,
+  type EditableRegion,
+  FORMATS,
+  type FormatId,
+  type RenderClient,
+} from '@/engine/host';
 import { cn } from '@/lib/cn';
+import { useFileDrag } from '../assets/file-drag';
 import { SafeAreas } from './safe-areas';
 
 /** Breathing room around the fitted frame (CSS px). */
@@ -28,6 +36,24 @@ const ROOM = 32;
 const RESIZE_DELAY = 120;
 
 export type StageBox = { width: number; height: number };
+
+type Point = { x: number; y: number };
+type Rect = EditableRegion['bounds'];
+
+/** What a file dropped on the stage would fill: a control's label and its element's bounds. */
+export type StageDropTarget = { label: string; bounds: Rect | null };
+
+export type StageDrop = {
+  /**
+   * What a file dropped at `at` (design units; null outside the frame) would fill — null when
+   * nothing on the stage takes files.
+   */
+  target: (at: Point | null) => StageDropTarget | null;
+  onDrop: (file: File, at: Point | null) => void;
+};
+
+const sameTarget = (a: StageDropTarget | null, b: StageDropTarget | null) =>
+  a === b || (a !== null && b !== null && JSON.stringify(a) === JSON.stringify(b));
 
 type StageProps = {
   client: RenderClient;
@@ -41,6 +67,8 @@ type StageProps = {
   overlay?: (box: StageBox) => ReactNode;
   /** Stage controls (guides, backdrop, zoom), bottom right. */
   controls?: ReactNode;
+  /** Image files dropped on the stage. */
+  drop?: StageDrop;
   /** The worker has a (new) canvas for the view: send it the design and transport. */
   onAttach: () => void;
 };
@@ -70,11 +98,33 @@ export function Stage({
   label,
   overlay,
   controls,
+  drop,
   onAttach,
 }: StageProps) {
   const area = useRef<HTMLDivElement>(null);
+  const framed = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const [space, setSpace] = useState<StageBox>({ width: 0, height: 0 });
+  const [dropping, setDropping] = useState<StageDropTarget | null>(null);
+
+  /** The point of the frame under a drag, in design units (null outside the frame). */
+  const pointAt = (event: { clientX: number; clientY: number }): Point | null => {
+    const rect = framed.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return null;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+    const k = rect.width / createFrame(format).width;
+    return { x: x / k, y: y / k };
+  };
+  const fileDrag = useFileDrag({
+    accepts: () => drop?.target(null) != null,
+    onOver: (event) => {
+      const next = drop?.target(pointAt(event)) ?? null;
+      if (!sameTarget(dropping, next)) setDropping(next);
+    },
+    onDrop: (file, event) => drop?.onDrop(file, pointAt(event)),
+  });
 
   // The space available, measured before paint so the canvas never mounts at 0 × 0.
   useLayoutEffect(() => {
@@ -130,6 +180,7 @@ export function Stage({
         'relative min-h-0 flex-1',
         zoom === 'actual' ? 'overflow-auto' : 'overflow-hidden',
       )}
+      {...(drop ? fileDrag.handlers : {})}
     >
       <div
         className={cn(
@@ -139,6 +190,7 @@ export function Stage({
       >
         {ready && (
           <motion.div
+            ref={framed}
             role="img"
             aria-label={label}
             initial={false}
@@ -154,6 +206,9 @@ export function Stage({
             <div ref={host} className="absolute inset-0" />
             {guides && <SafeAreas format={format} />}
             {overlay?.(box)}
+            {fileDrag.over && dropping && (
+              <DropHint target={dropping} k={box.width / createFrame(format).width} />
+            )}
           </motion.div>
         )}
       </div>
@@ -164,6 +219,38 @@ export function Stage({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Over the frame while an image is dragged onto the stage: the element it would replace lit
+ * (the rest dimmed), and what dropping does.
+ */
+function DropHint({ target, k }: { target: StageDropTarget; k: number }) {
+  const { bounds } = target;
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'pointer-events-none absolute inset-0 z-20 rounded-[20px] outline-2 -outline-offset-4 outline-[rgb(255_255_255/0.8)] outline-dashed',
+        !bounds && 'bg-[rgb(0_0_0/0.45)]',
+      )}
+    >
+      {bounds && (
+        <div
+          className="absolute rounded-[3px] outline-2 outline-[#fff] [box-shadow:0_0_0_9999px_rgb(0_0_0/0.45)]"
+          style={{
+            left: bounds.x * k,
+            top: bounds.y * k,
+            width: bounds.w * k,
+            height: bounds.h * k,
+          }}
+        />
+      )}
+      <span className="absolute bottom-4 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 truncate rounded-full bg-bg/90 px-3 py-1.5 text-[13px] font-[550] text-fg ring-1 ring-line">
+        Drop to use as {target.label}
+      </span>
     </div>
   );
 }

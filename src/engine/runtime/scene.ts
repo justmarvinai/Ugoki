@@ -5,7 +5,7 @@
  */
 
 import { placeholderGraphic } from '../assets/placeholders';
-import type { AssetRef, Graphic } from '../assets/types';
+import { type AssetRef, CENTER, type FocalPoint, type Graphic } from '../assets/types';
 import type { Effects } from '../compositor/effects';
 import { clamp } from '../core/math';
 import { hashString, mixSeeds, rngFor } from '../core/rng';
@@ -14,9 +14,9 @@ import type { EditableRegion } from '../draw/types';
 import type { ControlSchema, Props } from '../template/controls';
 import type { AnyTemplate, BuildContext, Scene } from '../template/define';
 import { createFrame, type FrameSpec } from '../template/formats';
-import { PAIRINGS, type Pairing, pairingFonts } from '../template/pairings';
+import { PAIRINGS, type Pairing } from '../template/pairings';
 import { type Palette, resolvePalette } from '../template/palettes';
-import type { DesignState } from '../template/state';
+import { type DesignState, designFonts } from '../template/state';
 import type { TextEngineHandle } from '../text/engine';
 import type { TextEngine } from '../text/types';
 import { ENERGIES } from '../timeline/energy';
@@ -44,7 +44,7 @@ export async function prepareScene(
   text: TextEngineHandle,
   assets?: AssetLookup,
 ): Promise<BuiltScene> {
-  await text.load(pairingFonts(state.pairing));
+  await text.load(designFonts(template, state));
   return buildScene(template, state, text, assets);
 }
 
@@ -98,6 +98,11 @@ export function buildScene(
     }
     return control.default.kind === 'placeholder' ? placeholderGraphic(control.default.id) : null;
   };
+  const focal = (key: string): FocalPoint => {
+    const control = controls[key];
+    if (control?.kind !== 'image') throw new Error(`"${key}" is not an image control`);
+    return (props[key] as AssetRef | null)?.focal ?? CENTER;
+  };
   const context: BuildContext<ControlSchema> = {
     props,
     frame,
@@ -114,6 +119,7 @@ export function buildScene(
     stagger: (gap) => (gap * energy.stagger) / energy.time,
     travel: (distance) => distance * energy.travel,
     graphic,
+    focal,
   };
   const scene = template.build(context);
   return { template, state, frame, palette, pairing, timeline, scene, missingAssets };

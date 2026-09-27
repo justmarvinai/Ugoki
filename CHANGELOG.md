@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-27 — Template wave 1
+
+Twenty-one new templates — 25 in all, every one in four formats, three Looks, three energies and your brand colors — plus built-in imagery that makes them look finished before you add anything, and better image handling in the editor.
+
+### Added
+
+- **Titles**: **Focus** (a headline resolving from blur, with a soft glow) and **Decode** (characters scrambling into place in a terminal composition, block cursor, optional scanlines).
+- **Lower thirds**: **Broadcast** (a news block with logo tile, LIVE tag, name and title bars) and **Capsule** (a creator pill growing from the avatar, with a follow button that taps itself).
+- **Social**: **Punch** (kinetic hook captions, one beat per line, automatic length; transparent *Captions* mode), **Listicle** (numbered tips with giant numerals and progress segments) and **Countdown** (a launch timer whose digits roll on a drum, or a days-to-go reel).
+- **Product & ads**: **Deal** (a product with a contact shadow, the old price struck through, the new price rolling down, an automatic discount badge) and **Sale** (crossing promo tapes with a looping hold and a code box).
+- **Showcase**: **Columns** (a seamlessly looping parallax portfolio of artworks, title in difference blend) and **Stack** (Polaroids of your photos dropping onto a textured table, with captions).
+- **Brand & quotes**: **Quote** (a big quote with a highlighted phrase, length from reading time), **Review** (a rating with rounded stars filling as the number counts up, avatar and verified check) and **Numbers** (stats that count up in the format you write them: €48.2k, 98%, 3.2×).
+- **Openers**: **Cinematic** (a letterboxed film title over a graded dusk scene or your image, 24 fps grain and gate weave) and **Episode** (a series opener with slanted block wipes and a rolling episode number).
+- **Transitions**: **Iris** (concentric rings bursting from any point) and **Blinds** (staggered strips that never show a seam at the cut).
+- **Logo**: **Bounce** (your logo drops, squashes and bounces on real physics).
+- **UI motion**: **Click** (a cursor fills in and sends a payment — minimum-jerk motion, a button that morphs through loading to success, a toast) and **Dashboard** (KPIs counting up, a revenue line drawing on, bars and a donut).
+- **Built-in imagery**, generated on your device: six scenes, eight posters, five studio product shots and four friendly portraits — no stock photos.
+- **All eleven font pairings** are available: Poster, Technical, Soft, Wide, Classic, Sport, Studio, Quirky and Mono join Grotesk and Editorial.
+- **Editor**: choose what stays in view when an image is cropped (drag the dot, arrow keys to nudge, double-click to center); built-in images as thumbnails; drop an image on a field or on the stage, or paste one with ⌘/Ctrl+V; templates that time themselves get an *Auto* duration you can switch to *Fixed*.
+
+### Fixed
+
+- The stage's resize handles and the dimmed background behind sheets were drawn without their colors.
+
 ## [0.2.0] — 2026-09-27 — Editor & export MVP
 
 Choose a template, make it yours, export it — all on your device. Four templates (Rise, Line, Sheen, Layers) open in the editor, and every export format renders in the browser with the same engine as the preview: exported frame N is the preview at N / fps.

@@ -123,6 +123,8 @@ Reduced motion: hero shows a static frame with a play button; the reel becomes a
 - Footer: *Reset template* (confirm).
 - Readability and contrast warnings appear inline next to the control that causes them, with a one-click fix ("Use 6 s", "Fix contrast").
 
+*Phase 3 build*: image slots show the built-in images as swatches (logos as chips) and, except for logos, a preview with a focal-point dot — drag it or click the image, arrow keys nudge (Shift ×10), double-click centers; on touch screens a tap sets it and dragging starts on the dot. A file dropped on the stage fills the image under the pointer, else the first image slot (the stage lights that element while dragging); `Cmd/Ctrl+V` outside text fields fills the focused image slot, else the one last used, else the first. *Fit* isn't offered yet.
+
 **Transport**
 - Play/pause · timecode (`00:02.40 / 00:05.00`, Mono, tabular) · scrubber with tinted **In · Hold · Out** bands · the Dot as playhead · loop · a duration handle at the end of the scrubber (drag to change duration; the hold stretches) · cut marker for transitions.
 - Scrubbing renders full-quality frames (with motion blur) when paused.
@@ -187,6 +189,7 @@ Filenames: `ugoki-{template}-{w}x{h}-{fps}fps.{ext}` (+ `-cut-f{n}` for transiti
 | `Cmd/Ctrl` + `Z` / `Shift` + `Cmd/Ctrl` + `Z` | Undo / redo |
 | `Cmd/Ctrl` + `E` | Export |
 | `Cmd/Ctrl` + `S` | Confirm saved (autosave) |
+| `Cmd/Ctrl` + `V` | Paste an image into the image slot (outside text fields) |
 | `1` `2` `3` `4` | 16:9 · 9:16 · 1:1 · 4:5 |
 | `G` | Safe-area guides |
 | `R` | Reset selected element's position |

@@ -1,13 +1,20 @@
 /**
  * The engine host — the only way features reach the engine (docs/05-architecture.md §4).
  * Main-thread safe: the render client plus the engine's pure data (formats, palettes, pairings,
- * energies) and state types. Nothing here imports the renderer or template code; the worker
- * side lives in `./serve` (bound in `src/workers/render.worker.ts`).
+ * energies), state types and the placeholder artwork (for the inspector's previews). Nothing here
+ * imports the renderer or template code; the worker side lives in `./serve` (bound in
+ * `src/workers/render.worker.ts`).
  */
 
-export { PLACEHOLDER_NAMES, PLACEHOLDERS } from '../assets/placeholders';
+export {
+  PLACEHOLDER_NAMES,
+  PLACEHOLDERS,
+  type PlaceholderKind,
+  placeholderGraphic,
+  placeholderPreview,
+} from '../assets/placeholders';
 export { importSvg, type SvgImport, sanitizeSvg } from '../assets/svg';
-export type { AssetRef, Graphic, VectorGraphic } from '../assets/types';
+export type { AssetRef, FocalPoint, Graphic, VectorGraphic } from '../assets/types';
 export { contrastRatio, parseHex, toCss } from '../core/color';
 export type { EditableRegion, LayoutOffset } from '../draw/types';
 export type { ExportAsset } from '../export/protocol';

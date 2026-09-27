@@ -45,6 +45,10 @@ Category slug: `product-ads` · Conventions: [`00-foundations.md`](00-foundation
 
 **The expensive detail.** Price digits roll from old to new in tabular figures; the strike is slightly angled like a real mark; the contact shadow is a blurred ellipse that tightens as the product lands.
 
+**Format notes.** *Product left/right* sit side by side in 16:9, 1:1 and 4:5 (the offer left-aligned beside the product). 9:16 always stacks the product over the offer; *left/right* then set the side the composition leans to and the offer's alignment. *Product top* stacks in every format, with the old and new price on one baseline (except 9:16). The sticker sits on the product's upper corner facing the offer and never overlaps it.
+
+**Implementation notes.** Prices are typed as text ("39", "39.00", "1.299,99") and formatted with `formatMoney` for the chosen currency preset; cents show when either price has them; a price without digits is set as typed (no roll). The roll turns only digits — currency and separators stay still — and a slot the new price doesn't need rolls to 0, fades and closes up. Balanced and Punchy add one full slot-machine turn; Calm rolls straight to the new digits. *Auto %* hides the sticker when there is no saving. The CTA pill is `fg` with a `bg` label (the "inverted" chip).
+
 **Engine needs.** Odometer digits · currency formatting · trim-path strike · contact shadow · procedural Objects.
 
 ---
@@ -171,5 +175,9 @@ Category slug: `product-ads` · Conventions: [`00-foundations.md`](00-foundation
 **Looks.** Hazard · Ink (yellow tapes) · Candy
 
 **The expensive detail.** Marquee content is laid out as an exact repeat unit so the loop never pops; where the tapes cross, the top tape casts a soft shadow on the lower one.
+
+**Format notes.** The tapes cross in an X across the upper part of the frame (below the social UI zone in vertical formats), so the crossing and its shadow stay visible; the discount, subline, code and terms stack centered beneath it.
+
+**Implementation notes.** The marquee speed is trimmed (by at most 30%) so the hold scrolls a whole number of repeat units, and the discount's pulses divide the hold: the hold itself is a seamless loop. Separators typed in the tape text (● • ·) are drawn as vector dots — most display faces lack U+25CF. Calm replaces the slam's pop and shake with a softer settle and fades the text out instead of cutting it.
 
 **Engine needs.** Seamless marquee helper · dashed trim paths · shadows between layers.

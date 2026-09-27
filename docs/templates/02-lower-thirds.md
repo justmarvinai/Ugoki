@@ -80,6 +80,12 @@ Category slug: `lower-thirds` · Conventions: [`00-foundations.md`](00-foundatio
 
 **Engine needs.** Text metrics (cap height) · scale-from-edge wipes · masked light sweep.
 
+**Implementation notes (Phase 3, `src/templates/lower-thirds/broadcast`).**
+- *Grid*: one unit `k` (1u in 16:9, ×1.18 in 9:16, ×1.08 in 1:1, ×1.12 in 4:5; ×0.82 / ×1.2 for S / L). Name 5.4k in the display face (+2.5% tracking in caps), title 2.9k in the text face (500). Block heights come from full-size cap heights — name 2.05 caps, title 2.45 caps — so every name in a show gets the same blocks however much a long one shrinks; both blocks share one padding (2.4k) and one text column. Names shrink to 72% on one line, then take two (the block grows); titles shrink to 84%, then take two.
+- *Logo tile* (changed while building it): square for marks, but wider for wide artwork — the placeholder logos (and many real ones) are mark + wordmark lockups, which a square would shrink to nothing. The tile is `fg`; artwork in `currentColor` (the placeholders) takes the palette's `bg`, user logos keep their colors. The default is the Nova placeholder; emptying the slot removes the tile and its beat.
+- *Tag*: a small chip in `bg` with the dot in `accent` (contrast-checked) and the label in the display face; Punchy lands it with `pop`. The light sweep runs `hold + 0.8 s` for 0.6 s, skipped when the hold is too short.
+- *Right anchors* mirror the lockup (tile on the right, blocks sharing their right edge, wipes from the right).
+
 ---
 
 ## 2.3 Capsule — *creator pill*
@@ -102,7 +108,7 @@ Category slug: `lower-thirds` · Conventions: [`00-foundations.md`](00-foundatio
 
 **Controls**
 - Content: Name · Handle · Avatar (image or initials) · CTA (on/off, labels)
-- Style: Size
+- Style: Size · Shadow (on/off, on by default — the shared soft legibility shadow)
 - Motion: Float (on/off)
 - Layout: Anchor · offset
 
@@ -113,6 +119,12 @@ Category slug: `lower-thirds` · Conventions: [`00-foundations.md`](00-foundatio
 **The expensive detail.** The pill grows on a spring but text is masked by the pill, so overshoot never exposes overflow. The check mark draws via trim path; the tap has a 1-frame press darken for tactility.
 
 **Engine needs.** Spring on geometry · shape masks · trim path.
+
+**Implementation notes (Phase 3, `src/templates/lower-thirds/capsule`).**
+- *Pill color* (changed while building it): over footage the pill is the palette's `bg` — the white pill on Paper, where `surface` is a warm grey — and on a baked background it is `surface`, so it stays visible against the frame. Name (`fg`) and handle (`muted`) are contrast-checked against it.
+- *Geometry*: pill height 8.8u (16:9) · 11u (9:16) · 9.6u (1:1) · 10u (4:5), ×0.82 / ×1.2 for S / L. Avatar 80% of the height; name 29%, handle 21.5% (auto-fit to the layout width). The button sits concentric with the pill's end cap and is sized for the wider, tapped state (check + *Following*).
+- *Motion*: the width springs on Energy's spring (`gentle` · `snappy` · `lively`); name and handle emerge from behind the avatar. The button arrives `hold + 0.5 s` and is tapped `hold + 1.4 s` — compressed for short holds, and without the tap when the hold can't fit it. The press goes to 94% in 60 ms and springs back; the darker chip lasts 50 ms. The float starts at rest (a cosine), so the hold begins without a jolt.
+- *Avatar*: the portrait placeholder by default; emptied, it shows `initials(name)` on an `accent` circle.
 
 ---
 

@@ -1,6 +1,6 @@
 # Questions & decisions
 
-> **Status (2026-09-26)**: all planning questions are answered and Phase 1 is underway. **You** = your explicit answer · **Default** = the recommendation, applied because you asked for defaults on everything you didn't answer. The original questions with all their options are in the git history (commit `31d5c8c`).
+> **Status (2026-09-27)**: all planning questions are answered; Phases 1 and 2 are merged (the owner on Phase 2: "Everything works") and Phase 3 is underway. **You** = your explicit answer · **Default** = the recommendation, applied because you asked for defaults on everything you didn't answer. The original questions with all their options are in the git history (commit `31d5c8c`).
 
 ---
 
@@ -76,6 +76,7 @@
 | E3 | Budget | €0 — only free tools, services and assets | You |
 | E4 | Reference device | Your desktop PC with a 2560 × 1440 ("2K") monitor — the primary performance and review target; large-screen layouts are specified for it | You |
 | E5 | "Barely" | Confirmed: barely-there — minimal chrome, very few elements, huge type, motion does the talking | You |
+| E6 | Pace (2026-09-27) | Finish phases faster: still working and looking good, but no excessive checking. Don't watch PRs or CI — the owner tests the preview and reports anything broken, which then gets fixed | You |
 
 ---
 

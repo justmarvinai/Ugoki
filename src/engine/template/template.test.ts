@@ -3,7 +3,14 @@ import { contrastRatio, parseHex, toHex } from '../core/color';
 import { createRng } from '../core/rng';
 import { ENERGIES } from '../timeline/energy';
 import { createTimeline, readingTime } from '../timeline/timeline';
-import { c, defaultProps, primaryTextKey, resolveProps, sanitizeText } from './controls';
+import {
+  c,
+  defaultProps,
+  primaryTextKey,
+  resolveProps,
+  sanitizeAssetRef,
+  sanitizeText,
+} from './controls';
 import { defineTemplate } from './define';
 import { createFrame, FORMAT_IDS, outputSize } from './formats';
 import { isPairingAvailable, PAIRING_IDS, pairingFonts } from './pairings';
@@ -99,6 +106,25 @@ describe('controls', () => {
       amount: 1,
     });
     expect('extra' in props).toBe(false);
+  });
+
+  it('keeps a clamped focal point on image references', () => {
+    const image = c.image({
+      label: 'Image',
+      accept: 'scene',
+      default: { kind: 'placeholder', id: 'scene-coast' },
+    });
+    expect(
+      sanitizeAssetRef(image, {
+        kind: 'placeholder',
+        id: 'scene-dusk',
+        focal: { x: 1.4, y: 0.25 },
+      }),
+    ).toEqual({ kind: 'placeholder', id: 'scene-dusk', focal: { x: 1, y: 0.25 } });
+    expect(
+      sanitizeAssetRef(image, { kind: 'placeholder', id: 'scene-dusk', focal: { x: 'a' } }),
+    ).toEqual({ kind: 'placeholder', id: 'scene-dusk' });
+    expect(sanitizeAssetRef(image, { kind: 'placeholder', id: 'nova' })).toEqual(image.default);
   });
 
   it('truncates by graphemes and strips unsafe characters', () => {
@@ -256,10 +282,8 @@ describe('palettes', () => {
 });
 
 describe('pairings', () => {
-  it('offers only pairings whose fonts are built', () => {
-    expect(isPairingAvailable('grotesk')).toBe(true);
-    expect(isPairingAvailable('editorial')).toBe(true);
-    expect(isPairingAvailable('poster')).toBe(false);
+  it("has every pairing's fonts built", () => {
+    expect(PAIRING_IDS.filter((id) => !isPairingAvailable(id))).toEqual([]);
     expect(pairingFonts('editorial').sort()).toEqual([
       'instrument-serif',
       'instrument-serif-italic',
@@ -313,10 +337,10 @@ describe('defineTemplate & state', () => {
     ).toThrow(/outside/);
   });
 
-  it('builds the initial state from the first Look, skipping unbuilt pairings', () => {
+  it('builds the initial state from the first Look', () => {
     const state = initialState(template);
     expect(state.palette).toEqual({ kind: 'library', id: 'ink' });
-    expect(state.pairing).toBe('grotesk');
+    expect(state.pairing).toBe('poster');
     expect(state.props).toEqual({ title: 'Hi', size: 's' });
     expect(state.format).toBe('16:9');
     expect(state.transparent).toBe(false);
@@ -341,7 +365,7 @@ describe('defineTemplate & state', () => {
     expect(state.duration).toBe(12);
     expect(state.energy).toBe('balanced');
     expect(state.palette).toEqual({ kind: 'library', id: 'cobalt' });
-    expect(state.pairing).toBe('grotesk');
+    expect(state.pairing).toBe('poster');
     expect(state.transparent).toBe(true);
     expect(state.finish).toBe('grain');
     expect(state.seed).toBe(1);

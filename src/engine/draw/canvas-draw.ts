@@ -10,7 +10,13 @@
  */
 
 import type { Graphic } from '../assets/types';
-import { CpuEffects, type EffectImage, type Effects, whole } from '../compositor/effects';
+import {
+  type AdjustOptions,
+  CpuEffects,
+  type EffectImage,
+  type Effects,
+  whole,
+} from '../compositor/effects';
 import { type Color, mixOklab, toCss, withAlpha } from '../core/color';
 import { clamp01, type Rect } from '../core/math';
 import type { FrameSpec } from '../template/formats';
@@ -19,6 +25,7 @@ import { glyphPath, pathLength, tracePath } from './path';
 import type {
   BlendMode,
   ClipShape,
+  ColorAdjust,
   Draw,
   EditableKind,
   EditableRegion,
@@ -80,6 +87,7 @@ const MAX_LAYERS = 8;
 /** Below this opacity nothing is drawn. */
 const INVISIBLE = 1 / 1024;
 const BLACK: Color = { r: 0, g: 0, b: 0, a: 1 };
+const WHITE: Color = { r: 1, g: 1, b: 1, a: 1 };
 const NO_DASH: number[] = [];
 const NO_OPTIONS: TextDrawOptions = {};
 /** Extra stops inserted between two gradient stops (interpolated in OKLab). */
@@ -273,6 +281,33 @@ function solidOf(fill: Fill): Color {
 
 const clampRadius = (r: Rect, radius: number) =>
   Math.max(0, Math.min(radius, Math.abs(r.w) / 2, Math.abs(r.h) / 2));
+
+/** A factor of a color adjustment: 0 … 2, 1 when unset or not a number. */
+const factor = (value: number | undefined) =>
+  value !== undefined && Number.isFinite(value) ? Math.max(0, Math.min(2, value)) : 1;
+
+/** A color adjustment clamped to its ranges, or null when it would change nothing. */
+function resolveAdjust(adjust: ColorAdjust | undefined): AdjustOptions | null {
+  if (!adjust) return null;
+  const brightness = factor(adjust.brightness);
+  const contrast = factor(adjust.contrast);
+  const saturation = factor(adjust.saturation);
+  const tint = adjust.tint;
+  const amount = tint && Number.isFinite(tint.amount) ? tint.amount : 0;
+  const tintAmount = tint ? clamp01(amount) * clamp01(tint.color.a) : 0;
+  const changes = (v: number) => Math.abs(v - 1) > 1e-4;
+  if (!(changes(brightness) || changes(contrast) || changes(saturation) || tintAmount > 1e-4)) {
+    return null;
+  }
+  const color = tint?.color ?? WHITE;
+  return {
+    brightness,
+    contrast,
+    saturation,
+    tint: [clamp01(color.r), clamp01(color.g), clamp01(color.b)],
+    tintAmount,
+  };
+}
 
 let sharedEffects: CpuEffects | null = null;
 const cpuEffects = () => {
@@ -607,8 +642,12 @@ export class CanvasDraw implements Draw {
     draw(this);
     this.popLayer();
     if (opacity < INVISIBLE) return;
-    const source =
-      sigma > 0.25 ? this.effects().blur(surface.canvas, sigma) : whole(surface.canvas);
+    const adjust = resolveAdjust(options.adjust);
+    const source = adjust
+      ? this.effects().adjust(surface.canvas, adjust, sigma)
+      : sigma > 0.25
+        ? this.effects().blur(surface.canvas, sigma)
+        : whole(surface.canvas);
     const ctx = this.c;
     if (shadow) {
       ctx.shadowColor = toCss(withAlpha(shadow.color, shadow.color.a * (shadow.opacity ?? 1)));

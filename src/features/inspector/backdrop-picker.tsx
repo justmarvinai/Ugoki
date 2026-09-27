@@ -5,8 +5,9 @@
 import { useState } from 'react';
 import { SegmentedControl } from '@/components/segmented-control';
 import type { Backdrop } from '@/engine/host';
-import { type AddFile, FileButton } from './control-field';
+import type { AddFile } from './control-field';
 import { Field } from './field';
+import { FileButton } from './file-button';
 
 export function BackdropPicker({
   value,

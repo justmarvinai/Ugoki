@@ -10,6 +10,7 @@
 /blob-report
 /.vitest/
 /.vitest-attachments
+/.sheets/
 __screenshots__/**/*-actual.png
 __screenshots__/**/*-diff.png
 

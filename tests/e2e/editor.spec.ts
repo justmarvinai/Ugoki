@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { TEMPLATES } from '../../src/templates/registry';
 
 /** Fails the test on console errors and uncaught exceptions. */
 function watchErrors(page: Page): string[] {
@@ -85,18 +86,13 @@ test('Choose → Customize → Export: a template, edited, undone and exported',
 });
 
 test('every template opens in the editor and exports', async ({ page }) => {
-  test.slow();
+  test.setTimeout(TEMPLATES.length * 20_000);
   const errors = watchErrors(page);
   // Download path (browsers without a save picker).
   await page.addInitScript(() => {
     delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker;
   });
-  for (const [id, name] of [
-    ['rise', 'Rise'],
-    ['line', 'Line'],
-    ['sheen', 'Sheen'],
-    ['layers', 'Layers'],
-  ] as const) {
+  for (const { id, name } of TEMPLATES) {
     await page.goto(`/editor/${id}`);
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
     await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('Looks', {
@@ -119,7 +115,7 @@ test('every template opens in the editor and exports', async ({ page }) => {
       sheet.getByRole('button', { name: 'Export Still' }).click(),
     ]);
     expect(download.suggestedFilename()).toMatch(
-      new RegExp(`^ugoki-${id}-1920x1080-[\\d.]+s\\.png$`),
+      new RegExp(`^ugoki-${id}-\\d+x\\d+-[\\d.]+s\\.png$`),
     );
   }
   expect(errors).toEqual([]);

@@ -18,6 +18,23 @@ export type BloomOptions = {
 };
 
 /**
+ * A color adjustment, resolved and clamped (`ColorAdjust` in draw/types.ts documents the
+ * ranges). Both backends apply it to straight color in this order, with the same math.
+ */
+export type AdjustOptions = {
+  /** Color factor (1 = unchanged). */
+  readonly brightness: number;
+  /** Slope around mid grey (1 = unchanged). */
+  readonly contrast: number;
+  /** Factor around the luma (1 = unchanged, 0 = grey). */
+  readonly saturation: number;
+  /** Tint color: straight sRGB channels, 0 … 1. */
+  readonly tint: readonly [number, number, number];
+  /** 0 … 1. */
+  readonly tintAmount: number;
+};
+
+/**
  * An effect's result: the region (`x, y, width, height`, in `source` pixels) holding a
  * frame-sized image to composite at the layer's origin. Valid until the next effect call.
  */
@@ -37,6 +54,50 @@ export interface Effects {
   bloom(layer: OffscreenCanvas, options: BloomOptions): EffectImage;
   /** Converts a matte's luminance to alpha (alpha mattes need no conversion). */
   lumaToAlpha(layer: OffscreenCanvas): EffectImage;
+  /** Color adjustment of a layer, after an optional Gaussian blur (`sigma` in output pixels). */
+  adjust(layer: OffscreenCanvas, options: AdjustOptions, sigma?: number): EffectImage;
+}
+
+const LUMA_R = 0.2126;
+const LUMA_G = 0.7152;
+const LUMA_B = 0.0722;
+
+/**
+ * Applies a color adjustment to straight RGBA bytes in place, alpha untouched — the Canvas 2D
+ * twin of the WebGL2 `adjust` shader (same order, same math).
+ */
+export function adjustPixels(d: Uint8ClampedArray, o: AdjustOptions): void {
+  const gain = o.brightness / 255;
+  const slope = o.contrast;
+  const sat = o.saturation;
+  const [tr, tg, tb] = o.tint;
+  const amount = o.tintAmount;
+  const tl = Math.max(1e-3, LUMA_R * tr + LUMA_G * tg + LUMA_B * tb);
+  const above = Math.max(1e-3, 1 - tl);
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    let r = ((d[i] ?? 0) * gain - 0.5) * slope + 0.5;
+    let g = ((d[i + 1] ?? 0) * gain - 0.5) * slope + 0.5;
+    let b = ((d[i + 2] ?? 0) * gain - 0.5) * slope + 0.5;
+    const l = LUMA_R * r + LUMA_G * g + LUMA_B * b;
+    r = Math.min(1, Math.max(0, l + (r - l) * sat));
+    g = Math.min(1, Math.max(0, l + (g - l) * sat));
+    b = Math.min(1, Math.max(0, l + (b - l) * sat));
+    if (amount > 0) {
+      // Luma onto black → tint → white: the tint sits at its own luma, so lightness is kept.
+      const t = LUMA_R * r + LUMA_G * g + LUMA_B * b;
+      const f = t < tl ? t / tl : (t - tl) / above;
+      const mr = t < tl ? tr * f : tr + (1 - tr) * f;
+      const mg = t < tl ? tg * f : tg + (1 - tg) * f;
+      const mb = t < tl ? tb * f : tb + (1 - tb) * f;
+      r += (mr - r) * amount;
+      g += (mg - g) * amount;
+      b += (mb - b) * amount;
+    }
+    d[i] = r * 255;
+    d[i + 1] = g * 255;
+    d[i + 2] = b * 255;
+  }
 }
 
 /** A whole canvas as an effect result. */
@@ -135,12 +196,16 @@ function boxPass(
   }
 }
 
+/** Rows read back at a time by per-pixel effects (bounds the pixel buffer for 4K layers). */
+const STRIP = 512;
+
 /**
  * Canvas 2D effects: blur with the canvas `filter` where supported, otherwise three box blurs
  * on premultiplied pixels (a close Gaussian, the same wherever the content sits). Bloom has no
  * threshold here — it glows the whole layer, which suits what templates bloom (light bands,
  * highlights). Luma mattes need per-pixel math, so they read back small mattes; large ones fall
- * back to their alpha.
+ * back to their alpha. Color adjustment reads the layer back in strips (the WebGL2 shader's
+ * math in JavaScript — slower, but the same result).
  */
 export class CpuEffects implements Effects {
   readonly kind = 'cpu';
@@ -148,6 +213,8 @@ export class CpuEffects implements Effects {
   private readonly a = surface(1, 1);
   /** Bloom's output (it reads a blur result from `a`). */
   private readonly glow = surface(1, 1);
+  /** Color adjustment's output (it reads a blur result from `a`, or the layer). */
+  private readonly adjusted = surface(1, 1);
   private readonly filter: boolean;
 
   /** `filter: false` forces the box blur (as in Safari), e.g. to test it where `filter` works. */
@@ -207,6 +274,21 @@ export class CpuEffects implements Effects {
     }
     const out = sized(this.a, width, height);
     out.ctx.putImageData(image, 0, 0);
+    return whole(out.canvas);
+  }
+
+  adjust(layer: OffscreenCanvas, options: AdjustOptions, sigma = 0): EffectImage {
+    const source = this.blurCanvas(layer, sigma);
+    const ctx = source.getContext('2d');
+    if (!ctx) return whole(source);
+    const { width, height } = source;
+    const out = sized(this.adjusted, width, height);
+    for (let y = 0; y < height; y += STRIP) {
+      // ImageData is straight alpha: the adjustment never sees premultiplied color.
+      const image = ctx.getImageData(0, y, width, Math.min(STRIP, height - y));
+      adjustPixels(image.data, options);
+      out.ctx.putImageData(image, 0, y);
+    }
     return whole(out.canvas);
   }
 

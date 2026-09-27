@@ -8,8 +8,7 @@ import { graphicFromTransfer } from '../assets/transfer';
 import type { Graphic } from '../assets/types';
 import { createCompositor } from '../compositor';
 import type { AnyTemplate } from '../template/define';
-import { pairingFonts } from '../template/pairings';
-import { sanitizeState } from '../template/state';
+import { designFonts, sanitizeState } from '../template/state';
 import { createTextEngine } from '../text/engine';
 import { createFetchLoader } from '../text/font-source';
 import { createFallbackMeasure } from '../text/measure';
@@ -42,7 +41,7 @@ export function serveExportWorker(
         loadBytes: createFetchLoader(),
         measureFallback: createFallbackMeasure(),
       });
-      await text.load(pairingFonts(state.pairing));
+      await text.load(designFonts(template, state));
       const assets = new Map<string, Graphic>(
         request.assets.map(({ hash, asset }) => [hash, graphicFromTransfer(asset)]),
       );

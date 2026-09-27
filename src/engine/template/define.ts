@@ -5,7 +5,7 @@
  * per state change and returns a Scene whose `render` draws any frame synchronously.
  */
 
-import type { Graphic } from '../assets/types';
+import type { FocalPoint, Graphic } from '../assets/types';
 import type { Rng } from '../core/rng';
 import type { Draw } from '../draw/types';
 import type { TextEngine } from '../text/types';
@@ -14,7 +14,7 @@ import type { Structure, Timeline, TimingSpec } from '../timeline/timeline';
 import type { CategoryId } from './categories';
 import type { ControlSchema, Props } from './controls';
 import type { FormatId, FrameSpec } from './formats';
-import type { Pairing, PairingId } from './pairings';
+import type { FontId, Pairing, PairingId } from './pairings';
 import type { Palette, PaletteRef } from './palettes';
 
 export type AlphaSupport = 'default' | 'optional' | 'none';
@@ -67,6 +67,11 @@ export type BuildContext<S extends ControlSchema> = {
    * the file is missing. Null only for an optional slot the user emptied.
    */
   graphic(controlKey: keyof S & string): Graphic | null;
+  /**
+   * The focal point the user set for an image control (0..1; the center by default) — pass it
+   * as `focal` when drawing the image with `fit: 'cover'`.
+   */
+  focal(controlKey: keyof S & string): FocalPoint;
 };
 
 export type RenderContext = {
@@ -96,6 +101,8 @@ export type TemplateDefinition<S extends ControlSchema> = {
   shutter?: number;
   palettes: readonly PaletteRef[];
   pairings: readonly PairingId[];
+  /** Fonts the template sets text in besides its pairing's (e.g. the UI Kit's Inter). */
+  fonts?: readonly FontId[];
   controls: S;
   looks: readonly Look<S>[];
   timing(context: TimingContext<S>): TimingSpec;

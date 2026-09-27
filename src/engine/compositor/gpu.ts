@@ -1,5 +1,5 @@
 /**
- * The WebGL2 compositor (docs/06-engine.md §9): layer effects (blur, bloom, luma mattes),
+ * The WebGL2 compositor (docs/06-engine.md §9): layer effects (blur, bloom, luma mattes, color),
  * motion-blur accumulation in a float buffer, and the finish (grain, soft glow). One context per
  * worker; framebuffers are pooled by name and size.
  *
@@ -9,7 +9,7 @@
  * compositor's canvas and returned as a source rectangle for `drawImage`.
  */
 
-import type { BloomOptions, EffectImage, Effects } from './effects';
+import type { AdjustOptions, BloomOptions, EffectImage, Effects } from './effects';
 
 export type FinishOptions = {
   /** Film grain strength (0 = off, 1 = default). */
@@ -102,6 +102,29 @@ void main() {
   // Screen-like add in premultiplied space: light never exceeds full coverage.
   float a = min(1.0, c.a + g.a * (1.0 - c.a));
   o = vec4(min(c.rgb + g.rgb * (1.0 - c.rgb), vec3(a)), a);
+}`,
+
+  // Color adjustment on straight color (effects.ts `adjustPixels` is the Canvas 2D twin).
+  adjust: `${HEADER}
+uniform float u_brightness;
+uniform float u_contrast;
+uniform float u_saturation;
+uniform vec3 u_tint;
+uniform float u_tintAmount;
+void main() {
+  vec4 p = texture(u_tex, v_uv * u_scale);
+  if (p.a <= 0.0) { o = vec4(0.0); return; }
+  vec3 c = (p.rgb / p.a * u_brightness - 0.5) * u_contrast + 0.5;
+  float l = dot(c, ${LUMA});
+  c = clamp(mix(vec3(l), c, u_saturation), 0.0, 1.0);
+  if (u_tintAmount > 0.0) {
+    // Luma onto black → tint → white: the tint sits at its own luma, so lightness is kept.
+    float tl = max(1e-3, dot(u_tint, ${LUMA}));
+    float t = dot(c, ${LUMA});
+    vec3 ramp = t < tl ? u_tint * (t / tl) : mix(u_tint, vec3(1.0), (t - tl) / max(1e-3, 1.0 - tl));
+    c = mix(c, ramp, u_tintAmount);
+  }
+  o = vec4(c * p.a, p.a);
 }`,
 
   grain: `${HEADER}
@@ -246,6 +269,19 @@ export class GpuCompositor implements Effects {
     return this.present(this.uploadCanvas(layer), layer.width, layer.height, 'luma');
   }
 
+  adjust(layer: OffscreenCanvas, options: AdjustOptions, sigma = 0): EffectImage {
+    const { width: w, height: h } = layer;
+    let tex = this.uploadCanvas(layer);
+    if (sigma > 0.25) tex = this.blurTexture(tex, w, h, sigma, 'blur').tex;
+    return this.present(tex, w, h, 'adjust', 1, {
+      u_brightness: options.brightness,
+      u_contrast: options.contrast,
+      u_saturation: options.saturation,
+      u_tint: [...options.tint],
+      u_tintAmount: options.tintAmount,
+    });
+  }
+
   // --- motion blur ------------------------------------------------------------------------
 
   beginAccumulation(width: number, height: number): void {
@@ -388,7 +424,7 @@ export class GpuCompositor implements Effects {
     tex: WebGLTexture,
     w: number,
     h: number,
-    program: 'copy' | 'luma' | 'grain',
+    program: 'copy' | 'luma' | 'grain' | 'adjust',
     gain = 1,
     uniforms: Record<string, number | number[] | Float32Array> = {},
   ): EffectImage {
@@ -448,7 +484,9 @@ export class GpuCompositor implements Effects {
     else if (typeof value === 'number') gl.uniform1f(location, value);
     else if (value instanceof Float32Array) gl.uniform1fv(location, value);
     else if (value.length === 2) gl.uniform2f(location, value[0] as number, value[1] as number);
-    else gl.uniform1fv(location, value);
+    else if (value.length === 3) {
+      gl.uniform3f(location, value[0] as number, value[1] as number, value[2] as number);
+    } else gl.uniform1fv(location, value);
   }
 
   private uploadCanvas(source: OffscreenCanvas): WebGLTexture {

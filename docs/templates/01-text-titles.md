@@ -144,6 +144,13 @@ Category slug: `text-titles` · Conventions: [`00-foundations.md`](00-foundation
 
 **Engine needs.** Per-word blur (Canvas filter or compositor fallback) · animated letter-spacing via per-glyph layout · radial bloom.
 
+**Implementation notes (Phase 3, `src/templates/text-titles/focus`).**
+- *Sizes*: headline 11u (16:9, up to 70% of the title-safe width), 10.5u (9:16, the social zone's symmetric width), 9.6u (1:1), 10u (4:5); the user's lines shrink to 72% before they may wrap (3 lines, down to 40%). Subline 3.3u / 4.2u / 3.5u / 3.7u in the text face, `muted`, half a headline size below the last baseline. The lockup is optically centered (47%) and always centered on the frame.
+- *Resolve*: each word is its own bounded compositor layer (at most 8 at once — longer headlines resolve in phrases); its blur, scale and tracking share one curve and one window (0.9 s, stagger 0.12 s compressed to a 0.6 s span for many words). Opening tracking and scale push the neighbouring words apart instead of into each other, and centered lines open symmetrically.
+- *Energy*: blur-in ×1.2 / ×1 / ×0.8, scale from 1.06 / 1.10 / 1.135, tracking from +12.8% / +16% / +18.8% above rest, push-in 1.8% / 3% / 4%. Punchy resolves on `snap` (an autofocus locking), the others on `glide`.
+- *Bloom*: a Gaussian radial gradient behind the headline — `accent` mixed 35% toward `fg` on dark palettes; on light palettes (where white light can't show) a faint `accent` tint. Soft 0.2 / Strong 0.35 peak opacity; off when transparent. Exit: one layer for the whole lockup (blur to 16 px, 98%, fade on `exit`); the bloom fades last.
+- *Looks*: Paper uses the `editorial` pairing (a magazine title card) with Glow off.
+
 ---
 
 ## 1.5 Decode — *character scramble*
@@ -174,3 +181,11 @@ Category slug: `text-titles` · Conventions: [`00-foundations.md`](00-foundation
 **The expensive detail.** Layout never jitters: glyph slots are fixed to the *final* glyph's advance (proportional fonts scale scrambled glyphs to fit the slot). Scramble runs on a stepped 24 fps clock independent of export fps, so 60 fps exports don't look frantic.
 
 **Engine needs.** Seeded RNG per character · stepped-time helper · per-glyph slot layout.
+
+**Implementation notes (Phase 3, `src/templates/text-titles/decode`).**
+- *Type*: the pairing's display face in caps (forced upper case), +4% tracking; variable-width faces run at `wdth` 108 and condense to 96 → 86 for long lines before the size shrinks (to 75%, then 2 lines down to 45%). Sizes 10.5u (16:9) · 9u (9:16) · 8.4u (1:1) · 8.8u (4:5), left on the safe edge, optically centered; a cursor cell is reserved after the text. The meta line is the text face (`muted`, +6%).
+- *Slots*: every glyph keeps its final advance; each slot scrambles among the set's glyphs within ±30% of its width (at least four candidates), scaled to fit exactly, so nothing jitters in proportional faces either. Scramble glyphs are precomputed per slot and step (seeded, never the same twice in a row).
+- *Timing*: characters arrive ~20 a second (0.95 s span; 14–33 a second by length), all moments on the 24 fps grid; Calm scrambles at 12 fps, Balanced and Punchy at 24 fps; hold glitches every 1.6 / 1.2 / 0.95 s. The lock flash decays from `accent` to `fg` over 0.12 s (a phosphor afterglow; re-locks after a glitch flash softer). The meta line types in 0.15 s after the text starts and leaves first. The cursor is the `accent` color and starts its 1 Hz blink once every character has locked. The entrance section ends 0.2 s after the last character *arrives* — the text reads while the last few lock — so the default 4 s passes the editor's readable-hold check (hold 1.78 s ≥ 1.74 s).
+- *Blocks*: the engine's fonts are subset to Latin, so block elements (█ ▀ ▄ ▌ ▐ ░ ▒ ▓ ▚ ▞ ▖ ▝) are drawn as shapes in a cap-height cell.
+- *Scanlines* (on by default): lit bands through the type only — the text between them at 66% — so nothing depends on the background; the pitch is 0.5u, never finer than 3 output pixels (no moiré in small previews).
+- *Looks*: Ink scrambles with Symbols; Paper uses the `mono` pairing without scanlines.

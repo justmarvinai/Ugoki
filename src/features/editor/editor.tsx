@@ -5,7 +5,8 @@
  * design. The design lives in the project store (with undo); the render worker draws it on the
  * stage — or a hover preview from the UI store — and reports frames, the timeline and the
  * stage's editable regions back. Templates load through a hidden probe view, which also
- * sanitizes designs from share links and drafts.
+ * sanitizes designs from share links and drafts. Image files can be dropped on the stage or
+ * pasted; they go to an image field (through the inbox), which reads them like its own.
  */
 
 import { MotionConfig } from 'motion/react';
@@ -29,11 +30,15 @@ import { createPlayhead } from '@/stores/playhead';
 import { createProjectStore } from '@/stores/project';
 import { createUiStore } from '@/stores/ui';
 import type { TemplateEntry } from '@/templates/registry';
+import { useFileDropGuard } from '../assets/file-drag';
 import { importFile } from '../assets/import-file';
+import { createFileInbox } from '../assets/inbox';
+import { usePastedImage } from '../assets/paste';
+import { keepPreviewFile } from '../assets/previews';
 import { keepFile, useAutosave } from '../drafts/drafts';
 import { ExportPanel } from '../export/export-panel';
 import { ShareButton } from '../share/share-button';
-import { Stage } from '../stage/stage';
+import { Stage, type StageDropTarget } from '../stage/stage';
 import { STEP, Transport } from '../transport/transport';
 import { EditorInspector } from './editor-inspector';
 import { ShortcutList } from './shortcut-list';
@@ -74,6 +79,8 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
   const [project] = useState(() => createProjectStore());
   const [ui] = useState(createUiStore);
   const [playhead] = useState(createPlayhead);
+  /** Files dropped on the stage or pasted, on their way to an image field. */
+  const [inbox] = useState(createFileInbox);
   const client = useRenderClient();
   const [descriptor, setDescriptor] = useState<TemplateDescriptor | null>(null);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
@@ -192,6 +199,7 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
         const imported = await importFile(file).catch(() => null);
         if (!imported || cancelled) continue;
         files.current.set(hash, file);
+        keepPreviewFile(hash, file);
         client.setAsset(hash, imported.asset);
       }
       if (cancelled) return;
@@ -289,6 +297,60 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
     setTimeout(() => setNotice((current) => (current === text ? null : current)), 2400);
   };
 
+  // Image files from outside the inspector: dropped on the stage, or pasted.
+  useFileDropGuard();
+  const images = Object.entries(descriptor?.controls ?? {}).flatMap(([key, control]) =>
+    control.kind === 'image' ? [{ key, label: control.label }] : [],
+  );
+  /** Hands a file to an image field; a problem also shows under the stage, where it was dropped. */
+  const deliver = (control: string, file: File) => {
+    const reading = inbox.send(control, file);
+    void reading?.then((error) => {
+      if (error) flash(error);
+    });
+    return reading !== null;
+  };
+  /** The image a file dropped at `at` fills: the one under the pointer, or else the first. */
+  const dropTarget = (
+    at: { x: number; y: number } | null,
+  ): (StageDropTarget & { control: string }) | null => {
+    const first = images[0];
+    if (!first) return null;
+    const onStage = ui
+      .getState()
+      .regions.filter(
+        (r) => r.kind === 'editable' && images.some((image) => image.key === r.target),
+      );
+    const under = at
+      ? onStage
+          .filter(
+            ({ bounds: b }) => at.x >= b.x && at.x <= b.x + b.w && at.y >= b.y && at.y <= b.y + b.h,
+          )
+          .sort((a, b) => a.bounds.w * a.bounds.h - b.bounds.w * b.bounds.h)[0]
+      : undefined;
+    const target = images.find((image) => image.key === under?.target) ?? first;
+    const region = under ?? onStage.find((r) => r.target === target.key);
+    return { control: target.key, label: target.label, bounds: region?.bounds ?? null };
+  };
+  /** The image a paste fills: the field with focus, the one last worked in, or else the first. */
+  const pasteTarget = () => {
+    const focused =
+      document.activeElement?.closest('[data-image-field]')?.getAttribute('data-image-field') ??
+      null;
+    const candidates = [focused, inbox.active];
+    return (
+      candidates.find((key) => images.some((image) => image.key === key)) ?? images[0]?.key ?? null
+    );
+  };
+  usePastedImage(
+    design && descriptor && !sheet
+      ? (file) => {
+          const control = pasteTarget();
+          return control !== null && deliver(control, file);
+        }
+      : null,
+  );
+
   useShortcuts(
     design && descriptor
       ? {
@@ -384,6 +446,13 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
                 guides={guides}
                 label={summary}
                 onAttach={syncStage}
+                drop={{
+                  target: dropTarget,
+                  onDrop: (file, at) => {
+                    const target = dropTarget(at);
+                    if (target) deliver(target.control, file);
+                  },
+                }}
                 overlay={(box) => (
                   <StageOverlay
                     box={box}
@@ -498,7 +567,9 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
                 project={project}
                 ui={ui}
                 warnings={timeline?.warnings ?? []}
+                length={timeline?.duration ?? null}
                 onAddFile={addFile}
+                inbox={inbox}
                 onReset={reset}
               />
             ) : (

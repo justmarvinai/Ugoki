@@ -132,25 +132,24 @@ async function rasterizeSvg(source: string): Promise<ImageBitmap> {
   return createImageBitmap(image, { resizeWidth: width, resizeHeight: height });
 }
 
-/** Reads a user's file into artwork for an image/logo control or a preview backdrop. */
-export async function importFile(file: File): Promise<ImportedFile> {
+/** The file's bytes, if it isn't too large to read. */
+async function readBytes(file: Blob): Promise<Uint8Array<ArrayBuffer>> {
   if (file.size > MAX_FILE_BYTES) throw new ImportError('Files up to 25 MB, please.');
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  return new Uint8Array(await file.arrayBuffer());
+}
+
+/** Decodes a file's bytes into artwork (with notes for the user). */
+async function decode(
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<Omit<ImportedFile, 'hash' | 'name'>> {
   const kind = sniff(bytes);
   if (!kind) throw new ImportError('Use an SVG, PNG, JPG or WebP file.');
-  const hash = await sha256(bytes);
-  const name = file.name;
 
   if (kind === 'svg') {
     const source = new TextDecoder().decode(bytes);
     const result = importSvg(source);
     if (result.ok) {
-      return {
-        hash,
-        name,
-        asset: { kind: 'vector', graphic: result.graphic },
-        notes: result.warnings,
-      };
+      return { asset: { kind: 'vector', graphic: result.graphic }, notes: result.warnings };
     }
     if (result.reason !== 'unsupported') {
       throw new ImportError(
@@ -159,13 +158,26 @@ export async function importFile(file: File): Promise<ImportedFile> {
     }
     const bitmap = await rasterizeSvg(source);
     return {
-      hash,
-      name,
       asset: { kind: 'raster', bitmap, ink: inkBounds(bitmap) },
       notes: [`Converted to pixels (${result.detail}); vector effects use its outline.`],
     };
   }
 
   const bitmap = await decodeRaster(new Blob([bytes], { type: `image/${kind}` }));
-  return { hash, name, asset: { kind: 'raster', bitmap, ink: inkBounds(bitmap) }, notes: [] };
+  return { asset: { kind: 'raster', bitmap, ink: inkBounds(bitmap) }, notes: [] };
+}
+
+/** Reads a user's file into artwork for an image/logo control or a preview backdrop. */
+export async function importFile(file: File): Promise<ImportedFile> {
+  const bytes = await readBytes(file);
+  const { asset, notes } = await decode(bytes);
+  return { hash: await sha256(bytes), name: file.name, asset, notes };
+}
+
+/**
+ * Reads a file's artwork the way `importFile` does, without identifying it — for previews on
+ * the main thread (a raster's bitmap is this caller's: nothing is handed to a worker).
+ */
+export async function readImage(file: Blob): Promise<Omit<ImportedFile, 'hash' | 'name'>> {
+  return decode(await readBytes(file));
 }
