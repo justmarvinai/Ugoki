@@ -6,6 +6,7 @@
  */
 
 import type { TransferableGraphic } from '../host/protocol';
+import type { EncoderSupport } from '../runtime/capabilities';
 import type { ExportJob, ExportProgress, ExportResult } from './run';
 import type { ExportStage } from './sinks';
 
@@ -19,11 +20,14 @@ export type ExportRequest =
       /** The file the user picked (written as the export goes), if any. */
       file?: FileSystemFileHandle;
     }
-  | { type: 'cancel' };
+  | { type: 'cancel' }
+  /** Which video formats work here (round trips); answered with `probed`. */
+  | { type: 'probe' };
 
 export type ExportMessage =
   | ({ type: 'progress' } & ExportProgress)
   | { type: 'preview'; frame: ImageBitmap; t: number }
   | { type: 'done'; result: ExportResult }
   | { type: 'cancelled' }
-  | { type: 'error'; stage: ExportStage; message: string };
+  | { type: 'error'; stage: ExportStage; message: string }
+  | { type: 'probed'; encoders: EncoderSupport };

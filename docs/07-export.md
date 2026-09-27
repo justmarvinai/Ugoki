@@ -42,7 +42,7 @@ Platform facts verified 2026-09-26 (browser source, MDN compat data v8.1.3, Medi
 - MP4 with audio (later) needs `@mediabunny/aac-encoder` (WASM, ~254 KB gz, LGPL code inside, lazy-loaded) on Firefox, Chrome/Linux and Safari < 26.
 - HEVC with alpha cannot be produced through WebCodecs anywhere.
 
-**Everything is probed at runtime** (`canEncodeVideo`, `getFirstEncodableVideoCodec`, `VideoEncoder.isConfigSupported` with the exact size/bitrate) when the export sheet opens; unavailable options are disabled with a human reason and a suggested alternative. A declared configuration isn't trusted on its own: the render worker's probe also sends four 128 × 128 frames of a moving bar through each video codec's encoder and decoder and requires every decoded frame to show its own bar (`encodesMotion`), and round-trips transparent WebM through Mediabunny's alpha mode (`transparentWebmWorks`) — WebM for transparent designs is offered only where that passes (ADR-034).
+**Everything is probed at runtime** (`canEncodeVideo`, `getFirstEncodableVideoCodec`, `VideoEncoder.isConfigSupported` with the exact size/bitrate) when the export sheet opens; unavailable options are disabled with a human reason and a suggested alternative. A declared configuration isn't trusted on its own: the first time export options are used, an export worker sends four 128 × 128 frames of a moving bar through each video codec's encoder and decoder and requires every decoded frame to show its own bar (`encodesMotion`), and round-trips transparent WebM through Mediabunny's alpha mode (`transparentWebmWorks`) — WebM for transparent designs is offered only where that passes (ADR-034). The render worker's own probe only records what's declared, so previews never wait for it.
 
 ---
 

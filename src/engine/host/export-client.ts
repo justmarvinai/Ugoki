@@ -7,6 +7,7 @@
 import type { ExportAsset, ExportMessage, ExportRequest } from '../export/protocol';
 import type { ExportJob, ExportProgress, ExportResult } from '../export/run';
 import type { ExportStage } from '../export/sinks';
+import type { EncoderSupport } from '../runtime/capabilities';
 
 /** A Worker, or anything with the same messaging shape. */
 export type ExportEndpoint = {
@@ -92,4 +93,28 @@ export function startExport(
     done: finished,
     cancel: () => endpoint.postMessage({ type: 'cancel' }, []),
   };
+}
+
+/** How long a probe may take before its answer is given up on (a stuck encoder, a crash). */
+const PROBE_TIMEOUT = 15_000;
+
+/**
+ * Which video formats work in this browser, verified by round trips in an export worker
+ * (ADR-034); null if the worker doesn't answer. The worker is terminated afterwards.
+ */
+export function probeExport(endpoint: ExportEndpoint): Promise<EncoderSupport | null> {
+  return new Promise((resolve) => {
+    const finish = (encoders: EncoderSupport | null) => {
+      clearTimeout(timer);
+      endpoint.removeEventListener('message', listener);
+      endpoint.terminate();
+      resolve(encoders);
+    };
+    const listener = (event: MessageEvent<ExportMessage>) => {
+      if (event.data.type === 'probed') finish(event.data.encoders);
+    };
+    const timer = setTimeout(() => finish(null), PROBE_TIMEOUT);
+    endpoint.addEventListener('message', listener);
+    endpoint.postMessage({ type: 'probe' }, []);
+  });
 }

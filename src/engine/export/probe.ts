@@ -9,6 +9,23 @@
  * made from canvases are fine there, so MP4 and opaque WebM still work.)
  */
 
+import { declaredEncoders, type EncoderSupport, encodesMotion } from '../runtime/capabilities';
+
+/**
+ * What exports can rely on here, from round trips (ADR-034): H.264 and VP9 only if moving
+ * frames come back as encoded, transparent WebM only if its alpha does. Runs in an export
+ * worker when the export options are first shown, never while previews start.
+ */
+export async function verifyEncoders(declared?: EncoderSupport): Promise<EncoderSupport> {
+  const claimed = declared ?? (await declaredEncoders());
+  const [avc, vp9] = await Promise.all([
+    claimed.avc && encodesMotion('avc1.640028'),
+    claimed.vp9 && encodesMotion('vp09.00.40.08'),
+  ]);
+  const vp9Alpha = vp9 && (await transparentWebmWorks());
+  return { avc, vp9, vp9Alpha, av1: claimed.av1 };
+}
+
 const SIZE = 128;
 const FRAMES = 4;
 const FPS = 30;

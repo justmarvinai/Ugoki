@@ -1,7 +1,8 @@
 /**
  * Capability probing (docs/05-architecture.md §12, docs/07-export.md): what this browser can do
- * where rendering happens (the worker). Export options are only offered once probed, and the
- * Lab shows the results so real devices can be checked — the Phase 1 platform spikes.
+ * where rendering happens (the worker) — cheap, so it never holds up the first frames. Video
+ * formats are verified by round trips in an export worker before exports offer them
+ * (`engine/export/probe.ts`); the Lab shows both, so real devices can be checked.
  */
 
 export type EncoderSupport = {
@@ -161,24 +162,22 @@ export async function encodesMotion(codec: string): Promise<boolean> {
   }
 }
 
-/** Declared support, then a round trip of moving frames (small, so it takes milliseconds). */
-async function works(config: VideoEncoderConfig): Promise<boolean> {
-  return (await supported(config)) && (await encodesMotion(config.codec));
-}
-
-async function probeEncoders(): Promise<EncoderSupport> {
+/**
+ * What this browser says it can encode (cheap). Transparent WebM is assumed wherever VP9 is —
+ * Mediabunny encodes the alpha plane itself — until an export worker verifies it
+ * (`verifyEncoders`), as it does every video codec, before exports rely on any of it.
+ */
+export async function declaredEncoders(): Promise<EncoderSupport> {
   if (typeof VideoEncoder === 'undefined') {
     return { avc: false, vp9: false, vp9Alpha: false, av1: false };
   }
   const base = { width: 1920, height: 1080, bitrate: 8_000_000, framerate: 30 };
   const [avc, vp9, av1] = await Promise.all([
-    works({ ...base, codec: 'avc1.640028' }),
-    works({ ...base, codec: 'vp09.00.40.08' }),
+    supported({ ...base, codec: 'avc1.640028' }),
+    supported({ ...base, codec: 'vp09.00.40.08' }),
     supported({ ...base, codec: 'av01.0.08M.08' }),
   ]);
-  // Transparent WebM goes through Mediabunny's alpha mode: checked the way exports use it.
-  const vp9Alpha = vp9 && (await (await import('../export/probe')).transparentWebmWorks());
-  return { avc, vp9, vp9Alpha, av1 };
+  return { avc, vp9, vp9Alpha: vp9, av1 };
 }
 
 export async function probeCapabilities(): Promise<Capabilities> {
@@ -188,6 +187,6 @@ export async function probeCapabilities(): Promise<Capabilities> {
     ...probeWebGl(),
     decompressionStream: typeof DecompressionStream !== 'undefined',
     webCodecs: typeof VideoEncoder !== 'undefined',
-    encoders: await probeEncoders(),
+    encoders: await declaredEncoders(),
   };
 }

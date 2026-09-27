@@ -25,7 +25,8 @@ import {
   GIF_WIDTHS,
   KEEPS_ALPHA,
 } from '@/engine/host';
-import { canStreamToFile, useExport } from '../export/use-export';
+import { cn } from '@/lib/cn';
+import { canStreamToFile, useExport, useExportEncoders } from '../export/use-export';
 
 const FORMAT_LABELS: Record<ExportFormat, string> = {
   mp4: 'MP4',
@@ -60,7 +61,9 @@ const formatBytes = (bytes: number) =>
 
 export function ExportPanel(props: ExportPanelProps) {
   const { state, capabilities } = props;
-  const encoders = capabilities?.encoders ?? null;
+  // Verified once the panel is used, so the Lab's first frames never share the machine with it.
+  const [engaged, setEngaged] = useState(false);
+  const { encoders, checking } = useExportEncoders(capabilities?.encoders ?? null, engaged);
   const [format, setFormat] = useState<ExportFormat>(state.transparent ? 'webm' : 'mp4');
   const [resolution, setResolution] = useState(1080);
   const [fps, setFps] = useState(30);
@@ -70,7 +73,11 @@ export function ExportPanel(props: ExportPanelProps) {
   const [bake, setBake] = useState(false);
   const { status, start, cancel, reset } = useExport(capabilities);
   const alpha = state.transparent && !(bake && props.backdrop.kind !== 'none');
-  const available = formatAvailability(format, encoders, { alpha: alpha && KEEPS_ALPHA[format] });
+  const video = format === 'mp4' || format === 'webm';
+  const available =
+    video && checking
+      ? ({ available: false, reason: 'Checking what this browser can encode…' } as const)
+      : formatAvailability(format, encoders, { alpha: alpha && KEEPS_ALPHA[format] });
   const gif = format === 'gif';
   const resolutionId = useId();
   const fpsId = useId();
@@ -89,7 +96,12 @@ export function ExportPanel(props: ExportPanelProps) {
   const running = status.phase === 'running';
 
   return (
-    <div className="flex flex-col gap-3">
+    <fieldset
+      aria-label="Export options"
+      className="flex min-w-0 flex-col gap-3"
+      onPointerEnter={() => setEngaged(true)}
+      onFocus={() => setEngaged(true)}
+    >
       <SegmentedControl
         label="Export format"
         size="sm"
@@ -171,7 +183,13 @@ export function ExportPanel(props: ExportPanelProps) {
         {canStreamToFile() ? ' · saved as it renders' : ' · downloaded when done'}
       </p>
       {!available.available && (
-        <p role="status" className="text-[12px] leading-snug text-warning">
+        <p
+          role="status"
+          className={cn(
+            'text-[12px] leading-snug',
+            video && checking ? 'text-fg-3' : 'text-warning',
+          )}
+        >
           {available.reason}
         </p>
       )}
@@ -220,7 +238,7 @@ export function ExportPanel(props: ExportPanelProps) {
           </Button>
         </div>
       )}
-    </div>
+    </fieldset>
   );
 }
 

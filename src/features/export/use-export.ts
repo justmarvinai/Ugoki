@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   type Capabilities,
+  type EncoderSupport,
   EXTENSIONS,
   type ExportAsset,
   ExportFailure,
@@ -19,9 +20,43 @@ import {
   exportFileName,
   exportSize,
   MIME_TYPES,
+  probeExport,
   startExport,
 } from '@/engine/host';
 import { createExportEndpoint } from '@/workers';
+
+/** Verified once per page, the first time export options are shown (ADR-034). */
+let verification: Promise<EncoderSupport | null> | null = null;
+
+/**
+ * Which video formats exports can rely on: verified by round trips in an export worker the
+ * first time export options are shown (off the render worker, so previews never wait), until
+ * then — or if verification fails — what the browser declares.
+ */
+export function useExportEncoders(
+  declared: EncoderSupport | null,
+  /** Start verifying (when the user turns to exporting). */
+  enabled = true,
+): {
+  encoders: EncoderSupport | null;
+  /** Video formats aren't confirmed yet. */
+  checking: boolean;
+} {
+  const [verified, setVerified] = useState<EncoderSupport | null | undefined>(undefined);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    verification ??= probeExport(createExportEndpoint());
+    void verification.then((encoders) => {
+      if (live) setVerified(encoders);
+    });
+    return () => {
+      live = false;
+    };
+  }, [enabled]);
+  if (verified === undefined) return { encoders: declared, checking: true };
+  return { encoders: verified ?? declared, checking: false };
+}
 
 export type ExportStatus =
   | { phase: 'idle' }

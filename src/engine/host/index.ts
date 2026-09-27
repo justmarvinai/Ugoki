@@ -8,7 +8,8 @@
 export { PLACEHOLDER_NAMES, PLACEHOLDERS } from '../assets/placeholders';
 export { importSvg, type SvgImport, sanitizeSvg } from '../assets/svg';
 export type { AssetRef, Graphic, VectorGraphic } from '../assets/types';
-export { toCss } from '../core/color';
+export { contrastRatio, parseHex, toCss } from '../core/color';
+export type { EditableRegion, LayoutOffset } from '../draw/types';
 export type { ExportAsset } from '../export/protocol';
 export type { ExportJob, ExportProgress, ExportResult } from '../export/run';
 export {
@@ -31,6 +32,7 @@ export {
 } from '../export/settings';
 export type { Backdrop } from '../runtime/backdrop';
 export type { Capabilities, EncoderSupport } from '../runtime/capabilities';
+export { CATEGORIES, type CategoryId, categoryName } from '../template/categories';
 export type { Control, ControlSchema, ImageControl } from '../template/controls';
 export type { TemplateDescriptor } from '../template/describe';
 export {
@@ -53,7 +55,13 @@ export type { DesignState } from '../template/state';
 export { ENERGIES, ENERGY_IDS, type EnergyId } from '../timeline/energy';
 export type { Section, SectionName, TimelineWarning } from '../timeline/timeline';
 export { RenderClient, type RenderEndpoint } from './client';
-export { type ExportEndpoint, ExportFailure, type ExportRun, startExport } from './export-client';
+export {
+  type ExportEndpoint,
+  ExportFailure,
+  type ExportRun,
+  probeExport,
+  startExport,
+} from './export-client';
 export type {
   FrameInfo,
   HostMessage,

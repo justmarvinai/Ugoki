@@ -6,7 +6,7 @@
 import { unzipSync } from 'fflate';
 import { expect, test } from 'vitest';
 import { importSvg } from '@/engine/assets/svg';
-import { type ExportEndpoint, type ExportJob, startExport } from '@/engine/host';
+import { type ExportEndpoint, type ExportJob, probeExport, startExport } from '@/engine/host';
 import { initialState } from '@/engine/template/state';
 import { loadTemplate } from '@/templates/registry';
 
@@ -78,4 +78,13 @@ test('reports what failed, and where', async () => {
     settings: { format: 'still', resolution: 180, fps: 30, quality: 'standard' },
   });
   await expect(run.done).rejects.toMatchObject({ name: 'ExportFailure', stage: 'load' });
+});
+
+test('an export worker verifies which video formats work here', async () => {
+  const encoders = await probeExport(worker());
+  console.info(`verified encoders ${JSON.stringify(encoders)}`);
+  expect(encoders).not.toBeNull();
+  // Every engine Ugoki supports makes some video; Chromium and Firefox keep transparency too.
+  expect(encoders?.vp9 || encoders?.avc).toBe(true);
+  if (/Chrome\/|Firefox\//.test(navigator.userAgent)) expect(encoders?.vp9Alpha).toBe(true);
 });

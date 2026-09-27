@@ -13,6 +13,7 @@ import { sanitizeState } from '../template/state';
 import { createTextEngine } from '../text/engine';
 import { createFetchLoader } from '../text/font-source';
 import { createFallbackMeasure } from '../text/measure';
+import { verifyEncoders } from './probe';
 import type { ExportMessage, ExportRequest } from './protocol';
 import { runExport } from './run';
 import { ExportError } from './sinks';
@@ -73,6 +74,10 @@ export function serveExportWorker(
 
   scope.addEventListener('message', (event) => {
     const request = event.data;
+    if (request.type === 'probe') {
+      void verifyEncoders().then((encoders) => post({ type: 'probed', encoders }));
+      return;
+    }
     if (request.type === 'cancel') {
       controller?.abort();
       return;
