@@ -45,7 +45,8 @@ LICENSE_OUT = ROOT / "public" / "fonts" / "licenses"
 MANIFEST = ROOT / "src" / "engine" / "text" / "font-manifest.json"
 
 MONA = "https://raw.githubusercontent.com/github/mona-sans/v2.0.27"
-GF = "https://raw.githubusercontent.com/google/fonts/main/ofl"
+# google/fonts pinned to a commit (2026-09-27), so upstream moves never change a build.
+GF = "https://raw.githubusercontent.com/google/fonts/23e54b51ddffbc7713c583748e3bd86f62b1fa4a/ofl"
 
 # Pinned sources. If an upstream file changes, the hash check fails loudly — review and re-pin.
 SOURCES: dict[str, dict] = {
@@ -89,6 +90,110 @@ SOURCES: dict[str, dict] = {
         "credit": "Instrument Serif Italic by the Instrument Serif Project Authors",
         "reserved_name": None,
     },
+    "anton": {
+        "url": f"{GF}/anton/Anton-Regular.ttf",
+        "sha256": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab",
+        "license_url": f"{GF}/anton/OFL.txt",
+        "license_sha256": "ee67e6ee22790b7929f1a3769ca2801d565c64b5a9096942c1adf5596de9c9e4",
+        "credit": "Anton by the Anton Project Authors (Vernon Adams)",
+        "reserved_name": None,
+    },
+    "archivo": {
+        "url": f"{GF}/archivo/Archivo%5Bwdth,wght%5D.ttf",
+        "sha256": "0e094a7d3c7c4c25cf1310c4b30014f1dae9332220b1c2c88f4fa996f0b05053",
+        "license_url": f"{GF}/archivo/OFL.txt",
+        "license_sha256": "108b4e57c9c796d3d38d0428ca7ee39de47ad93187302718d9b2d8864b9b716b",
+        "credit": "Archivo by the Archivo Project Authors (Omnibus-Type)",
+        "reserved_name": None,
+    },
+    "big-shoulders": {
+        "url": f"{GF}/bigshoulders/BigShoulders%5Bopsz,wght%5D.ttf",
+        "sha256": "4b4b24aa6f799aa73cdcd5b6fa840cbcbbb38b81fa9fa82c25126a4530c1ba44",
+        "license_url": f"{GF}/bigshoulders/OFL.txt",
+        "license_sha256": "fbc746aabf0eb1847dfd92e2efc4596d79fa897d60b8e64062a22f585508fb3f",
+        "credit": "Big Shoulders by the Big Shoulders Project Authors (Patric King, XO Type)",
+        "reserved_name": None,
+    },
+    "bricolage-grotesque": {
+        "url": f"{GF}/bricolagegrotesque/BricolageGrotesque%5Bopsz,wdth,wght%5D.ttf",
+        "sha256": "413e7357809ddd12fd80a96a8a396de0e401638d4acd3cb3e37532f0472ac682",
+        "license_url": f"{GF}/bricolagegrotesque/OFL.txt",
+        "license_sha256": "4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba",
+        "credit": "Bricolage Grotesque by the Bricolage Grotesque Project Authors (Mathieu Triay)",
+        "reserved_name": None,
+    },
+    "dm-serif-display": {
+        "url": f"{GF}/dmserifdisplay/DMSerifDisplay-Regular.ttf",
+        "sha256": "8cc3643535edf039aa5d95440a8542735e9197e4f4b8d9303e980fefbf5ab616",
+        "license_url": f"{GF}/dmserifdisplay/OFL.txt",
+        "license_sha256": "a3e5cdd67d4571dd0a24fcc968de0efde7ae97ef752daf0906e4767619dd7231",
+        "credit": "DM Serif Display by Colophon Foundry for Google, based on Source Serif by Adobe",
+        "reserved_name": "Source",
+    },
+    "dm-serif-display-italic": {
+        "url": f"{GF}/dmserifdisplay/DMSerifDisplay-Italic.ttf",
+        "sha256": "df74c0ac387baeaeb0fe4f2324e1668e6a3ed8c09cd9796fe162c71753e19e45",
+        "license_url": f"{GF}/dmserifdisplay/OFL.txt",
+        "license_sha256": "a3e5cdd67d4571dd0a24fcc968de0efde7ae97ef752daf0906e4767619dd7231",
+        "credit": "DM Serif Display Italic by Colophon Foundry for Google, based on Source Serif by Adobe",
+        "reserved_name": "Source",
+    },
+    "fraunces": {
+        "url": f"{GF}/fraunces/Fraunces%5BSOFT,WONK,opsz,wght%5D.ttf",
+        "sha256": "177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb",
+        "license_url": f"{GF}/fraunces/OFL.txt",
+        "license_sha256": "bdf4c22802eaf804f998195871c6b8938aac2ac14b2d78a8bd66a6f1eced833b",
+        "credit": "Fraunces by the Fraunces Project Authors (Undercase Type)",
+        "reserved_name": None,
+    },
+    "fraunces-italic": {
+        "url": f"{GF}/fraunces/Fraunces-Italic%5BSOFT,WONK,opsz,wght%5D.ttf",
+        "sha256": "b24448c43702fac4ee856781d461a0dfba8d8e594b6e8e190234b75fed2c0e01",
+        "license_url": f"{GF}/fraunces/OFL.txt",
+        "license_sha256": "bdf4c22802eaf804f998195871c6b8938aac2ac14b2d78a8bd66a6f1eced833b",
+        "credit": "Fraunces Italic by the Fraunces Project Authors (Undercase Type)",
+        "reserved_name": None,
+    },
+    "hubot-sans": {
+        "url": f"{GF}/hubotsans/HubotSans%5Bwdth,wght%5D.ttf",
+        "sha256": "229c7682f64b499668d2f47ac803bbde0b5a63225326c8659ea436748ab29965",
+        "license_url": f"{GF}/hubotsans/OFL.txt",
+        "license_sha256": "9593ae8ccefcbd9f3dea9e4da74b421ea04da7f597e8e64250f6419fc6032139",
+        "credit": "Hubot Sans by GitHub (the Hubot Sans Project Authors)",
+        "reserved_name": "Hubot",
+    },
+    "instrument-sans": {
+        "url": f"{GF}/instrumentsans/InstrumentSans%5Bwdth,wght%5D.ttf",
+        "sha256": "b24f1812584816958afcf22e22d08e44318c5e51651e25d2438efdde389b33b1",
+        "license_url": f"{GF}/instrumentsans/OFL.txt",
+        "license_sha256": "9e27a72ed30eb49a08678f6a5d6ed98ec7ba5368f541637ee0683ec9134ef966",
+        "credit": "Instrument Sans by the Instrument Sans Project Authors",
+        "reserved_name": None,
+    },
+    "jetbrains-mono": {
+        "url": f"{GF}/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
+        "sha256": "48715a42ec242c21e9f02692891e147d022299a52e48d5e413e1a942193ffeda",
+        "license_url": f"{GF}/jetbrainsmono/OFL.txt",
+        "license_sha256": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d",
+        "credit": "JetBrains Mono by the JetBrains Mono Project Authors",
+        "reserved_name": None,
+    },
+    "syne": {
+        "url": f"{GF}/syne/Syne%5Bwght%5D.ttf",
+        "sha256": "ce5ac77142a65cab2248a1a2ebb740b1d4d9c20b52488877d3ff664d1356104a",
+        "license_url": f"{GF}/syne/OFL.txt",
+        "license_sha256": "cc43cdce6f91c57989af8459341c276655e34224e954fa69c2ad700831a742d8",
+        "credit": "Syne by the Syne Project Authors (Bonjour Monde)",
+        "reserved_name": None,
+    },
+    "unbounded": {
+        "url": f"{GF}/unbounded/Unbounded%5Bwght%5D.ttf",
+        "sha256": "323b511be380c8d474ef030686b71aedde501f8d9cd46da558b7c40454372c3f",
+        "license_url": f"{GF}/unbounded/OFL.txt",
+        "license_sha256": "31e5d4e83955e7103c34570dd49b0570ef490800bd65b42923c0dd02445263b3",
+        "credit": "Unbounded by the Unbounded Project Authors (NaN)",
+        "reserved_name": None,
+    },
 }
 
 # Latin + Latin Extended-A (German, French, Nordic, Polish, Czech, Turkish, …), Romanian,
@@ -122,6 +227,19 @@ ENGINE_FONTS = [
         "limits": {},
         "rename": None,
     },
+    {"id": "anton", "source": "anton", "limits": {}, "rename": None},
+    {"id": "archivo", "source": "archivo", "limits": {}, "rename": None},
+    {"id": "big-shoulders", "source": "big-shoulders", "limits": {}, "rename": None},
+    {"id": "bricolage-grotesque", "source": "bricolage-grotesque", "limits": {}, "rename": None},
+    {"id": "dm-serif-display", "source": "dm-serif-display", "limits": {}, "rename": None},
+    {"id": "dm-serif-display-italic", "source": "dm-serif-display-italic", "limits": {}, "rename": None},
+    {"id": "fraunces", "source": "fraunces", "limits": {"SOFT": 100}, "rename": None},
+    {"id": "fraunces-italic", "source": "fraunces-italic", "limits": {"SOFT": 100}, "rename": None},
+    {"id": "hubot-sans", "source": "hubot-sans", "limits": {}, "rename": "Ugoki Tech"},
+    {"id": "instrument-sans", "source": "instrument-sans", "limits": {}, "rename": None},
+    {"id": "jetbrains-mono", "source": "jetbrains-mono", "limits": {}, "rename": None},
+    {"id": "syne", "source": "syne", "limits": {}, "rename": None},
+    {"id": "unbounded", "source": "unbounded", "limits": {}, "rename": None},
 ]
 
 # Interface fonts: only the slice of the design space the UI uses (keeps first paint light).
@@ -190,6 +308,12 @@ def rename(font: TTFont, source_key: str, new_family: str) -> None:
             updated = re.sub(rf"\b{reserved}\b", new_family.split()[0], updated)
         if updated != text:
             record.string = updated
+    check_reserved(font, source_key)
+
+
+def check_reserved(font: TTFont, source_key: str) -> None:
+    """Fails if a Reserved Font Name appears outside the records that credit the original."""
+    reserved = SOURCES[source_key]["reserved_name"]
     for record in font["name"].names:
         if record.nameID in CREDIT_NAME_IDS or not reserved:
             continue
@@ -267,6 +391,7 @@ def main() -> None:
         font = build(font, spec["limits"], None)
         if spec["rename"]:
             rename(font, spec["source"], spec["rename"])
+        check_reserved(font, spec["source"])
         data = to_bytes(font)
         digest = sha256(data)
         packed = gzip.compress(data, compresslevel=9, mtime=0)

@@ -20,6 +20,7 @@
     "test": "vitest run --project unit",
     "test:browser": "vitest run --project browser",
     "test:golden": "vitest run --project golden",
+    "sheet": "node scripts/sheet.mjs",
     "test:watch": "vitest --project unit",
     "test:e2e": "playwright test",
     "fonts": "python3 scripts/fonts.py",

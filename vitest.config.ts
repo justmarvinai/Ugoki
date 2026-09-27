@@ -60,6 +60,16 @@ export default defineConfig({
           browser: browser(),
         },
       },
+      {
+        // Contact sheets while building templates (`pnpm sheet <id> [mode…]`); not part of CI.
+        extends: true,
+        test: {
+          name: 'sheet',
+          include: ['tests/sheets/**/*.sheet.ts'],
+          browser: browser(),
+          provide: { sheet: process.env.SHEET ?? '', sheetMode: process.env.SHEET_MODE ?? '' },
+        },
+      },
     ],
   },
 });

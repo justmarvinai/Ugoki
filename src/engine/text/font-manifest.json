@@ -95,6 +95,337 @@
       },
       "license": "OFL-1.1",
       "credit": "Instrument Serif Italic by the Instrument Serif Project Authors"
+    },
+    "anton": {
+      "url": "/fonts/engine/anton.cfea796d65.ttf.gz",
+      "bytes": 23803,
+      "sha256": "cfea796d6574e8a19eb8f58ffee31a5d123efc6536c4791d1a8f80bf9c2de9ed",
+      "family": "Anton",
+      "axes": {},
+      "metrics": {
+        "upem": 2048,
+        "ascender": 2409,
+        "descender": -674,
+        "lineGap": 0,
+        "capHeight": 1760,
+        "xHeight": 1500
+      },
+      "license": "OFL-1.1",
+      "credit": "Anton by the Anton Project Authors (Vernon Adams)"
+    },
+    "archivo": {
+      "url": "/fonts/engine/archivo.4c41452319.ttf.gz",
+      "bytes": 167834,
+      "sha256": "4c414523199a5dd80170bf4d095d92a46d444066da89696b0fcfec8535b43d27",
+      "family": "Archivo",
+      "axes": {
+        "wght": {
+          "min": 100.0,
+          "default": 600.0,
+          "max": 900.0
+        },
+        "wdth": {
+          "min": 62.0,
+          "default": 100.0,
+          "max": 125.0
+        }
+      },
+      "metrics": {
+        "upem": 1000,
+        "ascender": 878,
+        "descender": -210,
+        "lineGap": 0,
+        "capHeight": 686,
+        "xHeight": 526
+      },
+      "license": "OFL-1.1",
+      "credit": "Archivo by the Archivo Project Authors (Omnibus-Type)"
+    },
+    "big-shoulders": {
+      "url": "/fonts/engine/big-shoulders.15e5d8a732.ttf.gz",
+      "bytes": 112098,
+      "sha256": "15e5d8a732bc3ec02a3442c9c36a803aa93d3f6b6eef18090c5ada65268c93c8",
+      "family": "Big Shoulders",
+      "axes": {
+        "wght": {
+          "min": 100.0,
+          "default": 100.0,
+          "max": 900.0
+        },
+        "opsz": {
+          "min": 10.0,
+          "default": 72.0,
+          "max": 72.0
+        }
+      },
+      "metrics": {
+        "upem": 2000,
+        "ascender": 1971,
+        "descender": -429,
+        "lineGap": 0,
+        "capHeight": 1600,
+        "xHeight": 1200
+      },
+      "license": "OFL-1.1",
+      "credit": "Big Shoulders by the Big Shoulders Project Authors (Patric King, XO Type)"
+    },
+    "bricolage-grotesque": {
+      "url": "/fonts/engine/bricolage-grotesque.3da5271387.ttf.gz",
+      "bytes": 217875,
+      "sha256": "3da527138792ee2fe97f2b594ed4e24ce8f77dbd47fffb7414e346896d11fb50",
+      "family": "Bricolage Grotesque",
+      "axes": {
+        "opsz": {
+          "min": 12.0,
+          "default": 96.0,
+          "max": 96.0
+        },
+        "wght": {
+          "min": 200.0,
+          "default": 800.0,
+          "max": 800.0
+        },
+        "wdth": {
+          "min": 75.0,
+          "default": 100.0,
+          "max": 100.0
+        }
+      },
+      "metrics": {
+        "upem": 1000,
+        "ascender": 930,
+        "descender": -270,
+        "lineGap": 0,
+        "capHeight": 660,
+        "xHeight": 528
+      },
+      "license": "OFL-1.1",
+      "credit": "Bricolage Grotesque by the Bricolage Grotesque Project Authors (Mathieu Triay)"
+    },
+    "dm-serif-display": {
+      "url": "/fonts/engine/dm-serif-display.a08936090f.ttf.gz",
+      "bytes": 27637,
+      "sha256": "a08936090f29ff1fd3c267722a8f2ce6ec1a99e9f50dc2ddb5f970b7b9dd4b75",
+      "family": "DM Serif Display",
+      "axes": {},
+      "metrics": {
+        "upem": 1000,
+        "ascender": 1036,
+        "descender": -335,
+        "lineGap": 0,
+        "capHeight": 660,
+        "xHeight": 481
+      },
+      "license": "OFL-1.1",
+      "credit": "DM Serif Display by Colophon Foundry for Google, based on Source Serif by Adobe"
+    },
+    "dm-serif-display-italic": {
+      "url": "/fonts/engine/dm-serif-display-italic.f6233c3b8e.ttf.gz",
+      "bytes": 27274,
+      "sha256": "f6233c3b8e29afdb7096e62ff71d13d5cb9648780d26c050ff3cf82bbdea2460",
+      "family": "DM Serif Display",
+      "axes": {},
+      "metrics": {
+        "upem": 1000,
+        "ascender": 1036,
+        "descender": -335,
+        "lineGap": 0,
+        "capHeight": 660,
+        "xHeight": 481
+      },
+      "license": "OFL-1.1",
+      "credit": "DM Serif Display Italic by Colophon Foundry for Google, based on Source Serif by Adobe"
+    },
+    "fraunces": {
+      "url": "/fonts/engine/fraunces.124cd88558.ttf.gz",
+      "bytes": 104066,
+      "sha256": "124cd88558bf1f120a2f9e7ee585d11383483b096d745222e26dd43d2df1ca3c",
+      "family": "Fraunces",
+      "axes": {
+        "opsz": {
+          "min": 9.0,
+          "default": 9.0,
+          "max": 144.0
+        },
+        "wght": {
+          "min": 100.0,
+          "default": 900.0,
+          "max": 900.0
+        },
+        "WONK": {
+          "min": 0.0,
+          "default": 1.0,
+          "max": 1.0
+        }
+      },
+      "metrics": {
+        "upem": 2000,
+        "ascender": 1956,
+        "descender": -510,
+        "lineGap": 0,
+        "capHeight": 1400,
+        "xHeight": 964
+      },
+      "license": "OFL-1.1",
+      "credit": "Fraunces by the Fraunces Project Authors (Undercase Type)"
+    },
+    "fraunces-italic": {
+      "url": "/fonts/engine/fraunces-italic.8f98ba2508.ttf.gz",
+      "bytes": 130657,
+      "sha256": "8f98ba250855297b8784b1a1d95563a2b6f609e4b3d7079a29cb4b5b5c4aed24",
+      "family": "Fraunces",
+      "axes": {
+        "opsz": {
+          "min": 9.0,
+          "default": 9.0,
+          "max": 144.0
+        },
+        "wght": {
+          "min": 100.0,
+          "default": 900.0,
+          "max": 900.0
+        },
+        "WONK": {
+          "min": 0.0,
+          "default": 1.0,
+          "max": 1.0
+        }
+      },
+      "metrics": {
+        "upem": 2000,
+        "ascender": 1956,
+        "descender": -510,
+        "lineGap": 0,
+        "capHeight": 1400,
+        "xHeight": 940
+      },
+      "license": "OFL-1.1",
+      "credit": "Fraunces Italic by the Fraunces Project Authors (Undercase Type)"
+    },
+    "hubot-sans": {
+      "url": "/fonts/engine/hubot-sans.683d8343b7.ttf.gz",
+      "bytes": 167207,
+      "sha256": "683d8343b789a2ffe6a594e95a99000176e0e29bf0458670223e602a1a939324",
+      "family": "Ugoki Tech",
+      "axes": {
+        "wdth": {
+          "min": 75.0,
+          "default": 75.0,
+          "max": 125.0
+        },
+        "wght": {
+          "min": 200.0,
+          "default": 200.0,
+          "max": 900.0
+        }
+      },
+      "metrics": {
+        "upem": 1000,
+        "ascender": 1090,
+        "descender": -320,
+        "lineGap": 0,
+        "capHeight": 729,
+        "xHeight": 515
+      },
+      "license": "OFL-1.1",
+      "credit": "Hubot Sans by GitHub (the Hubot Sans Project Authors)"
+    },
+    "instrument-sans": {
+      "url": "/fonts/engine/instrument-sans.6783f59051.ttf.gz",
+      "bytes": 105548,
+      "sha256": "6783f59051070745fc019ad2b009b0383b28ab74610ce696aeb66fd57d325f6e",
+      "family": "Instrument Sans",
+      "axes": {
+        "wdth": {
+          "min": 75.0,
+          "default": 100.0,
+          "max": 100.0
+        },
+        "wght": {
+          "min": 400.0,
+          "default": 400.0,
+          "max": 700.0
+        }
+      },
+      "metrics": {
+        "upem": 1000,
+        "ascender": 970,
+        "descender": -250,
+        "lineGap": 0,
+        "capHeight": 720,
+        "xHeight": 510
+      },
+      "license": "OFL-1.1",
+      "credit": "Instrument Sans by the Instrument Sans Project Authors"
+    },
+    "jetbrains-mono": {
+      "url": "/fonts/engine/jetbrains-mono.2e13f69246.ttf.gz",
+      "bytes": 56465,
+      "sha256": "2e13f6924658537ac0410e95ef9dcf7ef30f451e073cb2f39eba4597ab4903aa",
+      "family": "JetBrains Mono",
+      "axes": {
+        "wght": {
+          "min": 100.0,
+          "default": 400.0,
+          "max": 800.0
+        }
+      },
+      "metrics": {
+        "upem": 1000,
+        "ascender": 1020,
+        "descender": -300,
+        "lineGap": 0,
+        "capHeight": 730,
+        "xHeight": 550
+      },
+      "license": "OFL-1.1",
+      "credit": "JetBrains Mono by the JetBrains Mono Project Authors"
+    },
+    "syne": {
+      "url": "/fonts/engine/syne.e2f2165f8c.ttf.gz",
+      "bytes": 54640,
+      "sha256": "e2f2165f8cefb7059f5622c1042eb8828c455b18a6ab1309d496ef187f62d3aa",
+      "family": "Syne",
+      "axes": {
+        "wght": {
+          "min": 400.0,
+          "default": 400.0,
+          "max": 800.0
+        }
+      },
+      "metrics": {
+        "upem": 1000,
+        "ascender": 925,
+        "descender": -275,
+        "lineGap": 0,
+        "capHeight": 650,
+        "xHeight": 500
+      },
+      "license": "OFL-1.1",
+      "credit": "Syne by the Syne Project Authors (Bonjour Monde)"
+    },
+    "unbounded": {
+      "url": "/fonts/engine/unbounded.4414c3295d.ttf.gz",
+      "bytes": 116845,
+      "sha256": "4414c3295db11de4e13e9242c0489b524e336e39d4b075f4075d4387c41ff200",
+      "family": "Unbounded",
+      "axes": {
+        "wght": {
+          "min": 200.0,
+          "default": 400.0,
+          "max": 900.0
+        }
+      },
+      "metrics": {
+        "upem": 1000,
+        "ascender": 995,
+        "descender": -245,
+        "lineGap": 0,
+        "capHeight": 750,
+        "xHeight": 566
+      },
+      "license": "OFL-1.1",
+      "credit": "Unbounded by the Unbounded Project Authors (NaN)"
     }
   }
 }

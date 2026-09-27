@@ -256,10 +256,8 @@ describe('palettes', () => {
 });
 
 describe('pairings', () => {
-  it('offers only pairings whose fonts are built', () => {
-    expect(isPairingAvailable('grotesk')).toBe(true);
-    expect(isPairingAvailable('editorial')).toBe(true);
-    expect(isPairingAvailable('poster')).toBe(false);
+  it("has every pairing's fonts built", () => {
+    expect(PAIRING_IDS.filter((id) => !isPairingAvailable(id))).toEqual([]);
     expect(pairingFonts('editorial').sort()).toEqual([
       'instrument-serif',
       'instrument-serif-italic',
@@ -313,10 +311,10 @@ describe('defineTemplate & state', () => {
     ).toThrow(/outside/);
   });
 
-  it('builds the initial state from the first Look, skipping unbuilt pairings', () => {
+  it('builds the initial state from the first Look', () => {
     const state = initialState(template);
     expect(state.palette).toEqual({ kind: 'library', id: 'ink' });
-    expect(state.pairing).toBe('grotesk');
+    expect(state.pairing).toBe('poster');
     expect(state.props).toEqual({ title: 'Hi', size: 's' });
     expect(state.format).toBe('16:9');
     expect(state.transparent).toBe(false);
@@ -341,7 +339,7 @@ describe('defineTemplate & state', () => {
     expect(state.duration).toBe(12);
     expect(state.energy).toBe('balanced');
     expect(state.palette).toEqual({ kind: 'library', id: 'cobalt' });
-    expect(state.pairing).toBe('grotesk');
+    expect(state.pairing).toBe('poster');
     expect(state.transparent).toBe(true);
     expect(state.finish).toBe('grain');
     expect(state.seed).toBe(1);

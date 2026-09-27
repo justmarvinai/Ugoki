@@ -1,7 +1,7 @@
 /**
  * Font pairings (docs/templates/00-foundations.md §6). Users pick pairings, never raw families.
  * A pairing is only offered when all its fonts exist in the generated font manifest
- * (scripts/fonts.py) — the remaining families are added when the templates that need them land.
+ * (scripts/fonts.py); since 0.3.0 every pairing's fonts are built.
  */
 
 import manifest from '../text/font-manifest.json';
@@ -67,7 +67,13 @@ const PAIRING_DEFS = {
   soft: {
     name: 'Soft',
     personality: 'Warm, friendly, lifestyle',
-    display: { font: 'fraunces', weight: 600, tracking: -0.02, lineHeight: 0.95 },
+    display: {
+      font: 'fraunces',
+      italic: 'fraunces-italic',
+      weight: 600,
+      tracking: -0.02,
+      lineHeight: 0.95,
+    },
     text: { font: 'instrument-sans', weight: 450, tracking: 0, lineHeight: 1.35 },
   },
   wide: {
@@ -79,7 +85,13 @@ const PAIRING_DEFS = {
   classic: {
     name: 'Classic',
     personality: 'Timeless, corporate-elegant',
-    display: { font: 'dm-serif-display', weight: 400, tracking: -0.01, lineHeight: 1 },
+    display: {
+      font: 'dm-serif-display',
+      italic: 'dm-serif-display-italic',
+      weight: 400,
+      tracking: -0.01,
+      lineHeight: 1,
+    },
     text: { font: 'inter', weight: 450, tracking: 0, lineHeight: 1.35 },
   },
   sport: {

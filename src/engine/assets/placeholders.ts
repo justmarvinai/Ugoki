@@ -5,27 +5,43 @@
  */
 
 import { PLACEHOLDER_LOGOS, type PlaceholderLogoId } from './placeholder-logos';
+import {
+  isProceduralImage,
+  PROCEDURAL_IMAGES,
+  type ProceduralSet,
+  proceduralIds,
+  proceduralImage,
+} from './procedural';
 import { importSvg } from './svg';
 import type { Graphic } from './types';
 
-export type PlaceholderKind = 'logo' | 'image';
+/**
+ * The placeholder set an image control offers: fictional brand logos, or one of the procedural
+ * imagery sets (scenes, artworks, product objects, portraits). Users can add any file either way.
+ */
+export type PlaceholderKind = 'logo' | ProceduralSet;
 
 /** Placeholder ids a control of each kind accepts (first = the usual default). */
 export const PLACEHOLDERS: Readonly<Record<PlaceholderKind, readonly string[]>> = {
   logo: ['nova', 'halden', 'aero'] satisfies PlaceholderLogoId[],
-  image: [],
+  scene: proceduralIds('scene'),
+  artwork: proceduralIds('artwork'),
+  object: proceduralIds('object'),
+  portrait: proceduralIds('portrait'),
 };
 
 export const PLACEHOLDER_NAMES: Readonly<Record<string, string>> = {
   nova: 'Nova',
   halden: 'Halden',
   aero: 'Aero',
+  ...Object.fromEntries(Object.entries(PROCEDURAL_IMAGES).map(([id, spec]) => [id, spec.name])),
 };
 
 const cache = new Map<string, Graphic>();
 
 /** The artwork of a placeholder id, or null if the id is unknown. */
 export function placeholderGraphic(id: string): Graphic | null {
+  if (isProceduralImage(id)) return proceduralImage(id);
   const cached = cache.get(id);
   if (cached) return cached;
   if (!Object.hasOwn(PLACEHOLDER_LOGOS, id)) return null;

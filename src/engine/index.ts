@@ -4,6 +4,8 @@
  * motion uses the named easings and springs of docs/04-motion-language.md.
  */
 
+export * from './assets/imagery';
+export { PROCEDURAL_IMAGES, type ProceduralSet } from './assets/procedural';
 // Assets
 export type {
   AssetRef,
@@ -100,6 +102,7 @@ export {
 export { FORMATS, type FormatId, type FrameSpec } from './template/formats';
 export type { FontRole, Pairing, PairingId } from './template/pairings';
 export type { Palette, PaletteId, PaletteRef, PaletteRole } from './template/palettes';
+export * from './text/figures';
 // Text
 export type {
   Glyph,
@@ -125,3 +128,5 @@ export {
   type Timeline,
   type TimingSpec,
 } from './timeline/timeline';
+// UI Kit (UI-motion templates)
+export * from './ui/kit';
