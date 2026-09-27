@@ -31,7 +31,8 @@ type Target = {
 
 type Program = {
   readonly program: WebGLProgram;
-  readonly uniforms: Map<string, WebGLUniformLocation>;
+  /** Uniform locations by name; null for names the program doesn't use. */
+  readonly uniforms: Map<string, WebGLUniformLocation | null>;
 };
 
 const VERTEX = `#version 300 es
@@ -43,11 +44,14 @@ void main() {
   gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
 }`;
 
+// `u_scale` maps the target's UVs onto the source's: pyramid levels round their sizes up, so a
+// level's content doesn't fill it exactly and sampling must account for that (registration).
 const HEADER = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 o;
 uniform sampler2D u_tex;
+uniform vec2 u_scale;
 `;
 
 const LUMA = 'vec3(0.2126, 0.7152, 0.0722)';
@@ -55,7 +59,7 @@ const LUMA = 'vec3(0.2126, 0.7152, 0.0722)';
 const SHADERS = {
   copy: `${HEADER}
 uniform float u_gain;
-void main() { o = texture(u_tex, v_uv) * u_gain; }`,
+void main() { o = texture(u_tex, v_uv * u_scale) * u_gain; }`,
 
   blur: `${HEADER}
 uniform vec2 u_step;
@@ -63,11 +67,12 @@ uniform int u_taps;
 uniform float u_weights[16];
 uniform float u_offsets[16];
 void main() {
-  vec4 c = texture(u_tex, v_uv) * u_weights[0];
+  vec2 uv = v_uv * u_scale;
+  vec4 c = texture(u_tex, uv) * u_weights[0];
   for (int i = 1; i < 16; i++) {
     if (i >= u_taps) break;
     vec2 d = u_step * u_offsets[i];
-    c += (texture(u_tex, v_uv + d) + texture(u_tex, v_uv - d)) * u_weights[i];
+    c += (texture(u_tex, uv + d) + texture(u_tex, uv - d)) * u_weights[i];
   }
   o = c;
 }`,
@@ -75,7 +80,7 @@ void main() {
   threshold: `${HEADER}
 uniform float u_threshold;
 void main() {
-  vec4 c = texture(u_tex, v_uv);
+  vec4 c = texture(u_tex, v_uv * u_scale);
   float l = dot(c.rgb / max(c.a, 1e-4), ${LUMA});
   o = c * smoothstep(u_threshold - 0.1, u_threshold + 0.1, l);
 }`,
@@ -83,16 +88,17 @@ void main() {
   luma: `${HEADER}
 void main() {
   // Premultiplied color: luma already includes coverage.
-  float l = dot(texture(u_tex, v_uv).rgb, ${LUMA});
+  float l = dot(texture(u_tex, v_uv * u_scale).rgb, ${LUMA});
   o = vec4(l);
 }`,
 
   add: `${HEADER}
 uniform sampler2D u_glow;
+uniform vec2 u_glowScale;
 uniform float u_gain;
 void main() {
-  vec4 c = texture(u_tex, v_uv);
-  vec4 g = texture(u_glow, v_uv) * u_gain;
+  vec4 c = texture(u_tex, v_uv * u_scale);
+  vec4 g = texture(u_glow, v_uv * u_glowScale) * u_gain;
   // Screen-like add in premultiplied space: light never exceeds full coverage.
   float a = min(1.0, c.a + g.a * (1.0 - c.a));
   o = vec4(min(c.rgb + g.rgb * (1.0 - c.rgb), vec3(a)), a);
@@ -108,7 +114,7 @@ float hash(vec2 p) {
   return fract((q.x + q.y) * q.z);
 }
 void main() {
-  vec4 c = texture(u_tex, v_uv);
+  vec4 c = texture(u_tex, v_uv * u_scale);
   float n = hash(floor(v_uv * u_cells)) - 0.5;
   // Grain rides on coverage, so transparent areas stay transparent.
   o = vec4(clamp(c.rgb + n * u_amount * c.a, 0.0, c.a), c.a);
@@ -116,6 +122,14 @@ void main() {
 } as const;
 
 type ProgramName = keyof typeof SHADERS;
+
+/**
+ * UV scale for sampling a half-resolution target (rounded up) at full size: full-size texel j
+ * sits at (j + ½) / 2 in half-resolution texels.
+ */
+function halfToFull(w: number, h: number, half: { w: number; h: number }): [number, number] {
+  return [w / (2 * half.w), h / (2 * half.h)];
+}
 
 /** Gaussian weights for linear-sampled taps (pairs of texels share one bilinear fetch). */
 function kernel(sigma: number): { weights: Float32Array; offsets: Float32Array; taps: number } {
@@ -215,14 +229,17 @@ export class GpuCompositor implements Effects {
   }
 
   bloom(layer: OffscreenCanvas, options: BloomOptions): EffectImage {
+    const { width: w, height: h } = layer;
     const glow = this.glowTexture(
       this.uploadCanvas(layer),
-      layer.width,
-      layer.height,
+      w,
+      h,
       options.radius,
       options.threshold,
     );
-    return this.present(glow.tex, layer.width, layer.height, 'copy', options.intensity);
+    return this.present(glow.tex, w, h, 'copy', options.intensity, {
+      u_scale: halfToFull(w, h, glow),
+    });
   }
 
   lumaToAlpha(layer: OffscreenCanvas): EffectImage {
@@ -277,7 +294,13 @@ export class GpuCompositor implements Effects {
       // Highlights bloom softly (≈ 1.2u spread at 1080p), added screen-like.
       const glow = this.glowTexture(source, w, h, 13 * finish.scale, 0.72);
       const combined = this.target(w, h, 'u8', 'finish');
-      this.pass('add', source, combined, { u_gain: 0.55 * finish.glow }, glow.tex);
+      this.pass(
+        'add',
+        source,
+        combined,
+        { u_gain: 0.55 * finish.glow, u_glowScale: halfToFull(w, h, glow) },
+        glow.tex,
+      );
       source = combined.tex;
     }
     if (finish && finish.grain > 0) {
@@ -302,7 +325,10 @@ export class GpuCompositor implements Effects {
     const hw = Math.max(1, Math.ceil(w / 2));
     const hh = Math.max(1, Math.ceil(h / 2));
     const bright = this.target(hw, hh, 'u8', 'bright');
-    this.pass('threshold', source, bright, { u_threshold: threshold });
+    this.pass('threshold', source, bright, {
+      u_threshold: threshold,
+      u_scale: [(2 * hw) / w, (2 * hh) / h],
+    });
     return this.blurTexture(bright.tex, hw, hh, sigma / 2, 'glow');
   }
 
@@ -320,10 +346,13 @@ export class GpuCompositor implements Effects {
     let lw = w;
     let lh = h;
     for (let i = 0; i < level; i++) {
-      lw = Math.max(1, Math.ceil(lw / 2));
-      lh = Math.max(1, Math.ceil(lh / 2));
+      const pw = lw;
+      const ph = lh;
+      lw = Math.max(1, Math.ceil(pw / 2));
+      lh = Math.max(1, Math.ceil(ph / 2));
       const down = this.target(lw, lh, 'u8', `${slot}-down${i}`);
-      this.pass('copy', tex, down, { u_gain: 1 });
+      // Each texel averages the 2 × 2 source texels it covers.
+      this.pass('copy', tex, down, { u_gain: 1, u_scale: [(2 * lw) / pw, (2 * lh) / ph] });
       tex = down.tex;
     }
     // Each halving already blurred a little; the kernel makes up the rest.
@@ -347,7 +376,10 @@ export class GpuCompositor implements Effects {
     });
     if (level === 0) return vertical;
     const full = this.target(w, h, 'u8', `${slot}-full`);
-    this.pass('copy', vertical.tex, full, { u_gain: 1 });
+    this.pass('copy', vertical.tex, full, {
+      u_gain: 1,
+      u_scale: [w / (scale * lw), h / (scale * lh)],
+    });
     return full;
   }
 
@@ -387,6 +419,9 @@ export class GpuCompositor implements Effects {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, source);
     this.uniform(program, 'u_tex', 0, true);
+    // Uniforms persist per program: reset the UV scales unless this pass sets them.
+    this.uniform(program, 'u_scale', [1, 1]);
+    this.uniform(program, 'u_glowScale', [1, 1]);
     if (second) {
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, second);
@@ -405,11 +440,10 @@ export class GpuCompositor implements Effects {
     const { gl } = this;
     let location = program.uniforms.get(name);
     if (location === undefined) {
-      const found = gl.getUniformLocation(program.program, name);
-      if (!found) return;
-      location = found;
+      location = gl.getUniformLocation(program.program, name);
       program.uniforms.set(name, location);
     }
+    if (!location) return;
     if (sampler || name === 'u_taps') gl.uniform1i(location, value as number);
     else if (typeof value === 'number') gl.uniform1f(location, value);
     else if (value instanceof Float32Array) gl.uniform1fv(location, value);

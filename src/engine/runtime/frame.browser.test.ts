@@ -150,6 +150,59 @@ describe('compositor effects parity', () => {
     expect(Math.abs((a[100] ?? 0) - (b[100] ?? 0))).toBeLessThan(30);
   });
 
+  it('blurs by the same amount, in the same place, whatever the layer size', () => {
+    const gpu = GpuCompositor.create();
+    if (!gpu) return;
+    /** Centroid and spread (standard deviation) of the alpha along x and y. */
+    const moments = (w: number, h: number, sigma: number) => {
+      const layer = new OffscreenCanvas(w, h);
+      const ctx = layer.getContext('2d');
+      if (!ctx) throw new Error('no 2d context');
+      ctx.fillStyle = 'white';
+      ctx.fillRect(100, 40, 21, 17);
+      const image = gpu.blur(layer, sigma);
+      const out = new OffscreenCanvas(w, h);
+      const octx = out.getContext('2d', { willReadFrequently: true });
+      if (!octx) throw new Error('no 2d context');
+      octx.drawImage(image.source, image.x, image.y, w, h, 0, 0, w, h);
+      const data = octx.getImageData(0, 0, w, h).data;
+      let sum = 0;
+      let sx = 0;
+      let sy = 0;
+      let sxx = 0;
+      let syy = 0;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const a = data[(y * w + x) * 4 + 3] ?? 0;
+          sum += a;
+          sx += a * (x + 0.5);
+          sy += a * (y + 0.5);
+          sxx += a * (x + 0.5) ** 2;
+          syy += a * (y + 0.5) ** 2;
+        }
+      }
+      const cx = sx / sum;
+      const cy = sy / sum;
+      return { cx, cy, dx: Math.sqrt(sxx / sum - cx * cx), dy: Math.sqrt(syy / sum - cy * cy) };
+    };
+    for (const sigma of [6, 9, 14]) {
+      const reference = moments(256, 128, sigma);
+      for (const [w, h] of [
+        [271, 139],
+        [333, 97],
+        [201, 203],
+      ] as const) {
+        const m = moments(w, h, sigma);
+        // The square's center is (110.5, 48.5) in every layer; the spread is the blur's.
+        // (Pyramid levels of odd sizes once skipped part of their averaging: up to 2% off.)
+        expect(Math.abs(m.cx - 110.5)).toBeLessThan(0.2);
+        expect(Math.abs(m.cy - 48.5)).toBeLessThan(0.2);
+        expect(Math.abs(m.dx / reference.dx - 1)).toBeLessThan(0.015);
+        expect(Math.abs(m.dy / reference.dy - 1)).toBeLessThan(0.015);
+      }
+    }
+  });
+
   it('keeps drawing with Canvas 2D effects when asked', () => {
     const draw = new CanvasDraw();
     expect(draw).toBeDefined();

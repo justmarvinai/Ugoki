@@ -149,6 +149,69 @@ describe.each(backends)('effects (%s)', (_, effects) => {
   });
 });
 
+describe.each(backends)('bounded layers (%s)', (_, effects) => {
+  const render = (fn: (g: Draw) => void) => renderWith(fn, effects);
+  const square = (g: Draw) => g.rect({ x: 440, y: 440, w: 200, h: 200 }, { fill: RED });
+  const pixels = (f: Frame) => f.ctx.getImageData(0, 0, 270, 270).data;
+  /** Largest difference in premultiplied color or alpha (color is meaningless where α ≈ 0). */
+  const maxDiff = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
+    let max = 0;
+    for (let i = 0; i < a.length; i += 4) {
+      const aa = a[i + 3] ?? 0;
+      const ba = b[i + 3] ?? 0;
+      max = Math.max(max, Math.abs(aa - ba));
+      for (let c = 0; c < 3; c++) {
+        const pa = ((a[i + c] ?? 0) * aa) / 255;
+        const pb = ((b[i + c] ?? 0) * ba) / 255;
+        max = Math.max(max, Math.abs(pa - pb));
+      }
+    }
+    return max;
+  };
+  const around = { x: 400, y: 400, w: 280, h: 280 };
+
+  it('renders the same as a frame-sized layer when the content fits', () => {
+    for (const options of [{ opacity: 0.5 }, { blur: 3 }, { bloom: { radius: 2, intensity: 1 } }]) {
+      const full = pixels(render((g) => g.fx(options, square)));
+      const bounded = pixels(render((g) => g.fx({ ...options, bounds: around }, square)));
+      // Pyramid blurs aren't exactly shift-invariant: allow a few levels.
+      expect(maxDiff(full, bounded)).toBeLessThanOrEqual(6);
+    }
+    const masked = (bounds?: typeof around) =>
+      pixels(
+        render((g) => g.mask((g) => g.circle(540, 540, 90, { fill: WHITE }), square, { bounds })),
+      );
+    expect(maxDiff(masked(), masked(around))).toBe(0);
+  });
+
+  it('keeps blur that spreads beyond the bounds (the effect adds its reach)', () => {
+    const tight = { x: 440, y: 440, w: 200, h: 200 };
+    const f = render((g) => g.fx({ blur: 3, bounds: tight }, square));
+    expect(at(f, 425, 540)[3]).toBeGreaterThan(20);
+  });
+
+  it('cuts off content outside the bounds', () => {
+    const f = render((g) =>
+      g.layer({ bounds: { x: 440, y: 440, w: 100, h: 200 } }, (g) => square(g)),
+    );
+    expect(near(at(f, 480, 540), RED)).toBe(true);
+    expect(at(f, 600, 540)[3]).toBe(0);
+  });
+
+  it('reads the bounds in the current coordinate space, and nests', () => {
+    const f = render((g) =>
+      g.group({ x: 200, y: 0, scale: 0.5, originX: 540, originY: 540 }, (g) =>
+        g.layer({ bounds: { x: 440, y: 440, w: 200, h: 200 } }, (g) =>
+          g.fx({ opacity: 0.5, bounds: { x: 440, y: 440, w: 200, h: 200 } }, square),
+        ),
+      ),
+    );
+    // The square, halved around the center and moved right by 200: 490..590 → 690..790.
+    expect(at(f, 740, 540)[3]).toBeCloseTo(128, -1);
+    expect(at(f, 540, 540)[3]).toBe(0);
+  });
+});
+
 describe('graphics', () => {
   const nova = placeholderGraphic('nova') as Graphic;
 

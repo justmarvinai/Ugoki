@@ -142,11 +142,16 @@ export type GraphicOptions = {
   opacity?: number;
 };
 
-/** An isolated group: drawn on its own layer, then composited as one image. */
-export type LayerOptions = { opacity?: number; blend?: BlendMode };
+/**
+ * An isolated group: drawn on its own layer, then composited as one image. `bounds` (design
+ * units, in the current coordinate space) says where the content lies: the layer — and any
+ * effect on it — then only covers that part of the frame (plus the effects' reach), which makes
+ * effects on small elements cheap. Content outside `bounds` is cut off.
+ */
+export type LayerOptions = { opacity?: number; blend?: BlendMode; bounds?: Rect };
 
 /** Track matte: `content` shows where `matte` is opaque (alpha) or bright (luma). */
-export type MaskOptions = { mode?: 'alpha' | 'luma'; invert?: boolean };
+export type MaskOptions = { mode?: 'alpha' | 'luma'; invert?: boolean; bounds?: Rect };
 
 /** Layer effects (docs/06-engine.md §9). Distances are in `u` (1% of the short side). */
 export type FxOptions = LayerOptions & {

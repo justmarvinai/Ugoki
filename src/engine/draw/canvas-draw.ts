@@ -62,14 +62,20 @@ type LayerEntry = {
   surface: Surface;
   parent: Canvas2D;
   parentSaves: number;
+  /** The parent surface's origin in frame pixels. */
+  parentX: number;
+  parentY: number;
   opacity: number;
   composite: GlobalCompositeOperation;
   font: string;
 };
 
+/** A region of the output frame in whole pixels. */
+type PixelArea = { x: number; y: number; w: number; h: number };
+
 const DEG = Math.PI / 180;
 const MAX_DEPTH = 64;
-/** Nested isolated layers (each is a frame-sized canvas). */
+/** Nested isolated layers (each is a canvas at most the size of the frame). */
 const MAX_LAYERS = 8;
 /** Below this opacity nothing is drawn. */
 const INVISIBLE = 1 / 1024;
@@ -318,6 +324,9 @@ export class CanvasDraw implements Draw {
   private s = 1;
   private readonly surfaces: Surface[] = [];
   private readonly layers: LayerEntry[] = [];
+  /** Origin of the current surface in frame pixels (layers can cover part of the frame). */
+  private ox = 0;
+  private oy = 0;
 
   // Current state and the saved levels (6 matrix entries + opacity per level).
   private readonly m = new Matrix();
@@ -380,6 +389,8 @@ export class CanvasDraw implements Draw {
       for (this.saves = top.parentSaves; this.saves > 0; this.saves--) this.ctx.restore();
     }
     this.saves = 0;
+    this.ox = 0;
+    this.oy = 0;
   }
 
   // --- Draw API ---------------------------------------------------------------------------
@@ -389,7 +400,7 @@ export class CanvasDraw implements Draw {
     if (options?.background && target.transparent) return;
     if (this.opacity < INVISIBLE) return;
     const ctx = this.c;
-    ctx.setTransform(this.s, 0, 0, this.s, 0, 0);
+    ctx.setTransform(this.s, 0, 0, this.s, -this.ox, -this.oy);
     ctx.globalAlpha = this.opacity;
     ctx.globalCompositeOperation = this.composite;
     ctx.fillStyle = this.style(fill, 0, 0);
@@ -554,44 +565,50 @@ export class CanvasDraw implements Draw {
     const opacity = this.opacity * (options.opacity ?? 1);
     if (opacity < INVISIBLE && !this.target?.collectRegions) return;
     const composite = options.blend ? COMPOSITE[options.blend] : this.composite;
-    const surface = this.pushLayer();
+    const area = this.layerArea(options.bounds, 0);
+    const surface = this.pushLayer(area);
     draw(this);
     this.popLayer();
-    if (opacity >= INVISIBLE) this.blit(whole(surface.canvas), opacity, composite);
+    if (opacity >= INVISIBLE) this.blit(whole(surface.canvas), opacity, composite, area);
   }
 
   mask(matte: (g: Draw) => void, content: (g: Draw) => void, options: MaskOptions = {}): void {
     const opacity = this.opacity;
     if (opacity < INVISIBLE && !this.target?.collectRegions) return;
     const composite = this.composite;
-    const contentLayer = this.pushLayer();
+    const area = this.layerArea(options.bounds, 0);
+    const contentLayer = this.pushLayer(area);
     content(this);
-    const matteLayer = this.pushLayer();
+    const matteLayer = this.pushLayer(area);
     matte(this);
     this.popLayer();
     const alpha =
       options.mode === 'luma'
         ? this.effects().lumaToAlpha(matteLayer.canvas)
         : whole(matteLayer.canvas);
-    this.blit(alpha, 1, options.invert ? 'destination-out' : 'destination-in');
+    this.blit(alpha, 1, options.invert ? 'destination-out' : 'destination-in', area);
     this.popLayer();
-    if (opacity >= INVISIBLE) this.blit(whole(contentLayer.canvas), opacity, composite);
+    if (opacity >= INVISIBLE) this.blit(whole(contentLayer.canvas), opacity, composite, area);
   }
 
   fx(options: FxOptions, draw: (g: Draw) => void): void {
     const opacity = this.opacity * (options.opacity ?? 1);
     if (opacity < INVISIBLE && !this.target?.collectRegions) return;
     const composite = options.blend ? COMPOSITE[options.blend] : this.composite;
-    const surface = this.pushLayer();
-    draw(this);
-    this.popLayer();
-    if (opacity < INVISIBLE) return;
     // Effect sizes are in u; the backend works in output pixels.
     const px = this.use().frame.u * this.s;
     const sigma = (options.blur ?? 0) * px;
+    const { shadow, bloom } = options;
+    const glowing = bloom !== undefined && bloom.intensity > 0;
+    // The layer leaves room for the light its effects spread beyond the content.
+    const reach = 3 * Math.max(sigma, glowing ? bloom.radius * px : 0);
+    const area = this.layerArea(options.bounds, reach);
+    const surface = this.pushLayer(area);
+    draw(this);
+    this.popLayer();
+    if (opacity < INVISIBLE) return;
     const source =
       sigma > 0.25 ? this.effects().blur(surface.canvas, sigma) : whole(surface.canvas);
-    const { shadow, bloom } = options;
     const ctx = this.c;
     if (shadow) {
       ctx.shadowColor = toCss(withAlpha(shadow.color, shadow.color.a * (shadow.opacity ?? 1)));
@@ -600,20 +617,20 @@ export class CanvasDraw implements Draw {
       ctx.shadowOffsetX = (shadow.x ?? 0) * px;
       ctx.shadowOffsetY = (shadow.y ?? 0) * px;
     }
-    this.blit(source, opacity, composite);
+    this.blit(source, opacity, composite, area);
     if (shadow) {
       ctx.shadowColor = 'rgba(0,0,0,0)';
       ctx.shadowBlur = 0;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
     }
-    if (bloom && bloom.intensity > 0) {
+    if (glowing) {
       const glow = this.effects().bloom(surface.canvas, {
         radius: bloom.radius * px,
         intensity: bloom.intensity,
         threshold: bloom.threshold ?? 0.6,
       });
-      this.blit(glow, opacity, 'lighter');
+      this.blit(glow, opacity, 'lighter', area);
     }
   }
 
@@ -645,7 +662,8 @@ export class CanvasDraw implements Draw {
         // Tinted raster: paint the tint through the image's alpha on a layer.
         g.layer({ opacity }, () => {
           this.rasterGraphic(graphic.image, x, y, k, 1);
-          this.blit(whole(solidCanvasColor(this.c, tint)), 1, 'source-in');
+          const here = { x: this.ox, y: this.oy };
+          this.blit(whole(solidCanvasColor(this.c, tint)), 1, 'source-in', here);
         });
       } else {
         this.rasterGraphic(graphic.image, x, y, k, opacity);
@@ -887,9 +905,50 @@ export class CanvasDraw implements Draw {
 
   // --- layers -----------------------------------------------------------------------------
 
-  /** Starts drawing on a fresh frame-sized layer. */
-  private pushLayer(): Surface {
-    const root = this.use().ctx.canvas;
+  /**
+   * The pixels a new layer needs: `bounds` (design units, in the current coordinate space) as
+   * seen on the output, grown by `reach` pixels for effects, within the current surface — a
+   * layer never needs more than its parent can show. Without bounds, the whole current surface.
+   */
+  private layerArea(bounds: Rect | undefined, reach: number): PixelArea {
+    let x0 = this.ox;
+    let y0 = this.oy;
+    let x1 = this.ox + this.c.canvas.width;
+    let y1 = this.oy + this.c.canvas.height;
+    if (bounds) {
+      const { a, b, c, d, e, f } = this.m;
+      const s = this.s;
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      for (const [x, y] of [
+        [bounds.x, bounds.y],
+        [bounds.x + bounds.w, bounds.y],
+        [bounds.x, bounds.y + bounds.h],
+        [bounds.x + bounds.w, bounds.y + bounds.h],
+      ] as const) {
+        const px = (a * x + c * y + e) * s;
+        const py = (b * x + d * y + f) * s;
+        minX = Math.min(minX, px);
+        minY = Math.min(minY, py);
+        maxX = Math.max(maxX, px);
+        maxY = Math.max(maxY, py);
+      }
+      // One pixel of slack for anti-aliased edges.
+      const grow = reach + 1;
+      if (Number.isFinite(minX + minY + maxX + maxY)) {
+        x0 = Math.max(x0, Math.floor(minX - grow));
+        y0 = Math.max(y0, Math.floor(minY - grow));
+        x1 = Math.min(x1, Math.ceil(maxX + grow));
+        y1 = Math.min(y1, Math.ceil(maxY + grow));
+      }
+    }
+    return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+  }
+
+  /** Starts drawing on a fresh layer covering `area` of the frame. */
+  private pushLayer(area: PixelArea): Surface {
     const depth = this.layers.length;
     if (depth >= MAX_LAYERS) throw new Error('Draw: layers are nested too deeply');
     let surface = this.surfaces[depth];
@@ -897,16 +956,20 @@ export class CanvasDraw implements Draw {
       surface = createSurface();
       this.surfaces[depth] = surface;
     }
-    prepareSurface(surface, root.width, root.height);
+    prepareSurface(surface, area.w, area.h);
     this.layers.push({
       surface,
       parent: this.c,
       parentSaves: this.saves,
+      parentX: this.ox,
+      parentY: this.oy,
       opacity: this.opacity,
       composite: this.composite,
       font: this.font,
     });
     this.ctx = surface.ctx;
+    this.ox = area.x;
+    this.oy = area.y;
     this.saves = 0;
     this.opacity = 1;
     this.composite = 'source-over';
@@ -920,20 +983,30 @@ export class CanvasDraw implements Draw {
     if (!top) throw new Error('Draw: no layer to end');
     for (; this.saves > 0; this.saves--) this.c.restore();
     this.ctx = top.parent;
+    this.ox = top.parentX;
+    this.oy = top.parentY;
     this.saves = top.parentSaves;
     this.opacity = top.opacity;
     this.composite = top.composite;
     this.font = top.font;
   }
 
-  /** Composites a frame-sized image onto the current surface (the surface's clip applies). */
-  private blit(image: EffectImage, opacity: number, op: GlobalCompositeOperation): void {
+  /**
+   * Composites an image covering the frame pixels at `at` (a layer's area) onto the current
+   * surface; the surface's clip applies.
+   */
+  private blit(
+    image: EffectImage,
+    opacity: number,
+    op: GlobalCompositeOperation,
+    at: { x: number; y: number },
+  ): void {
     const ctx = this.c;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = opacity;
     ctx.globalCompositeOperation = op;
     const { source, x, y, width, height } = image;
-    ctx.drawImage(source, x, y, width, height, 0, 0, width, height);
+    ctx.drawImage(source, x, y, width, height, at.x - this.ox, at.y - this.oy, width, height);
   }
 
   private push(): void {
@@ -974,7 +1047,7 @@ export class CanvasDraw implements Draw {
     const s = this.s;
     const { a, b, c, d, e, f } = m;
     if (!Number.isFinite(a + b + c + d + e + f)) return false;
-    this.c.setTransform(a * s, b * s, c * s, d * s, e * s, f * s);
+    this.c.setTransform(a * s, b * s, c * s, d * s, e * s - this.ox, f * s - this.oy);
     return true;
   }
 
