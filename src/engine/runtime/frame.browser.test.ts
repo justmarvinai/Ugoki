@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type Compositor, createCompositor } from '../compositor';
+import { CpuEffects } from '../compositor/effects';
 import { GpuCompositor } from '../compositor/gpu';
 import { rgb } from '../core/color';
 import { CanvasDraw } from '../draw/canvas-draw';
@@ -222,6 +223,35 @@ describe('compositor effects parity', () => {
         expect(Math.abs(m.dy / reference.dy - 1)).toBeLessThan(0.015);
       }
     }
+  });
+
+  it('box-blurs like a Gaussian where Canvas has no filter, wherever the content sits', () => {
+    const square = (x: number) => {
+      const layer = new OffscreenCanvas(200, 120);
+      const ctx = layer.getContext('2d');
+      if (!ctx) throw new Error('no 2d context');
+      ctx.fillStyle = 'red';
+      ctx.fillRect(x, 40, 40, 40);
+      return layer;
+    };
+    const alphaRow = (image: ReturnType<CpuEffects['blur']>) => {
+      const out = new OffscreenCanvas(200, 120);
+      const octx = out.getContext('2d', { willReadFrequently: true });
+      if (!octx) throw new Error('no 2d context');
+      octx.drawImage(image.source, image.x, image.y, 200, 120, 0, 0, 200, 120);
+      return Array.from(octx.getImageData(0, 60, 200, 1).data.filter((_, i) => i % 4 === 3));
+    };
+    const box = new CpuEffects({ filter: false });
+    const filtered = new CpuEffects();
+    const a = alphaRow(box.blur(square(60), 8));
+    // Shifted content, shifted result — exactly.
+    const b = alphaRow(box.blur(square(67), 8));
+    expect(b.slice(7)).toEqual(a.slice(0, -7));
+    // Close to the Canvas filter's Gaussian: same reach, similar peak.
+    const c = alphaRow(filtered.blur(square(60), 8));
+    const reach = (alphas: number[]) => alphas.findIndex((v) => v > 13);
+    expect(Math.abs(reach(a) - reach(c))).toBeLessThanOrEqual(3);
+    expect(Math.abs((a[80] ?? 0) - (c[80] ?? 0))).toBeLessThan(25);
   });
 
   it('keeps drawing with Canvas 2D effects when asked', () => {

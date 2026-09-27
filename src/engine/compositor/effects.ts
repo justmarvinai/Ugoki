@@ -94,19 +94,66 @@ export function canvasFilterSupported(): boolean {
   return filterSupport;
 }
 
+/** Widths of three box blurs whose succession approximates a Gaussian of σ (Wells, 1986). */
+export function boxSizes(sigma: number): [number, number, number] {
+  const n = 3;
+  const ideal = Math.sqrt((12 * sigma * sigma) / n + 1);
+  let low = Math.floor(ideal);
+  if (low % 2 === 0) low--;
+  const high = low + 2;
+  const m = Math.round((12 * sigma * sigma - n * low * low - 4 * n * low - 3 * n) / (-4 * low - 4));
+  return [0, 1, 2].map((i) => (i < m ? low : high)) as [number, number, number];
+}
+
+/** One box pass along rows (`step` 1) or columns, transparent beyond the edges. */
+function boxPass(
+  src: Float32Array,
+  dst: Float32Array,
+  width: number,
+  height: number,
+  radius: number,
+  horizontal: boolean,
+) {
+  const lines = horizontal ? height : width;
+  const length = horizontal ? width : height;
+  const stride = horizontal ? 4 : width * 4;
+  const scale = 1 / (2 * radius + 1);
+  for (let line = 0; line < lines; line++) {
+    const base = horizontal ? line * width * 4 : line * 4;
+    for (let c = 0; c < 4; c++) {
+      let sum = 0;
+      for (let k = 0; k <= Math.min(radius, length - 1); k++)
+        sum += src[base + k * stride + c] ?? 0;
+      for (let i = 0; i < length; i++) {
+        dst[base + i * stride + c] = sum * scale;
+        const add = i + radius + 1;
+        const drop = i - radius;
+        if (add < length) sum += src[base + add * stride + c] ?? 0;
+        if (drop >= 0) sum -= src[base + drop * stride + c] ?? 0;
+      }
+    }
+  }
+}
+
 /**
- * Canvas 2D effects: blur with the canvas `filter` where supported, otherwise a
- * downsample/upsample chain (a soft approximation). Bloom has no threshold here — it glows the
- * whole layer, which suits what templates bloom (light bands, highlights). Luma mattes need
- * per-pixel math, so they read back small mattes; large ones fall back to their alpha.
+ * Canvas 2D effects: blur with the canvas `filter` where supported, otherwise three box blurs
+ * on premultiplied pixels (a close Gaussian, the same wherever the content sits). Bloom has no
+ * threshold here — it glows the whole layer, which suits what templates bloom (light bands,
+ * highlights). Luma mattes need per-pixel math, so they read back small mattes; large ones fall
+ * back to their alpha.
  */
 export class CpuEffects implements Effects {
   readonly kind = 'cpu';
+  /** Blur results. */
   private readonly a = surface(1, 1);
-  private readonly b = surface(1, 1);
-  /** Bloom's output: blur results may live in `a` or `b`. */
+  /** Bloom's output (it reads a blur result from `a`). */
   private readonly glow = surface(1, 1);
-  private readonly filter = canvasFilterSupported();
+  private readonly filter: boolean;
+
+  /** `filter: false` forces the box blur (as in Safari), e.g. to test it where `filter` works. */
+  constructor(options: { filter?: boolean } = {}) {
+    this.filter = options.filter ?? canvasFilterSupported();
+  }
 
   blur(layer: OffscreenCanvas, sigma: number): EffectImage {
     return whole(this.blurCanvas(layer, sigma));
@@ -122,7 +169,7 @@ export class CpuEffects implements Effects {
       out.ctx.filter = 'none';
       return out.canvas;
     }
-    return this.downsampleBlur(layer, sigma);
+    return this.boxBlur(layer, sigma);
   }
 
   bloom(layer: OffscreenCanvas, options: BloomOptions): EffectImage {
@@ -163,37 +210,38 @@ export class CpuEffects implements Effects {
     return whole(out.canvas);
   }
 
-  /** Halves the image until the scale matches the blur, then scales back up smoothly. */
-  private downsampleBlur(layer: OffscreenCanvas, sigma: number): OffscreenCanvas {
+  /** Three box blurs on premultiplied pixels (Safari: no Canvas `filter`). */
+  private boxBlur(layer: OffscreenCanvas, sigma: number): OffscreenCanvas {
     const { width, height } = layer;
-    // Each halving blurs by roughly σ ≈ 0.6 × the scale step.
-    const steps = Math.max(1, Math.min(6, Math.round(Math.log2(Math.max(1, sigma / 0.6)))));
-    let source: OffscreenCanvas = layer;
-    let w = width;
-    let h = height;
-    const surfaces = [this.a, this.b];
-    for (let i = 0; i < steps; i++) {
-      const nw = Math.max(1, Math.round(w / 2));
-      const nh = Math.max(1, Math.round(h / 2));
-      // Alternate buffers, so the one we read from is never the one we clear.
-      const target = surfaces[i % 2] as Surface;
-      sized(target, nw, nh);
-      target.ctx.imageSmoothingEnabled = true;
-      target.ctx.imageSmoothingQuality = 'high';
-      target.ctx.drawImage(source, 0, 0, w, h, 0, 0, nw, nh);
-      source = target.canvas;
-      w = nw;
-      h = nh;
+    const ctx = layer.getContext('2d');
+    if (!ctx) return layer;
+    const image = ctx.getImageData(0, 0, width, height);
+    const d = image.data;
+    const a = new Float32Array(d.length);
+    const b = new Float32Array(d.length);
+    for (let i = 0; i < d.length; i += 4) {
+      const alpha = (d[i + 3] ?? 0) / 255;
+      a[i] = (d[i] ?? 0) * alpha;
+      a[i + 1] = (d[i + 1] ?? 0) * alpha;
+      a[i + 2] = (d[i + 2] ?? 0) * alpha;
+      a[i + 3] = d[i + 3] ?? 0;
     }
-    // Upscale into the other buffer at full size.
-    const other = surfaces[steps % 2] as Surface;
-    const small = source;
-    const sw = w;
-    const sh = h;
-    sized(other, width, height);
-    other.ctx.imageSmoothingEnabled = true;
-    other.ctx.imageSmoothingQuality = 'high';
-    other.ctx.drawImage(small, 0, 0, sw, sh, 0, 0, width, height);
-    return other.canvas;
+    for (const size of boxSizes(sigma)) {
+      const radius = (size - 1) / 2;
+      boxPass(a, b, width, height, radius, true);
+      boxPass(b, a, width, height, radius, false);
+    }
+    // Back to straight alpha (putImageData expects it).
+    for (let i = 0; i < d.length; i += 4) {
+      const alpha = a[i + 3] ?? 0;
+      const k = alpha > 0 ? 255 / alpha : 0;
+      d[i] = (a[i] ?? 0) * k;
+      d[i + 1] = (a[i + 1] ?? 0) * k;
+      d[i + 2] = (a[i + 2] ?? 0) * k;
+      d[i + 3] = alpha;
+    }
+    const out = sized(this.a, width, height);
+    out.ctx.putImageData(image, 0, 0);
+    return out.canvas;
   }
 }

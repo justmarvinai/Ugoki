@@ -262,7 +262,7 @@ Responsibilities:
 - One WebGL2 context per worker (`GpuCompositor`); textures and framebuffers pooled; premultiplied alpha throughout (ADR-026).
 - **Frames** (`runtime/frame.ts`, ADR-027): `FrameRenderer` renders a frame once, or — for motion blur — N sub-frames centered on `t` across the shutter (Energy's angle, or the template's `shutter`), accumulated and resolved by the compositor, then finished. Two 160 px probes at the shutter's edges decide the count: frames that don't change render once, and fast motion gets more sub-frames within the request's budget (ADR-032). Previews: 1 sample while playing or scrubbing, 8 (up to 24) when paused; stills are sharp but finished; exports budget by quality.
 - **Color**: sRGB throughout the pipeline; exports tagged BT.709 — the Phase 2 QA checks that exported MP4s match the preview in Chrome, Safari and QuickTime.
-- **No WebGL2** (Firefox and WebKit workers on GPU-less machines, lost contexts): the Canvas 2D compositor (`CpuCompositor`) does the same work — Canvas `filter` blur or a downsample blur, additive accumulation, overlay grain, screen glow — so effects and motion blur keep working, slightly differently (parity is tested).
+- **No WebGL2** (Firefox and WebKit workers on GPU-less machines, lost contexts): the Canvas 2D compositor (`CpuCompositor`) does the same work — Canvas `filter` blur — or three box blurs where Canvas has no `filter` (Safari) — additive accumulation, overlay grain, screen glow — so effects and motion blur keep working, slightly differently (parity is tested).
 
 ---
 

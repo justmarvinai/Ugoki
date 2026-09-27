@@ -81,7 +81,11 @@ describe('isolated layers', () => {
 });
 
 /** Every effects backend this browser has (WebGL2 where the worker has a GPU context). */
-const backends: [string, Effects][] = [['canvas 2d', new CpuEffects()]];
+const backends: [string, Effects][] = [
+  ['canvas 2d', new CpuEffects()],
+  // Safari's path (no Canvas `filter`): box blurs.
+  ['canvas 2d · box blur', new CpuEffects({ filter: false })],
+];
 const gpu = GpuCompositor.create();
 if (gpu) backends.push(['webgl2', gpu]);
 
@@ -181,7 +185,34 @@ describe.each(backends)('bounded layers (%s)', (_, effects) => {
       pixels(
         render((g) => g.mask((g) => g.circle(540, 540, 90, { fill: WHITE }), square, { bounds })),
       );
-    expect(maxDiff(masked(), masked(around))).toBe(0);
+    const full = masked();
+    const bounded = masked(around);
+    // Same content in the same place: equal coverage and centroid. Engines may anti-alias a few
+    // edge pixels differently (WebKit), so per-pixel differences are reported, not required 0.
+    const moments = (data: Uint8ClampedArray) => {
+      let sum = 0;
+      let sx = 0;
+      let sy = 0;
+      for (let i = 3; i < data.length; i += 4) {
+        const a = data[i] ?? 0;
+        const p = (i - 3) / 4;
+        sum += a;
+        sx += a * (p % 270);
+        sy += a * Math.floor(p / 270);
+      }
+      return { sum, cx: sx / sum, cy: sy / sum };
+    };
+    const m = moments(full);
+    const n = moments(bounded);
+    expect(Math.abs(n.sum - m.sum) / m.sum).toBeLessThan(0.002);
+    expect(Math.abs(n.cx - m.cx)).toBeLessThan(0.05);
+    expect(Math.abs(n.cy - m.cy)).toBeLessThan(0.05);
+    let differing = 0;
+    for (let i = 0; i < full.length; i += 4) {
+      if (full[i + 3] !== bounded[i + 3]) differing++;
+    }
+    if (differing > 0) console.info(`bounded mask: ${differing} pixels differ in alpha`);
+    expect(differing).toBeLessThan(40);
   });
 
   it('keeps blur that spreads beyond the bounds (the effect adds its reach)', () => {

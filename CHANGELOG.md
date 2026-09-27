@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 - The Lab's playhead no longer jumps back when frames rendered for an earlier seek arrive late (e.g. End, then Shift+← twice gave 4.00 s instead of 3.00 s).
 - GPU blur and bloom were slightly too strong or too weak on odd-sized layers (the downsample pyramid skipped part of its averaging).
 - The last frame of an export is clean: exits now finish 1/15 s before the end.
+- Where Canvas has no `filter` (Safari without WebGL2 in workers), blur and bloom use three box blurs — a close Gaussian — instead of a blocky downsample chain.
 
 ## [0.1.0] — 2026-09-26 — Foundations & engine core
 
