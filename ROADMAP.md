@@ -73,7 +73,7 @@
 ## Phase 2 — Editor & export MVP → `0.2.0`
 
 **Compositor**
-- [ ] WebGL2 layers (segmented compositing), blend modes, blur, bloom, masks/mattes, color adjust
+- [x] WebGL2 layers (segmented compositing), blend modes, blur, bloom, masks/mattes — *color adjust (brightness · contrast · saturation · tint) moves to Phase 3 with the first template that grades images; none of the Phase 2 templates uses it*
 - [x] Motion-blur accumulation (sub-frames, shutter from Energy), finish (grain, soft glow)
 
 **Editor**
@@ -100,7 +100,7 @@
 
 ## Phase 3 — Template wave 1 → `0.3.0`
 
-**Engine additions**: sequence builder & auto duration · odometer digits & number formatting · UI Kit v1 (card, input, button, toast, charts) · cursor & typing helpers · procedural placeholders (Objects, Scenes, Artworks, Screens, avatars, fictional logos).
+**Engine additions**: sequence builder & auto duration · odometer digits & number formatting · UI Kit v1 (card, input, button, toast, charts) · cursor & typing helpers · procedural placeholders (Objects, Scenes, Artworks, Screens, avatars, fictional logos) · compositor color adjust (from Phase 2) · image focal-point UI and drop/paste import (from Phase 2).
 
 **Reference templates 5–7 first**
 - [ ] Punch · Deal · Click

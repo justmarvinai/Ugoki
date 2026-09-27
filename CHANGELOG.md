@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-27 — Editor & export MVP
+
+Choose a template, make it yours, export it — all on your device. Four templates (Rise, Line, Sheen, Layers) open in the editor, and every export format renders in the browser with the same engine as the preview: exported frame N is the preview at N / fps.
+
 ### Added
 
 - **The editor** (`/editor/<template>`): the design on a stage fitted to your screen (or at 100%), with safe-area guides and, for transparent designs, a checkerboard or a preview backdrop. Point at text on the stage to see it outlined, click to jump to its field, drag a group to move it — it snaps to the center lines and the title-safe edges — or pull its corner to scale it. The inspector offers Looks (with Shuffle), the template's content, palettes incl. brand colors with a contrast guard, font pairings, background, finish, energy, duration with readability fixes, and layout; pointing at a Look, palette or pairing previews it on the stage. Undo and redo cover every change (typing and slider drags undo as one step). The transport shows the timeline's sections and cut point, loops, and has a duration handle; keyboard shortcuts throughout (`?` lists them). Export opens a sheet with every format.
