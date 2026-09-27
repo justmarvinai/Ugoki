@@ -32,10 +32,10 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | Styling | **Tailwind CSS** (CSS-first `@theme` tokens) | ^4.3.3 | Tokens from the design system as CSS variables; zero-runtime |
 | Headless UI | **Base UI** (`@base-ui/react`) | ^1.8.0 | Stable v1, actively released, unstyled + accessible; our visuals on top |
 | UI animation | **Motion** (`motion/react`) | ^13.4.4 | MIT; springs, layout animations, `AnimateView` on top of View Transitions |
-| State | **Zustand** | ^5.0.15 | Tiny, selector-based, usable outside React (engine host) |
+| State | **Zustand** | 5.0.15 (Phase 2, pinned) | Tiny, selector-based, usable outside React (engine host) |
 | Undo/redo | Own history middleware | — | `zundo` is dormant; snapshot history with coalescing is ~80 lines |
-| Validation | Engine sanitizers + **Zod** (`zod/mini`, Phase 2) | ^4.6.5 | The engine repairs untrusted input itself (ADR-018); Zod parses the share-link/draft envelope on the main thread |
-| Persistence | **Dexie** (IndexedDB) | ^4.4.6 | Versioned schema, indexes, reactive queries for drafts |
+| Validation | Engine sanitizers + **Zod** (`zod/mini`) | 4.6.5 (Phase 2, pinned) | The engine repairs untrusted input itself (ADR-018); Zod parses the share-link/draft envelope on the main thread |
+| Persistence | **Dexie** (IndexedDB) | 4.4.6 (Phase 2, pinned) | Versioned schema, indexes, reactive queries for drafts |
 | Color | Engine's own OKLab/OKLCH (`core/color.ts`) | — | Conversion, gamut mapping, contrast, palette derivation, premultiplied OKLab gradients (ADR-018); culori only if the UI color picker needs it |
 | Text shaping | **harfbuzzjs** (HarfBuzz 14.5) | ^1.6.2 | Identical shaping/glyphs in every browser; variable axes; glyph outlines (MIT) |
 | Video muxing/encoding | **Mediabunny** (WebCodecs) | ^1.60.0 | MP4/WebM muxing, CanvasSource, WebM alpha, backpressure (MPL-2.0) |
@@ -49,7 +49,7 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | Runtime | **Node.js** | 24.x (Active LTS, Vercel default) | Node 20 is EOL; Vitest 5 needs ≥ 22.12 |
 | Hosting | **Vercel Hobby** | — | Static pages on the CDN; free Vercel domain; no analytics products |
 
-Dependencies are added with the feature that uses them: Phase 1 installs the framework, Base UI, Motion, harfbuzzjs and Mediabunny (for the export spike); fflate and modern-gif arrived with exports (Phase 2); Zustand, Zod, Dexie and delaunator follow with the editor, drafts, share links and later templates.
+Dependencies are added with the feature that uses them: Phase 1 installs the framework, Base UI, Motion, harfbuzzjs and Mediabunny (for the export spike); fflate and modern-gif arrived with exports, and Zustand, Zod and Dexie with the editor, drafts and share links (Phase 2); delaunator follows with later templates.
 
 ### Deliberately not used
 

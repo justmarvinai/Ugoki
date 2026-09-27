@@ -11,7 +11,7 @@ import { IconButton } from '@/components/button';
 import { Slider } from '@/components/slider';
 import { LoopIcon, PauseIcon, PlayIcon, StepBackIcon, StepForwardIcon } from '@/design/icons';
 import type { Section, SectionName } from '@/engine/host';
-import type { PlayheadStore } from './stores';
+import type { PlayheadStore } from '@/stores/playhead';
 
 export const STEP = 1 / 30;
 

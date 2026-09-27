@@ -23,13 +23,14 @@ import {
   type TimelineWarning,
   type WorkerMessage,
 } from '@/engine/host';
+import { createPlayhead } from '@/stores/playhead';
 import { TEMPLATES } from '@/templates/registry';
 import { createRenderEndpoint } from '@/workers';
 import { importFile } from '../assets/import-file';
 import { ExportPanel } from './export-panel';
 import { type Focus, Inspector } from './inspector';
 import { LabView } from './lab-view';
-import { createPlayhead, createStats } from './stores';
+import { createStats } from './stores';
 import { STEP, Transport } from './transport';
 
 declare global {

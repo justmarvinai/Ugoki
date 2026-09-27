@@ -1,36 +1,11 @@
 /**
- * Tiny external stores for the Lab. Frames arrive at up to 60 Hz per view; only the components
- * that show the playhead or the cost meter subscribe (docs/05-architecture.md §6).
+ * The Lab's render-cost meter: frames arrive at up to 60 Hz per view, so stats are averaged
+ * here and published at 4 Hz to the components that show them.
  */
 
 import type { FrameInfo, ViewId } from '@/engine/host';
 
 type Listener = () => void;
-
-export type Playhead = { readonly t: number; readonly playing: boolean };
-
-export type PlayheadStore = {
-  get(): Playhead;
-  set(next: Playhead): void;
-  subscribe(listener: Listener): () => void;
-};
-
-export function createPlayhead(): PlayheadStore {
-  let state: Playhead = { t: 0, playing: false };
-  const listeners = new Set<Listener>();
-  return {
-    get: () => state,
-    set(next) {
-      if (next.t === state.t && next.playing === state.playing) return;
-      state = next;
-      for (const listener of listeners) listener();
-    },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-  };
-}
 
 export type ViewStats = {
   /** Average milliseconds spent recording a frame. */
