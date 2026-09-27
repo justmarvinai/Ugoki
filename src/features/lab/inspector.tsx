@@ -2,18 +2,18 @@
 
 /**
  * Lab inspector: Looks, palettes (incl. brand colors), pairings, energy, duration, the
- * template's own controls, stress text, preview options, stills and the raw state.
+ * template's own controls (logos and images included), stress text, preview options with the
+ * backdrop, stills and the raw state.
  */
 
 import { type ReactNode, useId, useState } from 'react';
-import { Button, IconButton } from '@/components/button';
+import { Button } from '@/components/button';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Slider } from '@/components/slider';
 import { Switch } from '@/components/switch';
-import { DownloadIcon, ShuffleIcon } from '@/design/icons';
+import { DownloadIcon } from '@/design/icons';
 import {
-  BRAND_VARIANTS,
-  type BrandVariant,
+  type Backdrop,
   type Capabilities,
   type Control,
   type DesignState,
@@ -21,14 +21,17 @@ import {
   type EnergyId,
   type FormatId,
   PAIRINGS,
-  type PaletteRef,
   type QualityMode,
-  resolvePalette,
   type TemplateDescriptor,
   type TimelineWarning,
-  toCss,
 } from '@/engine/host';
 import { cn } from '@/lib/cn';
+import type { ImportedFile } from '../assets/import-file';
+import { BackdropPicker } from '../inspector/backdrop-picker';
+import { ControlField } from '../inspector/control-field';
+import { Field, Group } from '../inspector/field';
+import { LookSwatches } from '../inspector/looks';
+import { PalettePicker } from '../inspector/palette-picker';
 import { maxLengthText, STRESS_PRESETS } from './presets';
 
 export type Focus = 'all' | FormatId;
@@ -49,6 +52,11 @@ type InspectorProps = {
   capabilities: Capabilities | null;
   /** Rendering on the main thread (`?worker=0`). */
   inline: boolean;
+  backdrop: Backdrop;
+  onBackdrop: (backdrop: Backdrop) => void;
+  /** Reads a user's file on this device and hands it to the renderer. */
+  onAddFile: (file: File) => Promise<ImportedFile>;
+  exportPanel?: ReactNode;
 };
 
 const ENERGY_LABELS: Record<EnergyId, string> = {
@@ -56,23 +64,6 @@ const ENERGY_LABELS: Record<EnergyId, string> = {
   balanced: 'Balanced',
   punchy: 'Punchy',
 };
-
-const sameRef = (a: PaletteRef, b: PaletteRef) => JSON.stringify(a) === JSON.stringify(b);
-
-function randomBrandColor(): string {
-  // Vivid-ish random colors: random hue, high saturation, mid lightness (HSL → hex).
-  const h = Math.random() * 360;
-  const s = 0.55 + Math.random() * 0.4;
-  const l = 0.35 + Math.random() * 0.3;
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-    return Math.round(c * 255)
-      .toString(16)
-      .padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
 
 export function Inspector(props: InspectorProps) {
   const { descriptor, state, onChange, warnings } = props;
@@ -89,41 +80,7 @@ export function Inspector(props: InspectorProps) {
   return (
     <div className="flex flex-col">
       <Group title="Look">
-        <fieldset className="grid grid-cols-3 gap-2">
-          <legend className="sr-only">Looks</legend>
-          {descriptor.looks.map((look) => {
-            const palette = resolvePalette(look.palette);
-            const active = sameRef(state.palette, look.palette) && state.pairing === look.pairing;
-            return (
-              <button
-                key={look.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() =>
-                  onChange({
-                    ...state,
-                    palette: look.palette,
-                    pairing: descriptor.pairings.includes(look.pairing)
-                      ? look.pairing
-                      : state.pairing,
-                    props: look.values ? { ...state.props, ...look.values } : state.props,
-                  })
-                }
-                className={cn(
-                  'flex h-16 flex-col justify-end rounded-md p-2 text-left text-[12px] font-[550] ring-1 ring-line transition-[box-shadow,transform] duration-(--duration-micro) ease-swift active:scale-[0.97]',
-                  active && 'ring-2 ring-fg',
-                )}
-                style={{ background: toCss(palette.roles.bg), color: toCss(palette.roles.fg) }}
-              >
-                <span
-                  className="mb-auto h-0.5 w-4 rounded-full"
-                  style={{ background: toCss(palette.roles.accent) }}
-                />
-                {look.name}
-              </button>
-            );
-          })}
-        </fieldset>
+        <LookSwatches descriptor={descriptor} design={state} onChange={onChange} />
       </Group>
 
       <Group title="Palette">
@@ -185,6 +142,7 @@ export function Inspector(props: InspectorProps) {
             control={control}
             value={state.props[key]}
             onChange={setProp}
+            onAddFile={props.onAddFile}
           />
         ))}
       </Group>
@@ -197,6 +155,7 @@ export function Inspector(props: InspectorProps) {
             control={control}
             value={state.props[key]}
             onChange={setProp}
+            onAddFile={props.onAddFile}
           />
         ))}
         {primary && (
@@ -230,6 +189,22 @@ export function Inspector(props: InspectorProps) {
               control={control}
               value={state.props[key]}
               onChange={setProp}
+              onAddFile={props.onAddFile}
+            />
+          ))}
+        </Group>
+      )}
+
+      {byGroup('layout').length > 0 && (
+        <Group title="Layout">
+          {byGroup('layout').map(([key, control]) => (
+            <ControlField
+              key={key}
+              name={key}
+              control={control}
+              value={state.props[key]}
+              onChange={setProp}
+              onAddFile={props.onAddFile}
             />
           ))}
         </Group>
@@ -254,6 +229,14 @@ export function Inspector(props: InspectorProps) {
             onCheckedChange={(transparent) => set({ transparent })}
           />
         )}
+        {state.transparent && (
+          <BackdropPicker
+            value={props.backdrop}
+            onChange={props.onBackdrop}
+            transition={descriptor.structure === 'transition'}
+            onAddFile={props.onAddFile}
+          />
+        )}
         <Switch label="Safe areas (G)" checked={props.guides} onCheckedChange={props.onGuides} />
         <Field label="Render quality">
           <SegmentedControl
@@ -273,6 +256,8 @@ export function Inspector(props: InspectorProps) {
         </Button>
       </Group>
 
+      {props.exportPanel && <Group title="Export">{props.exportPanel}</Group>}
+
       <Group title="This device">
         <DeviceReport capabilities={props.capabilities} inline={props.inline} />
       </Group>
@@ -280,210 +265,6 @@ export function Inspector(props: InspectorProps) {
       <Group title="State">
         <StateEditor state={state} onApply={props.onApplyJson} />
       </Group>
-    </div>
-  );
-}
-
-function Group({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3 border-line border-b px-5 py-5">
-      <h2 className="text-[13px] font-[650] text-fg">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  label,
-  value,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  value?: string;
-  htmlFor?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between text-[12px]">
-        <label htmlFor={htmlFor} className="text-fg-2">
-          {label}
-        </label>
-        {value && <span className="font-mono text-fg-3 tabular-nums">{value}</span>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function ControlField({
-  name,
-  control,
-  value,
-  onChange,
-}: {
-  name: string;
-  control: Control;
-  value: unknown;
-  onChange: (key: string, value: unknown) => void;
-}) {
-  const id = useId();
-  switch (control.kind) {
-    case 'text': {
-      const text = typeof value === 'string' ? value : control.default;
-      const count = [...text].length;
-      const near = count >= control.maxLength * 0.8;
-      const common = {
-        id,
-        value: text,
-        maxLength: control.maxLength,
-        placeholder: control.placeholder ?? (control.optional ? 'Optional' : undefined),
-        onChange: (event: { target: { value: string } }) => onChange(name, event.target.value),
-        className:
-          'w-full resize-none rounded-md border border-line bg-bg-3 px-3 py-2 text-[14px] leading-snug text-fg placeholder:text-fg-3 transition-colors duration-(--duration-micro) hover:border-line-strong focus:border-line-strong focus-visible:outline-2 focus-visible:outline-focus',
-      };
-      return (
-        <Field
-          label={control.label}
-          htmlFor={id}
-          value={near ? `${count}/${control.maxLength}` : undefined}
-        >
-          {control.multiline ? (
-            <textarea rows={Math.min(control.maxLines ?? 3, 4)} {...common} />
-          ) : (
-            <input type="text" {...common} />
-          )}
-        </Field>
-      );
-    }
-    case 'choice':
-      return (
-        <Field label={control.label}>
-          <SegmentedControl
-            label={control.label}
-            value={typeof value === 'string' ? value : control.default}
-            options={control.options.map((option) => ({
-              value: option.value,
-              label: option.label,
-            }))}
-            onValueChange={(next) => onChange(name, next)}
-            className="w-full"
-          />
-        </Field>
-      );
-    case 'toggle':
-      return (
-        <Switch
-          label={control.label}
-          checked={typeof value === 'boolean' ? value : control.default}
-          onCheckedChange={(next) => onChange(name, next)}
-        />
-      );
-    case 'number': {
-      const number = typeof value === 'number' ? value : control.default;
-      const unit = control.unit ?? '';
-      return (
-        <Field label={control.label} value={`${number}${unit}`}>
-          <Slider
-            label={control.label}
-            value={number}
-            min={control.min}
-            max={control.max}
-            step={control.step}
-            format={(v) => `${v}${unit}`}
-            onValueChange={(next) => onChange(name, next)}
-          />
-        </Field>
-      );
-    }
-  }
-}
-
-function PalettePicker({
-  palettes,
-  value,
-  onChange,
-}: {
-  palettes: readonly PaletteRef[];
-  value: PaletteRef;
-  onChange: (palette: PaletteRef) => void;
-}) {
-  const [brand, setBrand] = useState(value.kind === 'brand' ? value.color : '#5A2BE8');
-  const variant: BrandVariant = value.kind === 'brand' ? value.variant : 'bold';
-  const colorId = useId();
-  const applyBrand = (color: string, next: BrandVariant) => {
-    setBrand(color);
-    onChange({ kind: 'brand', color, variant: next });
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <fieldset className="grid grid-cols-5 gap-2">
-        <legend className="sr-only">Palettes</legend>
-        {palettes.map((ref) => {
-          const palette = resolvePalette(ref);
-          const active = sameRef(ref, value);
-          return (
-            <button
-              key={JSON.stringify(ref)}
-              type="button"
-              aria-pressed={active}
-              aria-label={palette.name}
-              title={palette.name}
-              onClick={() => onChange(ref)}
-              className={cn(
-                'flex h-10 overflow-hidden rounded-md ring-1 ring-line transition-transform duration-(--duration-micro) ease-swift active:scale-[0.95]',
-                active && 'ring-2 ring-fg',
-              )}
-            >
-              {(['bg', 'fg', 'accent', 'muted'] as const).map((role) => (
-                <span
-                  key={role}
-                  className={role === 'bg' ? 'flex-[2]' : 'flex-1'}
-                  style={{ background: toCss(palette.roles[role]) }}
-                />
-              ))}
-            </button>
-          );
-        })}
-      </fieldset>
-      <div className="flex items-center gap-2">
-        <label htmlFor={colorId} className="sr-only">
-          Brand color
-        </label>
-        <input
-          id={colorId}
-          type="color"
-          value={brand}
-          onChange={(event) => applyBrand(event.target.value, variant)}
-          className="h-8 w-10 shrink-0 cursor-pointer rounded-sm border border-line bg-transparent"
-        />
-        <SegmentedControl
-          label="Brand palette"
-          size="sm"
-          value={value.kind === 'brand' ? value.variant : ('none' as const)}
-          options={[
-            ...BRAND_VARIANTS.map((v) => ({
-              value: v,
-              label: v[0]?.toUpperCase() + v.slice(1),
-            })),
-          ]}
-          onValueChange={(next) => applyBrand(brand, next as BrandVariant)}
-          className="flex-1"
-        />
-        <IconButton
-          label="Random brand color"
-          onClick={() => applyBrand(randomBrandColor(), variant)}
-        >
-          <ShuffleIcon size={18} />
-        </IconButton>
-      </div>
-      {value.kind === 'brand' && (
-        <p className="font-mono text-[11px] text-fg-3 uppercase tabular-nums">
-          Brand {value.variant} · {value.color}
-        </p>
-      )}
     </div>
   );
 }
@@ -571,7 +352,7 @@ function DeviceReport({
     ['WebCodecs', capabilities.webCodecs],
     ['H.264 encode', capabilities.encoders.avc],
     ['VP9 encode', capabilities.encoders.vp9],
-    ['VP9 + alpha encode', capabilities.encoders.vp9Alpha],
+    ['Transparent WebM', capabilities.encoders.vp9Alpha],
     ['AV1 encode', capabilities.encoders.av1],
   ];
   return (

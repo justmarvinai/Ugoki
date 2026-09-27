@@ -17,14 +17,19 @@ import {
   WebMOutputFormat,
 } from 'mediabunny';
 import { expect, test } from 'vitest';
+import { transparentWebmWorks } from '@/engine/export/probe';
 import { initialState } from '@/engine/template/state';
 import { loadTemplate } from '@/templates/registry';
 import { build, render } from '../support/render';
 
+// Where transparent WebM doesn't round-trip, the product doesn't offer it (ADR-034): CI's
+// WebKit encodes frames built from buffers with a later frame's pixels, so this clip — which
+// starts on a still frame — once passed there by accident.
 const canEncodeVp9 = async () =>
   typeof VideoEncoder !== 'undefined' &&
   (await VideoEncoder.isConfigSupported({ codec: 'vp09.00.10.08', width: 480, height: 270 }))
-    .supported === true;
+    .supported === true &&
+  (await transparentWebmWorks());
 
 test('transparent WebM round trip keeps the alpha channel', async (context) => {
   if (!(await canEncodeVp9())) context.skip();
@@ -83,8 +88,8 @@ test('transparent WebM round trip keeps the alpha channel', async (context) => {
   }
   const total = data.length / 4;
   console.info(`alpha histogram: clear ${clear}, solid ${solid}, partial ${partial}`);
-  // Encoders pick different bitrates (Chromium ~46 KB, WebKit ~8 KB for these 60 frames), so a
-  // lossy alpha plane softens edges by different amounts; assert the property, not a count.
+  // Encoders pick different bitrates (Chromium ~46 KB, Firefox ~121 KB for these 60 frames), so
+  // a lossy alpha plane softens edges by different amounts; assert the property, not a count.
   expect(clear / total).toBeGreaterThan(0.7); // the background stays transparent
   expect((solid + partial) / total).toBeGreaterThan(0.03); // the headline keeps its coverage
   expect(solid / total).toBeGreaterThan(0.01); // with an opaque core

@@ -3,8 +3,17 @@
  * only through this client; template code never loads on the main thread.
  */
 
+import type { Backdrop } from '../runtime/backdrop';
 import type { DesignState } from '../template/state';
-import type { HostMessage, QualityMode, ViewId, ViewSize, WorkerMessage } from './protocol';
+import type {
+  FrameInfo,
+  HostMessage,
+  QualityMode,
+  TransferableGraphic,
+  ViewId,
+  ViewSize,
+  WorkerMessage,
+} from './protocol';
 
 /** A Worker, or anything with the same messaging shape (see `createInlineEndpoint`). */
 export type RenderEndpoint = {
@@ -25,7 +34,10 @@ const list = (views: Views): readonly ViewId[] => (typeof views === 'string' ? [
 export class RenderClient {
   private readonly listeners = new Set<(message: WorkerMessage) => void>();
   private readonly snapshots = new Map<number, Pending>();
+  /** Sequence number of the latest transport command sent to each view. */
+  private readonly transport = new Map<ViewId, number>();
   private nextRequest = 1;
+  private nextSeq = 1;
   private disposed = false;
 
   constructor(private readonly endpoint: RenderEndpoint) {
@@ -55,15 +67,24 @@ export class RenderClient {
   }
 
   play(views: Views): void {
-    this.send({ type: 'play', views: list(views) });
+    this.send({ type: 'play', views: list(views), seq: this.sequence(views) });
   }
 
   pause(views: Views): void {
-    this.send({ type: 'pause', views: list(views) });
+    this.send({ type: 'pause', views: list(views), seq: this.sequence(views) });
   }
 
   seek(views: Views, t: number, scrub = false): void {
-    this.send({ type: 'seek', views: list(views), t, scrub });
+    this.send({ type: 'seek', views: list(views), t, scrub, seq: this.sequence(views) });
+  }
+
+  /**
+   * Whether a frame reflects the latest transport command sent to its view. Frames already in
+   * flight when the page seeks, plays or pauses show an older time; a playhead that follows
+   * frames should skip them.
+   */
+  isCurrent(frame: FrameInfo): boolean {
+    return frame.seq >= (this.transport.get(frame.view) ?? 0);
   }
 
   setLoop(views: Views, loop: boolean): void {
@@ -72,6 +93,11 @@ export class RenderClient {
 
   setQuality(views: Views, mode: QualityMode): void {
     this.send({ type: 'setQuality', views: list(views), mode });
+  }
+
+  /** What shows behind transparent designs in these views (preview only). */
+  setBackdrop(views: Views, backdrop: Backdrop): void {
+    this.send({ type: 'setBackdrop', views: list(views), backdrop });
   }
 
   /** Renders a PNG still of `view` at time `t` and short-side resolution `shortSide`. */
@@ -88,6 +114,15 @@ export class RenderClient {
     this.send({ type: 'probe' });
   }
 
+  /** Hands a decoded user file to the worker; a raster bitmap is transferred (not usable here after). */
+  setAsset(hash: string, asset: TransferableGraphic): void {
+    this.send({ type: 'setAsset', hash, asset }, asset.kind === 'raster' ? [asset.bitmap] : []);
+  }
+
+  dropAsset(hash: string): void {
+    this.send({ type: 'dropAsset', hash });
+  }
+
   /** Subscribes to worker messages; returns the unsubscribe function. */
   subscribe(listener: (message: WorkerMessage) => void): () => void {
     this.listeners.add(listener);
@@ -102,6 +137,12 @@ export class RenderClient {
     for (const pending of this.snapshots.values()) pending.reject(new Error('Renderer disposed'));
     this.snapshots.clear();
     this.listeners.clear();
+  }
+
+  private sequence(views: Views): number {
+    const seq = this.nextSeq++;
+    for (const view of list(views)) this.transport.set(view, seq);
+    return seq;
   }
 
   private send(message: HostMessage, transfer: Transferable[] = []): void {

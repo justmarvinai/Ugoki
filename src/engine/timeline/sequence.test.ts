@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { beatLength, sequence } from './timeline';
+import { ENERGIES } from './energy';
+import { beatLength, createTimeline, sequence } from './timeline';
 
 describe('sequences', () => {
   it('derives beat lengths from reading speed, clamped to 0.3–1.2 s', () => {
@@ -30,5 +31,53 @@ describe('sequences', () => {
     expect(fitted.total).toBeCloseTo(2.4, 1);
     const squeezed = sequence(['one', 'two', 'three'], { fit: 0.3 });
     for (const beat of squeezed.beats) expect(beat.end - beat.start).toBeCloseTo(0.3);
+  });
+});
+
+describe('transition timelines', () => {
+  const make = (duration: number, energy: keyof typeof ENERGIES = 'balanced', cut?: number) =>
+    createTimeline({
+      structure: 'transition',
+      spec: { in: 0, out: 0, ...(cut === undefined ? {} : { cut }) },
+      energy: ENERGIES[energy],
+      duration,
+      bounds: { min: 0.6, max: 2.4 },
+    });
+
+  it('cuts at half the duration and splits in/out there', () => {
+    const tl = make(1.2);
+    expect(tl.cut).toBeCloseTo(0.6);
+    expect(tl.sections.in).toEqual({ start: 0, end: 0.6 });
+    expect(tl.sections.out.start).toBeCloseTo(0.6);
+    expect(tl.sections.out.end).toBeCloseTo(1.2);
+    expect(make(1.6, 'balanced', 0.25).cut).toBeCloseTo(0.4);
+  });
+
+  it('keeps the length the user set, whatever the energy', () => {
+    for (const energy of ['calm', 'balanced', 'punchy'] as const) {
+      const tl = make(1.2, energy);
+      expect(tl.duration).toBe(1.2);
+      expect(tl.p(0.3, 'in', { dur: 0.6 })).toBeCloseTo(0.5);
+    }
+  });
+
+  it('ends the motion early with a tail, keeping the cut', () => {
+    const tl = createTimeline({
+      structure: 'transition',
+      spec: { in: 0, out: 0, tail: 0.05 },
+      energy: ENERGIES.balanced,
+      duration: 1.2,
+      bounds: { min: 0.6, max: 2.4 },
+    });
+    expect(tl.cut).toBeCloseTo(0.6);
+    expect(tl.sections.out).toEqual({ start: 0.6, end: 1.15 });
+    expect(tl.sections.tail).toEqual({ start: 1.15, end: 1.2 });
+  });
+
+  it('clamps the duration and says so', () => {
+    const tl = make(5);
+    expect(tl.duration).toBe(2.4);
+    expect(tl.cut).toBeCloseTo(1.2);
+    expect(tl.warnings).toEqual([{ kind: 'duration-clamped', requested: 5, used: 2.4 }]);
   });
 });

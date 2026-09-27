@@ -4,7 +4,10 @@
  * each with its own template, state and transport.
  */
 
+import type { VectorGraphic } from '../assets/types';
+import type { Rect } from '../core/math';
 import type { EditableRegion } from '../draw/types';
+import type { Backdrop } from '../runtime/backdrop';
 import type { Capabilities } from '../runtime/capabilities';
 import type { TemplateDescriptor } from '../template/describe';
 import type { DesignState } from '../template/state';
@@ -16,6 +19,11 @@ export type ViewId = string;
 export type ViewSize = { width: number; height: number; dpr: number };
 
 export type QualityMode = 'adaptive' | 'full';
+
+/** A user's file, decoded on the main thread (raster bitmaps are transferred, not copied). */
+export type TransferableGraphic =
+  | { kind: 'vector'; graphic: VectorGraphic }
+  | { kind: 'raster'; bitmap: ImageBitmap; ink: Rect };
 
 export type HostMessage =
   | {
@@ -35,21 +43,32 @@ export type HostMessage =
   | { type: 'load'; view: ViewId; templateId: string; state?: unknown; look?: number }
   /** Replaces the view's design state (sanitized in the worker). */
   | { type: 'setState'; view: ViewId; state: DesignState }
-  | { type: 'play'; views: readonly ViewId[] }
-  | { type: 'pause'; views: readonly ViewId[] }
+  /**
+   * Transport commands carry the client's sequence number (`seq`); frames echo the latest one
+   * applied to their view, so the page can ignore frames rendered before its last command.
+   */
+  | { type: 'play'; views: readonly ViewId[]; seq: number }
+  | { type: 'pause'; views: readonly ViewId[]; seq: number }
   /** `scrub` renders at the adaptive scale until 120 ms of stillness. */
-  | { type: 'seek'; views: readonly ViewId[]; t: number; scrub?: boolean }
+  | { type: 'seek'; views: readonly ViewId[]; t: number; scrub?: boolean; seq: number }
   | { type: 'setLoop'; views: readonly ViewId[]; loop: boolean }
   | { type: 'setQuality'; views: readonly ViewId[]; mode: QualityMode }
+  /** What shows behind transparent designs in the preview (never in stills or exports). */
+  | { type: 'setBackdrop'; views: readonly ViewId[]; backdrop: Backdrop }
   /** Renders a still at `shortSide` resolution (PNG). */
   | { type: 'snapshot'; requestId: number; view: ViewId; t: number; shortSide: number }
   /** Asks what the rendering side can do; answered with `capabilities`. */
-  | { type: 'probe' };
+  | { type: 'probe' }
+  /** Provides a user's file (by the SHA-256 of its bytes) to every view that references it. */
+  | { type: 'setAsset'; hash: string; asset: TransferableGraphic }
+  | { type: 'dropAsset'; hash: string };
 
 export type FrameInfo = {
   view: ViewId;
   t: number;
   playing: boolean;
+  /** The latest transport command applied to the view when it rendered this frame. */
+  seq: number;
   /** Milliseconds spent in `render` (recording). */
   cost: number;
   /** Render scale relative to full quality (1, 0.75, 0.5). */
@@ -64,6 +83,10 @@ export type WorkerMessage =
       duration: number;
       sections: Readonly<Record<SectionName, Section>>;
       warnings: readonly TimelineWarning[];
+      /** Transitions: the frame of full coverage, in seconds (null for other structures). */
+      cut: number | null;
+      /** Image controls whose file isn't available yet (drawn with their placeholder). */
+      missingAssets: readonly string[];
       /** Build time in milliseconds. */
       cost: number;
     }

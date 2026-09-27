@@ -2,7 +2,7 @@
 
 > From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
 
-**Now**: Phase 1 — foundations & engine core is built and in review (PR to `main`, with a Vercel preview). Next: the owner checks the Lab in Safari (O6); then Phase 2. Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
+**Now**: Phase 2 — editor & export MVP is in progress. Phase 1 shipped as 0.1.0 (merged 2026-09-26; the owner checked the Lab on the preview, O6). Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
 
 | Phase | Outcome | Version |
 |---|---|---|
@@ -66,33 +66,33 @@
 - [x] **Rise** — all formats, 3 Looks, 3 energies, duration extremes, stress text
 
 **Exit**: Rise plays at 60 fps in the Lab in Chrome, Safari and Firefox; two renders are pixel-identical; golden frames run in CI.
-*Status*: 60 fps with four views measured in Chromium (≈ 0.1 ms recording per view per frame); determinism and golden frames are tested; CI plays Rise in the Lab in Chromium, Firefox and WebKit and checks the frames reach the screen; real Safari needs the owner's device check (O6).
+*Status*: done — merged 2026-09-26. 60 fps with four views measured in Chromium (≈ 0.1 ms recording per view per frame); determinism and golden frames are tested; CI plays Rise in the Lab in Chromium, Firefox and WebKit and checks the frames reach the screen; the owner checked the Lab on the preview (O6). The two open spike items continue in Phase 2 (compositor, exporter).
 
 ---
 
 ## Phase 2 — Editor & export MVP → `0.2.0`
 
 **Compositor**
-- [ ] WebGL2 layers (segmented compositing), blend modes, blur, bloom, masks/mattes, color adjust
-- [ ] Motion-blur accumulation (sub-frames, shutter from Energy), finish (grain, soft glow)
+- [x] WebGL2 layers (segmented compositing), blend modes, blur, bloom, masks/mattes — *color adjust (brightness · contrast · saturation · tint) moves to Phase 3 with the first template that grades images; none of the Phase 2 templates uses it*
+- [x] Motion-blur accumulation (sub-frames, shutter from Energy), finish (grain, soft glow)
 
 **Editor**
-- [ ] Stage with checkerboard, guides, preview backdrop (+ "Preview on my footage"), fit/100%
-- [ ] Editing overlay: select, drag, snap, scale movable groups; click-to-focus controls
-- [ ] Inspector generated from the control schema (Content · Style · Motion · Layout), Looks, Shuffle, hover previews
-- [ ] Palettes incl. Brand Light/Dark/Bold with contrast guard; pairing picker; background; finish
-- [ ] Transport (sections, Dot playhead, loop, duration handle, cut marker); keyboard shortcuts
-- [ ] Project store + history (undo/redo with coalescing); Dexie autosave & drafts; share links
-- [ ] Image/logo import (raster + sanitized SVG → vector paths), focal points, logo color modes
+- [x] Stage with checkerboard, guides, preview backdrop (+ "Preview on my footage"), fit/100%
+- [x] Editing overlay: select, drag, snap, scale movable groups; click-to-focus controls
+- [x] Inspector generated from the control schema (Content · Style · Motion · Layout), Looks, Shuffle, hover previews
+- [x] Palettes incl. Brand Light/Dark/Bold with contrast guard; pairing picker; background; finish
+- [x] Transport (sections, Dot playhead, loop, duration handle, cut marker); keyboard shortcuts
+- [x] Project store + history (undo/redo with coalescing); Dexie autosave & drafts; share links
+- [x] Image/logo import (raster + sanitized SVG → vector paths), logo color modes — *focal-point UI and drop/paste import move to Phase 3 with the first photo templates (the engine already crops around a focal point)*
 
 **Export**
-- [ ] Export worker pipeline; capability probing; Web Lock + Wake Lock
-- [ ] MP4 (H.264), WebM (VP9 + alpha), PNG sequence ZIP, GIF, PNG still
-- [ ] Streaming save (File System Access) + Blob/OPFS fallback; progress/ETA/cancel; errors with fallbacks
+- [x] Export worker pipeline; capability probing; Web Lock + Wake Lock
+- [x] MP4 (H.264), WebM (VP9 + alpha), PNG sequence ZIP, GIF, PNG still
+- [x] Streaming save (File System Access) + Blob fallback; progress/ETA/cancel; errors with *Copy details* (OPFS spill only if QA needs it)
 - [ ] Export QA matrix (see `docs/07-export.md` §9) on Chrome, Safari, Firefox
 
 **Reference templates 2–4**
-- [ ] **Line** (transparent overlay) · **Sheen** (logo, compositor) · **Layers** (transition, cut point, motion blur)
+- [x] **Line** (transparent overlay) · **Sheen** (logo, compositor) · **Layers** (transition, cut point, motion blur) — in the Lab, with preview backdrops (footage, A → B) and logo import
 
 **Exit**: Choose → Customize → Preview → Export works end-to-end for 4 templates in all target browsers; exported frame N equals preview at `t = N / fps`.
 
@@ -100,7 +100,7 @@
 
 ## Phase 3 — Template wave 1 → `0.3.0`
 
-**Engine additions**: sequence builder & auto duration · odometer digits & number formatting · UI Kit v1 (card, input, button, toast, charts) · cursor & typing helpers · procedural placeholders (Objects, Scenes, Artworks, Screens, avatars, fictional logos).
+**Engine additions**: sequence builder & auto duration · odometer digits & number formatting · UI Kit v1 (card, input, button, toast, charts) · cursor & typing helpers · procedural placeholders (Objects, Scenes, Artworks, Screens, avatars, fictional logos) · compositor color adjust (from Phase 2) · image focal-point UI and drop/paste import (from Phase 2).
 
 **Reference templates 5–7 first**
 - [ ] Punch · Deal · Click

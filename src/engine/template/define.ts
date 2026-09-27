@@ -5,6 +5,7 @@
  * per state change and returns a Scene whose `render` draws any frame synchronously.
  */
 
+import type { Graphic } from '../assets/types';
 import type { Rng } from '../core/rng';
 import type { Draw } from '../draw/types';
 import type { TextEngine } from '../text/types';
@@ -61,6 +62,11 @@ export type BuildContext<S extends ControlSchema> = {
   stagger(gap: number): number;
   /** A travel distance scaled by the energy profile. */
   travel(distance: number): number;
+  /**
+   * The artwork of an image/logo control: the user's file, or the control's placeholder while
+   * the file is missing. Null only for an optional slot the user emptied.
+   */
+  graphic(controlKey: keyof S & string): Graphic | null;
 };
 
 export type RenderContext = {
@@ -86,6 +92,8 @@ export type TemplateDefinition<S extends ControlSchema> = {
   alpha: AlphaSupport;
   /** The hero frame in seconds at the default duration (gallery posters, thumbnails). */
   poster: number;
+  /** Motion-blur shutter angle in degrees when the genre needs one (default: from Energy). */
+  shutter?: number;
   palettes: readonly PaletteRef[];
   pairings: readonly PairingId[];
   controls: S;
@@ -113,6 +121,11 @@ export function defineTemplate<const S extends ControlSchema>(
   if (typeof definition.duration.default === 'number') {
     const d = definition.duration.default;
     if (d < min || d > max) problems.push('default duration is outside its bounds');
+  }
+  for (const [key, control] of Object.entries(definition.controls)) {
+    if (control.kind === 'image' && control.default.kind !== 'placeholder') {
+      problems.push(`image control "${key}" needs a placeholder default`);
+    }
   }
   if (problems.length > 0) {
     throw new Error(`Template "${definition.id}": ${problems.join('; ')}`);

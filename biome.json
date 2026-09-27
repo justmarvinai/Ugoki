@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!node_modules", "!.next", "!public/fonts", "!**/__screenshots__"]
+    "includes": [
+      "**",
+      "!node_modules",
+      "!.next",
+      "!public/fonts",
+      "!**/__screenshots__",
+      "!src/engine/assets/placeholder-logos.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -56,6 +63,9 @@
       "includes": ["src/engine/**"],
       "linter": {
         "rules": {
+          "correctness": {
+            "useHookAtTopLevel": "off"
+          },
           "style": {
             "noRestrictedImports": {
               "level": "error",

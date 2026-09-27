@@ -90,3 +90,53 @@ export const GuidesIcon = (props: IconProps) => (
     <path d="M7 8.5h10v7H7z" strokeDasharray="2 2" />
   </Icon>
 );
+
+export const UndoIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M9 14 4.5 9.5 9 5" />
+    <path d="M4.5 9.5H15a5 5 0 0 1 0 10h-3" />
+  </Icon>
+);
+
+export const RedoIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m15 14 4.5-4.5L15 5" />
+    <path d="M19.5 9.5H9a5 5 0 0 0 0 10h3" />
+  </Icon>
+);
+
+export const ArrowLeftIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M19 12H5" />
+    <path d="m11 6-6 6 6 6" />
+  </Icon>
+);
+
+export const LinkIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3.1-3.1a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3.1 3.1a4 4 0 0 0 5.7 5.7l1-1" />
+  </Icon>
+);
+
+export const CloseIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Icon>
+);
+
+/** Fit to the stage (zoom). */
+export const FitIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
+  </Icon>
+);
+
+/** The transparency checkerboard (preview backdrop). */
+export const CheckerIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path d="M4 12h16M12 4v16" />
+    <path d="M4 4h8v8H4zM12 12h8v8h-8z" fill="currentColor" stroke="none" opacity="0.35" />
+  </Icon>
+);

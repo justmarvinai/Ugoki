@@ -132,6 +132,8 @@ Reduced motion: hero shows a static frame with a play button; the reel becomes a
 ### Tablet (768–1023 px)
 Stage on top, transport beneath, inspector as a bottom sheet (half height, draggable) with section tabs.
 
+*Phase 2 build*: below 1024 px the editor is one column — stage, transport, then the inspector — and the phone layout below (bottom tabs and sheets) follows with the mobile pass; the desktop layout is complete.
+
 ### Phone (< 768 px)
 - Stage pinned at the top (≤ 50 vh), transport overlaid at its bottom edge.
 - Bottom tab bar: **Content · Style · Motion · Format**; each opens a sheet over the lower half.
@@ -169,6 +171,8 @@ Settings (collapsed, smart defaults): **Resolution** 720p · 1080p · 1440p · 4
 **3 — Done**: file card (name, size, dimensions, duration) · *Download* (automatic) or *Save…* (file picker where supported) · *Export another format* · *Copy share link*.
 
 Filenames: `ugoki-{template}-{w}x{h}-{fps}fps.{ext}` (+ `-cut-f{n}` for transitions).
+
+*Phase 2 build*: the sheet holds the export options as one panel (format segments, settings, then progress with a live preview of the frame being exported, the result or what failed); the three-step layout with format cards, estimates and the stage fast-forward follows with the polish pass. Video formats are verified the first time the sheet opens (ADR-034).
 
 ---
 

@@ -69,12 +69,14 @@ TypeScript snippets in this document are **contract sketches** for implementatio
 | `resize` | main → worker | CSS size × DPR |
 | `load` | main → worker | `templateId` (+ a raw state to sanitize/migrate, or a Look index) — the worker dynamic-imports the template |
 | `setState` | main → worker | Design state (props, format, duration, energy, palette, pairing, transparent, finish, seed, layout) — sanitized again in the worker |
-| `play` / `pause` / `seek` / `setLoop` / `setQuality` | main → worker | Playback control for a list of views; `seek` with `scrub` renders at the adaptive scale until 120 ms of stillness |
+| `play` / `pause` / `seek` / `setLoop` / `setQuality` | main → worker | Playback control for a list of views; `seek` with `scrub` renders at the adaptive scale until 120 ms of stillness. `play`/`pause`/`seek` carry a sequence number (ADR-031) |
+| `setBackdrop` | main → worker | What shows behind transparent designs in these views: none, procedural footage, Scene A → B, a color, or the user's still (ADR-029) |
+| `setAsset` / `dropAsset` | main → worker | A user's logo/image by SHA-256: vector artwork, or a transferred bitmap with its ink bounds (§8) |
 | `snapshot` | main → worker | Renders a PNG still at a short-side resolution |
 | `probe` | main → worker | Capability probe (see `runtime/capabilities.ts`) |
 | `loaded` | worker → main | `TemplateDescriptor` (controls, Looks, formats, palettes, available pairings) + sanitized state |
-| `built` | worker → main | Duration, timeline sections, readability warnings, build ms |
-| `frame` | worker → main | `t`, playing, recording ms, render scale (timecode + cost meter) |
+| `built` | worker → main | Duration, timeline sections, readability warnings, a transition's cut point, image controls still drawn with their placeholder, build ms |
+| `frame` | worker → main | `t`, playing, the latest transport sequence applied, recording ms, render scale (timecode + cost meter). A playhead that follows frames skips those rendered before its last command (`RenderClient.isCurrent`) |
 | `regions` | worker → main | Movable/editable regions for the current frame (≤ 10 Hz while playing) — see §11 |
 | `snapshot` / `capabilities` | worker → main | PNG blob / probe results |
 | `error` | worker → main | View, phase (`load` · `build` · `render`), message |
@@ -178,11 +180,13 @@ Rules: `render` is **pure and synchronous** — no allocation-heavy work, no asy
 
 Easing names map 1:1 to [`04-motion-language.md`](04-motion-language.md) §3.
 
+**Transitions** keep the length the user sets: `timing()` returns `{ in: 0, out: 0, cut }` with the cut point as a share of the duration (default ½); `in` runs from 0 to the cut and `out` from the cut to the end, and `tl.p` windows in them are absolute seconds. Energy changes a transition's character — curves, gaps, spread, shutter — never its length (`tl.cut` is exposed; the transport marks it and export names it).
+
 ---
 
 ## 6. Draw API
 
-A thin, allocation-conscious layer over Canvas 2D that records FX boundaries for the compositor. Implemented in Phase 1 (`draw/canvas-draw.ts`): `fill`, `group`, `rect`, `roundRect`, `circle`, `line`, `path`, `text`, `image`, `clip`, `movable`, `editable`. Planned with the compositor (Phase 2): `ellipse`, `polygon`, `mask`, `fx`, `plane3d`, conic gradients, patterns, `g.cache`. Until then group opacity and blend modes apply per primitive rather than to isolated layers (ADR-023). Circles start at 12 o'clock so trim paths draw on from the top; gradients get OKLab-interpolated intermediate stops (premultiplied, so fades to transparent never darken). The drawer keeps its own transform stack and sets one transform per primitive — per-glyph animation is one `setTransform` and one cached-path fill per glyph; static text draws as one cached path per line.
+A thin, allocation-conscious layer over Canvas 2D that hands effects to the compositor. Implemented (`draw/canvas-draw.ts`): `fill`, `group`, `rect`, `roundRect`, `circle`, `line`, `path`, `text`, `image`, `graphic`, `clip`, `layer`, `mask`, `fx`, `movable`, `editable`. Planned: `ellipse`, `polygon`, `plane3d`, `dirBlur`, `rgbSplit`, conic gradients, patterns, `g.cache`. `group` opacity still multiplies into each primitive; `layer` isolates (ADR-023). Circles start at 12 o'clock so trim paths draw on from the top; gradients get OKLab-interpolated intermediate stops (premultiplied, so fades to transparent never darken). The drawer keeps its own transform stack and sets one transform per primitive — per-glyph animation is one `setTransform` and one cached-path fill per glyph; static text draws as one cached path per line.
 
 | Call | Purpose |
 |---|---|
@@ -191,16 +195,18 @@ A thin, allocation-conscious layer over Canvas 2D that records FX boundaries for
 | `rect`, `roundRect`, `circle`, `ellipse`, `line`, `polygon`, `path(pathLike, paint)` | Shapes; `paint = { fill?, stroke?: { color, width, cap, join, dash?, trim?: [a, b] } }` |
 | `text(block \| line, opts)` | Draws shaped text at `opts.x/y`; `opts.glyph?: (glyph, line) => GlyphTransform \| null` for per-glyph motion (null hides the glyph; spaces are skipped); `opts.outline?` for stroke text (outline-only unless `fill` is given) |
 | `image(asset, dest, { fit, focal, radius, opacity, adjust })` | Cover/contain with focal point; `adjust` = saturation/contrast/brightness (done in compositor when animated) |
+| `graphic(graphic, dest, { fit, focal, by, tint, current, opacity })` | A logo/image from an image control: vector artwork (fitted by its ink, `currentColor` → `current`, `tint` for mono/accent modes) or a raster |
 | `clip(shape, fn)` | Hard clip (line masks, shape masks) |
-| `mask(matteFn, contentFn, { mode: 'alpha' \| 'luma', invert })` | Track matte (compositor) |
-| `fx({ blur, dirBlur: { angle, amount }, bloom, rgbSplit }, fn)` | Renders `fn` into an FX layer (compositor) |
+| `layer({ opacity, blend, bounds }, fn)` | Isolated layer: `fn` drawn apart, then composited as one image |
+| `mask(matteFn, contentFn, { mode: 'alpha' \| 'luma', invert, bounds })` | Track matte |
+| `fx({ blur, bloom, shadow, opacity, blend, bounds }, fn)` | Renders `fn` into a layer and applies effects (σ in `u`); planned: `dirBlur`, `rgbSplit` |
 | `plane3d({ transform: Mat4 \| {rx, ry, rz, x, y, z}, size, perspective }, fn)` | Draws `fn` into a texture placed on a 3D plane |
 | `movable(groupId, bounds, fn)` | Applies the user's layout offset/scale for this group and registers it for dragging |
 | `editable(controlKey, bounds)` | Registers a clickable region that focuses a control |
 
 Gradients (linear, radial, conic) and patterns are paints. Colors are OKLCH-aware objects; conversion to canvas strings is cached.
 
-**Segmented compositing**: every `fx`, `mask` or `plane3d` call closes the current 2D segment. The frame becomes an ordered list — `2D segment → FX layer → 2D segment → 3D plane → …` — which the compositor blends in order. Templates keep FX layers few (typically ≤ 4 per frame); canvases and textures are pooled by size.
+**Layers**: `layer`, `mask` and `fx` draw into pooled offscreen canvases (nesting up to 8), processed by the compositor and composited back in drawing order. **Bounds** (ADR-030): pass `bounds` — where the content lies, in design units in the current coordinate space — and the layer only covers that part of the output (plus the effects' reach: 3σ of blur/bloom), within its parent; content outside is cut off. Always bound effects on small elements: a frame-sized soft shadow behind a lower third cost 38 ms at 1080p, a bounded one 2 ms.
 
 ---
 
@@ -227,10 +233,11 @@ Why not `fillText`? Safari lacks `fontStretch`/`fontKerning`, `letterSpacing` ne
 
 ## 8. Assets & placeholders
 
-- **Raster import** (main thread): validate MIME (PNG, JPEG, WebP, AVIF where decodable, SVG) → hash bytes (SHA-256) → store Blob in IndexedDB → decode with `createImageBitmap` (downscale to ≤ 4096 px long side) → transfer to the worker.
-- **SVG import**: sanitize → parse `viewBox`, `path`, basic shapes, groups, transforms and flat fills into engine paths. The worker draws parsed SVGs as vectors (crisp at 4K, enables *Draw*/*Sheen*/*Shards*). SVGs using unsupported features (gradients, filters, text, embedded images) are rasterized on the main thread at 4096 px and transferred as bitmaps; vector-only effects then use their raster variants.
-- **Fit**: `cover`/`contain` with a user focal point; logos get color modes (original · mono light/dark · accent) via compositing.
-- **Placeholders** (procedural, seeded, rendered in the worker and cached per size): Artworks, Scenes, Objects (bottle, can, speaker, phone, watch), Screens (via UI Kit), footage backdrop, fictional logos (Halden, Nova, Aero as SVG path data), avatars.
+- **Image controls** (`c.image({ accept: 'logo' | 'image', default })`) store an `AssetRef`: a built-in placeholder, or the SHA-256 of the user's file (ADR-028). `ctx.graphic(key)` returns the artwork — the user's file, or the placeholder while the file isn't in the worker yet (`built.missingAssets`); the worker rebuilds when it arrives.
+- **Import** (main thread, `src/features/assets/import-file.ts`): check size (≤ 25 MB) and sniff the format from the bytes (SVG, PNG, JPEG, WebP) → hash (SHA-256) → decode. Rasters go through `createImageBitmap` (≤ 4096 px long side), their ink bounds found on a 512 px probe, and are transferred to the worker (`setAsset`); drafts store the bytes in IndexedDB (Phase 2 drafts).
+- **SVG import** (`assets/svg.ts`, DOM-free so it also runs in workers): a limited XML parser (no DTD, no entity expansion, size/depth limits) → paths, basic shapes, `use`/`symbol`, transforms, presentation attributes and a CSS subset, `currentColor`, fill rules and opacity → engine paths, fitted by their ink. SVGs using what it doesn't support (gradients, filters, text, masks, embedded images) are sanitized (`sanitizeSvg`: whitelisted elements and attributes, no scripts, handlers or external references) and rasterized on the main thread at 2048 px; vector-only effects then use their raster variants.
+- **Fit**: `cover`/`contain` with a focal point; logos get color modes (original · mono · accent) through `graphic`'s `tint`.
+- **Placeholders**: fictional logos Halden, Nova and Aero (generated SVG, `currentColor`); preview backdrops — procedural footage and *Scene A / Scene B* (`runtime/backdrop.ts`, ADR-029); still to come (Phase 3): Artworks, Scenes as image placeholders, Objects, Screens, avatars.
 
 ---
 
@@ -242,7 +249,7 @@ Responsibilities:
 |---|---|
 | Layer composite | Premultiplied-alpha textures from 2D segments, blended in order |
 | Blend modes | normal, multiply, screen, overlay, difference, additive (lighter) |
-| Blur | Dual-filter (Kawase) or separable Gaussian, radius in `u` scaled to render resolution |
+| Blur | Separable Gaussian over a downsample pyramid (levels of σ ≤ 4 px, registered for odd sizes), σ in `u` scaled to render resolution |
 | Directional blur | Line kernel along an angle (whip pans, speed lines) |
 | Bloom / glow | Threshold → blur pyramid → additive |
 | Masks / mattes | Alpha or luma from another layer, optional invert |
@@ -252,9 +259,10 @@ Responsibilities:
 | **Motion blur** | Accumulate N sub-frame renders across the shutter interval into an RGBA16F buffer (`EXT_color_buffer_float`; RGBA8 progressive-average fallback), then resolve |
 | Finish | Grain (stepped 24 fps, applied *after* motion blur), soft glow, vignette |
 
-- One WebGL2 context per worker; textures and framebuffers pooled.
+- One WebGL2 context per worker (`GpuCompositor`); textures and framebuffers pooled; premultiplied alpha throughout (ADR-026).
+- **Frames** (`runtime/frame.ts`, ADR-027): `FrameRenderer` renders a frame once, or — for motion blur — N sub-frames centered on `t` across the shutter (Energy's angle, or the template's `shutter`), accumulated and resolved by the compositor, then finished. Two 160 px probes at the shutter's edges decide the count: frames that don't change render once, and fast motion gets more sub-frames within the request's budget (ADR-032). Previews: 1 sample while playing or scrubbing, 8 (up to 24) when paused; stills are sharp but finished; exports budget by quality.
 - **Color**: sRGB throughout the pipeline; exports tagged BT.709 — the Phase 2 QA checks that exported MP4s match the preview in Chrome, Safari and QuickTime.
-- **No WebGL2** (rare): FX degrade gracefully (blur/bloom skipped, 3D planes flattened), motion blur off; the editor shows a notice.
+- **No WebGL2** (Firefox and WebKit workers on GPU-less machines, lost contexts): the Canvas 2D compositor (`CpuCompositor`) does the same work — Canvas `filter` blur — or three box blurs where Canvas has no `filter` (Safari) — additive accumulation, overlay grain, screen glow — so effects and motion blur keep working, slightly differently (parity is tested).
 
 ---
 

@@ -32,7 +32,7 @@ export type TimingSpec = {
   readable?: string;
   /** Duration for `duration: 'auto'` templates (sequences), already including in/out. */
   auto?: number;
-  /** Transitions: the cut point (fully covered frame) in seconds from the start. */
+  /** Transitions: the cut point (fully covered frame) as a share of the duration (default ½). */
   cut?: number;
 };
 
@@ -64,6 +64,14 @@ export interface Timeline {
   scale(section: SectionName): number;
 }
 
+/**
+ * Exports render frames at t = f / fps for f < duration × fps, so the last frame comes 1 / fps
+ * before the end. Exits finish this long before the end (a `tail`), which keeps the last frame
+ * clean at every export frame rate: sharp GIFs down to 15 fps, and video and PNG sequences from
+ * 24 fps, whose motion blur looks back at most 3/8 of a frame (1/24 + 3/8 × 1/24 < 1/15).
+ */
+export const CLEAN_END = 1 / 15;
+
 /** Minimum on-screen time for primary text (docs/04-motion-language.md §5). */
 export function readingTime(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
@@ -93,6 +101,10 @@ export function createTimeline(options: {
 
   const requested = options.duration === 'auto' ? (spec.auto ?? bounds.min) : options.duration;
   let duration = clamp(requested, Math.max(bounds.min, 0.1), bounds.max);
+  if (structure === 'transition') {
+    const clamped = duration !== requested && options.duration !== 'auto';
+    return transitionTimeline(duration, spec, energy, clamped, requested);
+  }
   if (structure === 'in-hold-out' && duration < floor) duration = floor;
   if (duration !== requested && options.duration !== 'auto') {
     warnings.push({ kind: 'duration-clamped', requested, used: duration });
@@ -130,7 +142,7 @@ export function createTimeline(options: {
     structure,
     energy,
     sections,
-    cut: spec.cut === undefined ? null : spec.cut,
+    cut: null,
     warnings,
     at: (section, offset = 0) => sections[section].start + offset * scale(section),
     local: (t, section) => t - sections[section].start,
@@ -148,6 +160,54 @@ export function createTimeline(options: {
     scale,
   };
   return timeline;
+}
+
+/**
+ * Transitions (docs/templates/08-transitions.md): the user sets the length and the choreography
+ * is written relative to it — `in` runs up to the cut point, `out` after it, and Energy changes
+ * character (curves, gaps, motion blur) but never the length.
+ */
+function transitionTimeline(
+  duration: number,
+  spec: TimingSpec,
+  energy: EnergyProfile,
+  clamped: boolean,
+  requested: number,
+): Timeline {
+  const cut = duration * clamp(spec.cut ?? 0.5, 0.05, 0.95);
+  // A tail ends the motion early (see CLEAN_END), never eating more than half the exit.
+  const tailStart = duration - clamp(spec.tail ?? 0, 0, (duration - cut) / 2);
+  const sections: Record<SectionName, Section> = {
+    lead: { start: 0, end: 0 },
+    in: { start: 0, end: cut },
+    hold: { start: cut, end: cut },
+    out: { start: cut, end: tailStart },
+    tail: { start: tailStart, end: duration },
+  };
+  const warnings: TimelineWarning[] = clamped
+    ? [{ kind: 'duration-clamped', requested, used: duration }]
+    : [];
+  return {
+    duration,
+    structure: 'transition',
+    energy,
+    sections,
+    cut,
+    warnings,
+    at: (section, offset = 0) => sections[section].start + offset,
+    local: (t, section) => t - sections[section].start,
+    sectionProgress: (t, section) => {
+      const { start, end } = sections[section];
+      return end <= start ? (t >= end ? 1 : 0) : clamp01((t - start) / (end - start));
+    },
+    p: (t, section, window = {}, curve = 'linear') => {
+      const start = sections[section].start + (window.delay ?? 0);
+      const length = window.dur === undefined ? sections[section].end - start : window.dur;
+      const raw = length <= 0 ? (t >= start ? 1 : 0) : clamp01((t - start) / length);
+      return resolveEase(curve)(raw);
+    },
+    scale: () => 1,
+  };
 }
 
 // --- sequences ------------------------------------------------------------------------------

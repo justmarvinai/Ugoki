@@ -37,12 +37,12 @@ Platform facts verified 2026-09-26 (browser source, MDN compat data v8.1.3, Medi
 | Firefox desktop | ✓ 130+ | VP8, VP9, AV1; H.264 via OS/OpenH264 (varies on Linux) | Opus, Vorbis (no AAC) | |
 | Firefox Android | ✗ | — | — | Offer GIF, PNG sequence, Still |
 
-- **WebCodecs' own `alpha: "keep"` is implemented by no engine.** Mediabunny encodes alpha itself: it splits color and alpha on the CPU in a blob-URL worker, encodes the alpha plane with a second VideoEncoder, and writes standard WebM alpha (BlockAdditional, `AlphaMode=1`). Works wherever VP9 encoding works → requires CSP `worker-src blob:`. *Phase 1 spike (CI, all three engines)*: Firefox's `isConfigSupported({ alpha: 'keep' })` is true for VP9 — the only engine with native alpha encoding; Chromium and WebKit report false. Mediabunny 1.60's round trip keeps clear, opaque and anti-aliased alpha in all three (`tests/spikes/webm-alpha.browser.test.ts`); file sizes vary with each encoder's rate control (8–121 KB for the same 60 frames), so export presets should set bitrates explicitly.
+- **WebCodecs' own `alpha: "keep"` is implemented by no engine.** Mediabunny encodes alpha itself: it splits color and alpha on the CPU in a blob-URL worker, encodes the alpha plane with a second VideoEncoder, and writes standard WebM alpha (BlockAdditional, `AlphaMode=1`). Works wherever VP9 encoding works → requires CSP `worker-src blob:`. *Phase 1 spike (CI, all three engines)*: Firefox's `isConfigSupported({ alpha: 'keep' })` is true for VP9 — the only engine with native alpha encoding; Chromium and WebKit report false. Mediabunny 1.60's round trip keeps clear, opaque and anti-aliased alpha in Chromium and Firefox (`tests/spikes/webm-alpha.browser.test.ts`). *Phase 2 correction*: CI's WebKit (Linux, GStreamer) only seemed to pass — at times it encodes VideoFrames built from buffers with the pixels of a later frame (it depends on timing), and the spike's clip happened to start on a still frame. Frames made from canvases are fine there (MP4 and opaque WebM work), but Mediabunny's alpha mode builds its frames from buffers, so transparent WebM loses its alpha. The capability probe now round-trips moving frames through each codec, and transparent WebM through Mediabunny's alpha mode, before offering them (ADR-034); real Safari is checked in the QA matrix (§9).
 - **The only codec pair every engine encodes natively is WebM (VP9 + Opus)** — our universal fallback.
 - MP4 with audio (later) needs `@mediabunny/aac-encoder` (WASM, ~254 KB gz, LGPL code inside, lazy-loaded) on Firefox, Chrome/Linux and Safari < 26.
 - HEVC with alpha cannot be produced through WebCodecs anywhere.
 
-**Everything is probed at runtime** (`canEncodeVideo`, `getFirstEncodableVideoCodec`, `VideoEncoder.isConfigSupported` with the exact size/bitrate) when the export sheet opens; unavailable options are disabled with a human reason and a suggested alternative.
+**Everything is probed at runtime** (`canEncodeVideo`, `getFirstEncodableVideoCodec`, `VideoEncoder.isConfigSupported` with the exact size/bitrate) when the export sheet opens; unavailable options are disabled with a human reason and a suggested alternative. A declared configuration isn't trusted on its own: the first time export options are used, an export worker sends four 128 × 128 frames of a moving bar through each video codec's encoder and decoder and requires every decoded frame to show its own bar (`encodesMotion`), and checks transparent WebM (`transparentWebmWorks`): VP9 must encode the moving bar from frames built from buffers too (BGRX and I420, as Mediabunny's alpha mode builds them), and a round trip through Mediabunny's alpha mode must come back with each frame's color and alpha side data, decoded with plain decoders and copied out of the frames as Mediabunny's alpha reader does — WebM for transparent designs is offered only where that passes (ADR-034). The worker answers once every encoder and decoder is closed; a check that timed out is cancelled and gets up to two seconds to let go. The render worker's own probe only records what's declared, so previews never wait for it.
 
 ---
 
@@ -65,7 +65,8 @@ Export sheet (main) ──job──► Export worker
 
 - **Video settings**: H.264 High profile; VP9 profile 0; keyframe every 2 s; bitrate from a quality table (below); `latencyMode: 'quality'`; hardware acceleration "no-preference".
 - **Backpressure**: `await source.add(...)` (Mediabunny) keeps the encoder queue bounded; the worker never races ahead of the encoder.
-- **Motion-blur samples** by quality: Standard 4 · High 8 · Max 16. Static frames (no motion between shutter start/end, detected on a low-res probe) render with 1 sample.
+- **Motion-blur samples** by quality (ADR-032): Standard 4 · High 8 · Max 16 for anything that moves, and more for fast motion — up to 16 · 32 · 64 — until each sub-frame moves at most 4 · 2.5 · 1.5 px. Frames without motion (compared on 160 px probes at the shutter's edges) render once. GIFs and stills are sharp.
+- **Frames**: f = 0 … round(duration × fps) − 1 at t = f / fps — the end itself isn't a frame, so exits finish 1/15 s early (`CLEAN_END`) and the last frame is clean at every export frame rate (ADR-033).
 - **Progress & ETA**: rolling average of frame cost; the sheet shows percentage, frame count and time remaining; the stage fast-forwards through the frames.
 - **Cancel**: aborts the loop, closes encoders, discards partial output.
 
@@ -100,6 +101,7 @@ Motion graphics have flat colors and sharp edges; the table errs high to avoid b
 - `OffscreenCanvas.convertToBlob({ type: 'image/png' })` per frame in the worker → streamed into a ZIP with fflate (store mode; PNGs are already compressed).
 - Names: `ugoki-{template}-{w}x{h}-{fps}fps/frame_00001.png` (+ a `README.txt` with fps, frame count, cut point for transitions).
 - Still: the current stage time rendered at export resolution with full motion-blur quality off (a still should be sharp).
+- GIFs are opaque: a transparent design gets its own background (or the baked backdrop) — GIF's 1-bit transparency would fringe every anti-aliased edge.
 
 ---
 
@@ -108,7 +110,9 @@ Motion graphics have flat colors and sharp edges; the table errs high to avoid b
 | Browser | Method |
 |---|---|
 | Chromium desktop & Android | `showSaveFilePicker` → Mediabunny `StreamTarget`/ZIP stream written directly to disk (no memory ceiling) |
-| Safari, Firefox | In-memory `BufferTarget` → Blob download; for large jobs, spill to OPFS (`createWritable`: Firefox 111+, Safari 26+) and download from there |
+| Safari, Firefox | In-memory `BufferTarget` → Blob download (browsers page large Blobs to disk); *later*, if QA hits memory limits: spill to OPFS (`createWritable`: Firefox 111+, Safari 26+) and download from there |
+
+As built (Phase 2): the page opens the save picker in the click (it needs the user's gesture) and hands the file handle to the export worker, which opens the writable itself. MP4s written this way reserve their metadata at the start of the file (`fastStart: 'reserve'`), so they still play while downloading; in memory they're assembled with metadata up front. Cancelling aborts the writable, so no partial file is left.
 
 Memory guard: estimate output size up front; above ~1 GB without streaming, suggest a lower resolution or PNG → video split.
 

@@ -1,6 +1,6 @@
 {
   "name": "ugoki",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Motion, made yours. A browser-based motion design tool with on-device rendering.",
   "license": "UNLICENSED",
@@ -27,12 +27,17 @@
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
+    "dexie": "4.4.6",
+    "fflate": "0.8.3",
     "harfbuzzjs": "1.6.2",
     "mediabunny": "1.60.0",
+    "modern-gif": "2.1.0",
     "motion": "13.4.4",
     "next": "16.3.6",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "4.6.5",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

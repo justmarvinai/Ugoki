@@ -7,10 +7,14 @@
  * never shows a half-built state; a failing build keeps the last good scene on screen.
  */
 
-import { CanvasDraw } from '../draw/canvas-draw';
+import { graphicFromTransfer } from '../assets/transfer';
+import type { Graphic } from '../assets/types';
+import { type Compositor, createCompositor } from '../compositor';
+import { type Backdrop, BackdropPainter, NO_BACKDROP, sanitizeBackdrop } from '../runtime/backdrop';
 import { probeCapabilities } from '../runtime/capabilities';
+import { FrameRenderer } from '../runtime/frame';
 import { AdaptiveQuality } from '../runtime/quality';
-import { type BuiltScene, buildScene, renderScene } from '../runtime/scene';
+import { type BuiltScene, buildScene, userAssets } from '../runtime/scene';
 import type { AnyTemplate } from '../template/define';
 import { describeTemplate } from '../template/describe';
 import { outputSize } from '../template/formats';
@@ -18,7 +22,15 @@ import { pairingFonts } from '../template/pairings';
 import { type DesignState, initialState, sanitizeState } from '../template/state';
 import { createTextEngine, type TextEngineHandle } from '../text/engine';
 import { createFetchLoader, type FontBytesLoader } from '../text/font-source';
-import type { HostMessage, QualityMode, ViewId, ViewSize, WorkerMessage } from './protocol';
+import { createFallbackMeasure } from '../text/measure';
+import type {
+  HostMessage,
+  QualityMode,
+  TransferableGraphic,
+  ViewId,
+  ViewSize,
+  WorkerMessage,
+} from './protocol';
 
 export type TemplateLoader = (id: string) => Promise<AnyTemplate>;
 
@@ -36,13 +48,20 @@ const MIN_FRAME_INTERVAL = 10;
 const SCRUB_SETTLE = 120;
 /** Editor regions are posted at most this often while playing (ms). */
 const REGIONS_INTERVAL = 100;
+/** Motion-blur sub-frames of a paused preview frame (playback renders one). */
+const PREVIEW_SAMPLES = 8;
+/** Fast motion in paused previews gets more sub-frames, each at most this many pixels apart. */
+const PREVIEW_MAX_SAMPLES = 24;
+const PREVIEW_STEP = 4;
+/** Previews show motion blur as a 30 fps export would. */
+const PREVIEW_FRAME = 1 / 30;
 
 type View = {
   readonly id: ViewId;
   readonly canvas: OffscreenCanvas;
   readonly ctx: OffscreenCanvasRenderingContext2D;
   readonly interactive: boolean;
-  readonly drawer: CanvasDraw;
+  readonly frames: FrameRenderer;
   readonly quality: AdaptiveQuality;
   size: ViewSize;
   template: AnyTemplate | null;
@@ -59,8 +78,13 @@ type View = {
   scrubbing: boolean;
   scrubTimer: ReturnType<typeof setTimeout> | null;
   qualityMode: QualityMode;
+  backdrop: Backdrop;
+  /** The design, rendered apart when a backdrop goes underneath it. */
+  layer: OffscreenCanvas | null;
   /** Seconds. */
   t: number;
+  /** Sequence number of the latest transport command (echoed with frames). */
+  seq: number;
   /** Clock time (ms) at which t was 0 during playback. */
   anchor: number;
   lastFrameAt: number;
@@ -86,8 +110,12 @@ const messageOf = (error: unknown) => (error instanceof Error ? error.message : 
 export class RenderRuntime {
   private readonly views = new Map<ViewId, View>();
   private readonly templates = new Map<string, Promise<AnyTemplate>>();
+  /** Users' files by content hash, shared by all views. */
+  private readonly assets = new Map<string, Graphic>();
+  private readonly backdrops = new BackdropPainter();
   private readonly loadingFonts = new Set<string>();
   private text: TextEngineHandle | null = null;
+  private compositorInstance: Compositor | null = null;
   private textLoading = false;
   private frameRequested = false;
   private disposed = false;
@@ -122,13 +150,14 @@ export class RenderRuntime {
         break;
       }
       case 'play':
-        this.forEach(message.views, (view) => this.play(view));
-        break;
       case 'pause':
-        this.forEach(message.views, (view) => this.pause(view));
-        break;
       case 'seek':
-        this.forEach(message.views, (view) => this.seek(view, message.t, message.scrub ?? false));
+        this.forEach(message.views, (view) => {
+          view.seq = message.seq;
+          if (message.type === 'play') this.play(view);
+          else if (message.type === 'pause') this.pause(view);
+          else this.seek(view, message.t, message.scrub ?? false);
+        });
         break;
       case 'setLoop':
         this.forEach(message.views, (view) => {
@@ -141,6 +170,14 @@ export class RenderRuntime {
           this.invalidate(view);
         });
         break;
+      case 'setBackdrop': {
+        const backdrop = sanitizeBackdrop(message.backdrop);
+        this.forEach(message.views, (view) => {
+          view.backdrop = backdrop;
+          this.invalidate(view);
+        });
+        break;
+      }
       case 'snapshot':
         this.snapshot(message.requestId, message.view, message.t, message.shortSide);
         break;
@@ -149,6 +186,30 @@ export class RenderRuntime {
           this.post({ type: 'capabilities', capabilities }),
         );
         break;
+      case 'setAsset':
+        this.setAsset(message.hash, message.asset);
+        break;
+      case 'dropAsset': {
+        const asset = this.assets.get(message.hash);
+        if (asset?.kind === 'raster') (asset.image.source as ImageBitmap).close?.();
+        this.assets.delete(message.hash);
+        break;
+      }
+    }
+  }
+
+  private setAsset(hash: string, asset: TransferableGraphic): void {
+    const previous = this.assets.get(hash);
+    if (previous?.kind === 'raster') (previous.image.source as ImageBitmap).close?.();
+    this.assets.set(hash, graphicFromTransfer(asset));
+    // Rebuild views that drew a placeholder because this file wasn't here yet.
+    for (const view of this.views.values()) {
+      if (view.backdrop.kind === 'image' && view.backdrop.hash === hash) this.invalidate(view);
+      const built = view.built;
+      if (!built || !view.template || built.missingAssets.length === 0) continue;
+      if (userAssets(view.template, built.state).includes(hash)) {
+        this.queueBuild(view, view.pending ?? built.state);
+      }
     }
   }
 
@@ -171,7 +232,7 @@ export class RenderRuntime {
       canvas,
       ctx,
       interactive,
-      drawer: new CanvasDraw(),
+      frames: new FrameRenderer(this.compositor()),
       quality: new AdaptiveQuality(),
       size,
       template: null,
@@ -185,7 +246,10 @@ export class RenderRuntime {
       scrubbing: false,
       scrubTimer: null,
       qualityMode: 'adaptive',
+      backdrop: NO_BACKDROP,
+      layer: null,
       t: 0,
+      seq: 0,
       anchor: 0,
       lastFrameAt: 0,
       lastRegionsAt: 0,
@@ -202,6 +266,12 @@ export class RenderRuntime {
     this.failWaiting(view, 'The view was detached');
     this.views.delete(id);
     this.updateBudgets();
+  }
+
+  /** One compositor per worker (a single WebGL2 context), created on first use. */
+  private compositor(): Compositor {
+    this.compositorInstance ??= createCompositor();
+    return this.compositorInstance;
   }
 
   private forEach(ids: readonly ViewId[], fn: (view: View) => void): void {
@@ -284,7 +354,7 @@ export class RenderRuntime {
   private build(view: View, template: AnyTemplate, state: DesignState, text: TextEngineHandle) {
     const started = now();
     try {
-      const built = buildScene(template, state, text);
+      const built = buildScene(template, state, text, (hash) => this.assets.get(hash));
       view.built = built;
       view.lastError = null;
       if (view.t > built.timeline.duration) view.t = built.timeline.duration;
@@ -294,6 +364,8 @@ export class RenderRuntime {
         duration: built.timeline.duration,
         sections: built.timeline.sections,
         warnings: built.timeline.warnings,
+        cut: built.timeline.cut,
+        missingAssets: built.missingAssets,
         cost: now() - started,
       });
       this.invalidate(view);
@@ -435,12 +507,18 @@ export class RenderRuntime {
     const quality = adaptive ? view.quality.scale : 1;
     const scale = this.fitCanvas(view, built, quality);
     const started = now();
-    let regions: ReturnType<typeof renderScene>;
+    const backdrop = built.state.transparent ? view.backdrop : NO_BACKDROP;
+    const target = backdrop.kind === 'none' ? view.ctx : this.layerContext(view);
+    let regions: ReturnType<FrameRenderer['render']>;
     try {
-      regions = renderScene(built, view.drawer, {
-        ctx: view.ctx,
-        scale,
+      regions = view.frames.render(built, target, {
         t: view.t,
+        scale,
+        // Motion blur on paused frames only: playback stays at one render per frame.
+        samples: view.playing || view.scrubbing ? 1 : PREVIEW_SAMPLES,
+        maxSamples: PREVIEW_MAX_SAMPLES,
+        maxStep: PREVIEW_STEP,
+        frameDuration: PREVIEW_FRAME,
         collectRegions: view.interactive,
       });
     } catch (error) {
@@ -454,6 +532,14 @@ export class RenderRuntime {
       return;
     }
     const cost = now() - started;
+    if (target !== view.ctx) {
+      this.backdrops.draw(view.ctx, backdrop, {
+        t: view.t,
+        cut: built.timeline.cut,
+        image: backdrop.kind === 'image' ? this.assets.get(backdrop.hash) : undefined,
+      });
+      view.ctx.drawImage(target.canvas, 0, 0);
+    }
     if (view.playing) view.quality.record(cost, time - view.lastFrameAt, time);
     view.lastFrameAt = time;
     view.dirty = false;
@@ -462,6 +548,7 @@ export class RenderRuntime {
       view: view.id,
       t: view.t,
       playing: view.playing,
+      seq: view.seq,
       cost,
       quality,
     });
@@ -469,6 +556,20 @@ export class RenderRuntime {
       view.lastRegionsAt = time;
       this.post({ type: 'regions', view: view.id, regions });
     }
+  }
+
+  /** The view's offscreen layer for rendering under a backdrop, sized like its canvas. */
+  private layerContext(view: View): OffscreenCanvasRenderingContext2D {
+    const { width, height } = view.canvas;
+    if (!view.layer) {
+      view.layer = new OffscreenCanvas(width, height);
+    } else if (view.layer.width !== width || view.layer.height !== height) {
+      view.layer.width = width;
+      view.layer.height = height;
+    }
+    const ctx = view.layer.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D is unavailable');
+    return ctx;
   }
 
   /** Sizes the backing store for the view's CSS size × DPR × quality; returns the scale. */
@@ -520,7 +621,13 @@ export class RenderRuntime {
       const canvas = new OffscreenCanvas(size.width, size.height);
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas 2D is unavailable');
-      renderScene(built, new CanvasDraw(), { ctx, scale: size.width / built.frame.width, t });
+      // Stills are sharp (no motion blur) but finished like the video.
+      new FrameRenderer(this.compositor()).render(built, ctx, {
+        t,
+        scale: size.width / built.frame.width,
+        samples: 1,
+        frameDuration: PREVIEW_FRAME,
+      });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       this.post({ type: 'snapshot', requestId, blob });
     } catch (error) {
@@ -531,15 +638,4 @@ export class RenderRuntime {
   private post(message: WorkerMessage): void {
     if (!this.disposed) this.options.post(message);
   }
-}
-
-/** Measures fallback-font text with a scratch canvas (the layout needs advances for emoji/CJK). */
-function createFallbackMeasure() {
-  let ctx: OffscreenCanvasRenderingContext2D | null | undefined;
-  return (text: string, font: string, size: number): number => {
-    ctx ??= new OffscreenCanvas(1, 1).getContext('2d');
-    if (!ctx) return [...text].length * size * 0.6;
-    ctx.font = `${size}px ${font}`;
-    return ctx.measureText(text).width;
-  };
 }

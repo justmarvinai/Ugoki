@@ -2,10 +2,10 @@
 
 Ugoki (動き, "movement") is a browser-based motion design tool: users pick an art-directed template, customize it (text, colors, images, timing, layout), preview it live and export video — **rendered entirely on the user's device**. Flow: **Choose → Customize → Preview → Export.**
 
-## Current phase: 1 — Foundations & engine core (built, in review)
+## Current phase: 2 — Editor & export MVP
 
 - The owner gave the go-ahead to code on 2026-09-26. Work phase by phase as laid out in `ROADMAP.md`; don't start a new phase's scope without finishing (or explicitly re-planning) the current one.
-- Phase 1 goes to `main` as one PR. The repo is on Vercel (O3, 2026-09-26): every branch and PR gets a preview deployment (Vercel comments its URL on the PR) — link it in the PR. Next: the owner checks the Lab in Safari (O6); then Phase 2 (editor & export MVP).
+- Phase 1 (0.1.0) is merged. Phase 2 (scope and exit in `ROADMAP.md`) goes to `main` as one PR. The repo is on Vercel (O3, 2026-09-26): every branch and PR gets a preview deployment (Vercel comments its URL on the PR) — link it in the PR.
 - The owner's decisions (2026-09-26) are recorded in `USER_QUESTIONS.md` — a decision table plus open items (O1 = the go-ahead). New product/brand questions go there too; when answered, update the affected docs and ADRs.
 - Progress is tracked in `ROADMAP.md` (tick boxes as work lands).
 
@@ -73,11 +73,11 @@ src/engine/      DOM-free, React-free, worker-safe engine — public API in src/
                  engine/host = main-thread client + pure data for features
 src/templates/   registry.ts (metadata + lazy loaders) + <category>/<id>/index.ts (one defineTemplate each)
 src/workers/     composition root: render.worker.ts + createRenderEndpoint()
-src/features/    React features: lab (now); landing, gallery, editor, inspector, stage, transport, export, drafts, share
+src/features/    React features: editor, stage (+ overlay), inspector, transport, export, gallery (chooser), assets (file import), lab; drafts, share, landing next
 src/components/  design-system primitives (Button, SegmentedControl, Slider, Switch, Wordmark)
 src/design/      motion tokens, icons
 src/fonts/       UI WOFF2s for next/font/local
-src/stores/      Zustand stores + history (Phase 2)
+src/stores/      Zustand stores: project (+ snapshot history), ui, playhead
 src/lib/         small utilities
 tests/           support/ (render harness), templates/, integration/, golden/, spikes/, e2e/
 scripts/         fonts.py, assert-static.mjs

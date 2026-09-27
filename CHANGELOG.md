@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-27 — Editor & export MVP
+
+Choose a template, make it yours, export it — all on your device. Four templates (Rise, Line, Sheen, Layers) open in the editor, and every export format renders in the browser with the same engine as the preview: exported frame N is the preview at N / fps.
+
+### Added
+
+- **The editor** (`/editor/<template>`): the design on a stage fitted to your screen (or at 100%), with safe-area guides and, for transparent designs, a checkerboard or a preview backdrop. Point at text on the stage to see it outlined, click to jump to its field, drag a group to move it — it snaps to the center lines and the title-safe edges — or pull its corner to scale it. The inspector offers Looks (with Shuffle), the template's content, palettes incl. brand colors with a contrast guard, font pairings, background, finish, energy, duration with readability fixes, and layout; pointing at a Look, palette or pairing previews it on the stage. Undo and redo cover every change (typing and slider drags undo as one step). The transport shows the timeline's sections and cut point, loops, and has a duration handle; keyboard shortcuts throughout (`?` lists them). Export opens a sheet with every format.
+- **Templates** (`/templates`): pick a template to start from — or continue a draft.
+- **Drafts**: your first edit saves the design on this device, and every change after it (500 ms after you pause); the address bar names the draft, so a reload brings it back with your images. *Continue where you left off* lists drafts to open, duplicate or delete. Nothing is uploaded.
+- **Share links**: *Share* copies a link that opens your design for anyone — the design rides in the link itself and never reaches a server; your own images stay on your device (placeholders stand in).
+- **Line** — a lower third (*minimal accent bar*): name and title slide out of the bar as if from a slot, the bar runs from the name's cap height to the title's baseline; four formats, Ink · Paper · Brand Bold, nine anchors, three sizes, an optional soft shadow; transparent by default.
+- **Sheen** — a logo reveal (*light sweep*): the logo emerges from darkness and a specular band, masked to the logo's own shape, lights it on its way across, blooming on dark grounds; tagline tracking in; optional second sweep and exit; white, warm or accent light; original, mono or accent logo colors.
+- **Layers** — a transition (*stacked panel wipe*): 2–5 skewed panels sweep across in any of 8 directions with slightly different speeds, cover the whole frame around the cut point and leave in reverse order; Speed compresses it around the cut; colors from the palette's roles or brand tints.
+- **Logos and images**: add your own SVG, PNG, JPG or WebP — read and hashed on your device, never uploaded; SVGs become vector artwork (or a safe raster when they use what we don't support). The placeholder brands Halden, Nova and Aero are built in.
+- **Preview backdrops** for transparent designs: moving, defocused footage, or Scene A → B swapping at a transition's cut point, or your own still ("Preview on my footage") — preview only, never exported unless you bake it in.
+- **Compositor**: isolated layers, masks and effects (blur, bloom, soft shadow) on WebGL2 with a Canvas 2D fallback; motion blur on paused previews; Grain and Soft glow finishes.
+- **Export** — rendered on your device in a worker, with the same engine as the preview: MP4 (H.264), transparent WebM (VP9 with alpha), PNG sequences (a ZIP with straight alpha and a README), looping GIFs and PNG stills; 720p to 4K, 24–60 fps, three qualities; transitions can bake Scene A → B underneath and name their cut frame. Where the browser allows it the file is written as it renders; progress, a live preview of the frame being exported, cancel, and *Copy details* when something fails.
+- **Adaptive motion blur**: fast motion gets more sub-frames, so fast edges smear smoothly instead of in steps.
+- The Lab: image controls, select-style choices, the Layout group, the backdrop picker, a cut marker on the transport and an export panel.
+
+### Fixed
+
+- Video formats are offered only where they work: the first time export options are used, the browser's encoders are checked with a tiny moving round trip (and transparent WebM with its alpha), in a worker of its own. CI's WebKit, for one, writes transparent WebM without its transparency — PNG sequences keep it there.
+- The Lab's playhead no longer jumps back when frames rendered for an earlier seek arrive late (e.g. End, then Shift+← twice gave 4.00 s instead of 3.00 s).
+- GPU blur and bloom were slightly too strong or too weak on odd-sized layers (the downsample pyramid skipped part of its averaging).
+- The last frame of an export is clean: exits now finish 1/15 s before the end.
+- Where Canvas has no `filter` (Safari without WebGL2 in workers), blur and bloom use three box blurs — a close Gaussian — instead of a blocky downsample chain.
+
 ## [0.1.0] — 2026-09-26 — Foundations & engine core
 
 The engine renders its first template. Nothing is public yet: the home page is a placeholder and the Lab is a review tool for preview deployments.

@@ -32,15 +32,15 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | Styling | **Tailwind CSS** (CSS-first `@theme` tokens) | ^4.3.3 | Tokens from the design system as CSS variables; zero-runtime |
 | Headless UI | **Base UI** (`@base-ui/react`) | ^1.8.0 | Stable v1, actively released, unstyled + accessible; our visuals on top |
 | UI animation | **Motion** (`motion/react`) | ^13.4.4 | MIT; springs, layout animations, `AnimateView` on top of View Transitions |
-| State | **Zustand** | ^5.0.15 | Tiny, selector-based, usable outside React (engine host) |
+| State | **Zustand** | 5.0.15 (Phase 2, pinned) | Tiny, selector-based, usable outside React (engine host) |
 | Undo/redo | Own history middleware | — | `zundo` is dormant; snapshot history with coalescing is ~80 lines |
-| Validation | Engine sanitizers + **Zod** (`zod/mini`, Phase 2) | ^4.6.5 | The engine repairs untrusted input itself (ADR-018); Zod parses the share-link/draft envelope on the main thread |
-| Persistence | **Dexie** (IndexedDB) | ^4.4.6 | Versioned schema, indexes, reactive queries for drafts |
+| Validation | Engine sanitizers + **Zod** (`zod/mini`) | 4.6.5 (Phase 2, pinned) | The engine repairs untrusted input itself (ADR-018); Zod parses the share-link/draft envelope on the main thread |
+| Persistence | **Dexie** (IndexedDB) | 4.4.6 (Phase 2, pinned) | Versioned schema, indexes, reactive queries for drafts |
 | Color | Engine's own OKLab/OKLCH (`core/color.ts`) | — | Conversion, gamut mapping, contrast, palette derivation, premultiplied OKLab gradients (ADR-018); culori only if the UI color picker needs it |
 | Text shaping | **harfbuzzjs** (HarfBuzz 14.5) | ^1.6.2 | Identical shaping/glyphs in every browser; variable axes; glyph outlines (MIT) |
 | Video muxing/encoding | **Mediabunny** (WebCodecs) | ^1.60.0 | MP4/WebM muxing, CanvasSource, WebM alpha, backpressure (MPL-2.0) |
-| GIF | **modern-gif** | ^2.1.0 (Phase 2) | MIT; 10× smaller than gifenc on gradients, higher fidelity (ADR-025); gifski is AGPL and excluded |
-| ZIP | **fflate** | ~0.8.3 | Streaming ZIP for PNG sequences, deflate for share links (MIT) |
+| GIF | **modern-gif** | 2.1.0 (Phase 2, pinned) | MIT (with modern-palette, MIT); 10× smaller than gifenc on gradients, higher fidelity (ADR-025); gifski is AGPL and excluded |
+| ZIP | **fflate** | 0.8.3 (Phase 2, pinned) | Streaming ZIP for PNG sequences, deflate for share links (MIT) |
 | Geometry | **delaunator** | latest | Shard triangulation (ISC), tiny |
 | Worker RPC | Typed custom protocol (`engine/host`) | — | Views, transport, snapshots, capability probing; transferables for canvases/bitmaps (ADR-022) |
 | Unit & browser tests | **Vitest** (+ `@vitest/browser-playwright`) | ^5.0.2 | Browser Mode is stable; engine tests in real Chromium |
@@ -49,7 +49,7 @@ Versions and platform facts below were **verified on 2026-09-26** against npm, o
 | Runtime | **Node.js** | 24.x (Active LTS, Vercel default) | Node 20 is EOL; Vitest 5 needs ≥ 22.12 |
 | Hosting | **Vercel Hobby** | — | Static pages on the CDN; free Vercel domain; no analytics products |
 
-Dependencies are added with the feature that uses them: Phase 1 installs the framework, Base UI, Motion, harfbuzzjs and Mediabunny (for the export spike); Zustand, Zod, Dexie, fflate, delaunator and modern-gif arrive in Phase 2+.
+Dependencies are added with the feature that uses them: Phase 1 installs the framework, Base UI, Motion, harfbuzzjs and Mediabunny (for the export spike); fflate and modern-gif arrived with exports, and Zustand, Zod and Dexie with the editor, drafts and share links (Phase 2); delaunator follows with later templates.
 
 ### Deliberately not used
 
@@ -130,11 +130,11 @@ Dependencies are added with the feature that uses them: Phase 1 installs the fra
 │   │   └── <category>/<id>/index.ts (+ looks.ts, layout.ts as needed)
 │   ├── workers/                   # composition root: render.worker.ts, createRenderEndpoint()
 │   ├── features/                  # React feature modules
-│   │   └── lab/ · landing/ gallery/ editor/ inspector/ stage/ transport/ export/ drafts/ share/
+│   │   └── editor/ stage/ (+ overlay) inspector/ transport/ export/ gallery/ (chooser) assets/ (file import) lab/ · drafts/ share/ landing/ later
 │   ├── components/                # design-system primitives (Button, Slider, SegmentedControl, Switch…)
 │   ├── design/                    # motion tokens, icons (color/type tokens live in app/globals.css @theme)
 │   ├── fonts/                     # UI WOFF2 (Ugoki Sans, Ugoki Mono) for next/font/local
-│   ├── stores/                    # Zustand stores + history middleware (Phase 2)
+│   ├── stores/                    # Zustand stores: project (+ snapshot history), ui, playhead
 │   └── lib/                       # small utilities (cn, …); db, share codec later
 ├── tests/
 │   ├── support/                   # render harness + test worker
@@ -190,19 +190,21 @@ Dexie schema v1:
 
 | Table | Key | Fields | Notes |
 |---|---|---|---|
-| `projects` | `id` (nanoid) | `templateId`, `templateVersion`, `state`, `name`, `createdAt`, `updatedAt`, `thumbnail` (WebP Blob, 320 px) | Index on `updatedAt` for "Recent" |
-| `assets` | `hash` (SHA-256 of bytes) | `blob`, `mime`, `width`, `height`, `createdAt` | Deduplicated; unreferenced assets garbage-collected on startup |
+| `projects` | `id` (12 random base64url characters) | `templateId`, `templateVersion`, `state`, `name`, `createdAt`, `updatedAt`, `thumbnail` (PNG bytes + type, 180 px short side, from the render worker) | Index on `updatedAt` for "Continue where you left off" |
+| `assets` | `hash` (SHA-256 of bytes) | `bytes`, `name`, `mime`, `createdAt` | Deduplicated; stored when the user adds a file; unreferenced assets are garbage-collected later (not yet) |
 | `prefs` | `key` | `value` | Last format, dismissed hints, gallery personalization text |
 
-- Autosave debounced 500 ms. After the first saved draft, request persistent storage (`navigator.storage.persist()`); show usage via `navigator.storage.estimate()`.
+- A draft is created by the **first edit** (opening a template leaves nothing behind) and then autosaved 500 ms after edits settle; the URL gains `?draft=<id>` (replaced in history), so a reload reopens it with its files. `src/features/drafts` (`useAutosave`, `openDraft`, the draft list), `src/lib/db.ts`.
+- After the first saved draft, request persistent storage (`navigator.storage.persist()`); a full quota is reported in the top bar ("browser storage is full").
 - Uploaded images/logos are stored **only** here, never uploaded.
+- Bytes are stored as `ArrayBuffer`s, not Blobs: browsers keep IndexedDB Blobs as files, which WebKit's private and ephemeral sessions refuse to write (the drafts test failed there); ArrayBuffers are stored inline everywhere.
 - Schema changes go through Dexie versioning + tested migrations.
 
 ## 8. Share links
 
-- Payload `{ v: 1, t: templateId, tv: templateVersion, s: projectState }` minus asset references → JSON → `deflate-raw` (fflate) → base64url → `/editor/<id>#d=<payload>`.
-- The hash never reaches a server. Typical size < 2 KB; warn above 8 KB.
-- On open: decode → validate against the template's control schema (Zod) → run template migrations → drop unknown keys → replace missing assets with defaults and show a notice.
+- Payload `{ v: 1, t: templateId, tv: templateVersion, s: projectState, i?: 1 }` → JSON → `deflate-raw` (fflate) → base64url → `/editor/<id>#d=<payload>` (`src/lib/share.ts`). The user's own files are left out of `s` (the template's defaults stand in) and `i` says so.
+- The hash never reaches a server. Typical size < 1 KB; the Share popover warns above 8 KB.
+- On open: base64url → inflate (capped at 256 KB, so a crafted link can't balloon) → the envelope's shape is checked with Zod → the render worker sanitizes the state against the template's control schema, runs migrations and drops unknown keys (ADR-018). A link for another template opens that template's editor; the notice says the design came from a link (and that images stand in). The hash is then cleared: the design is this device's, and its first edit makes a draft.
 
 ---
 
