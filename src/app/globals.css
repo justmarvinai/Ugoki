@@ -45,7 +45,9 @@
   color-scheme: dark;
 }
 
-@theme {
+/* Inline, so utilities read the theme variables where they're used: a subtree with its own
+   data-theme (a Cinema page under the Daylight root) gets its own colors. */
+@theme inline {
   --color-*: initial;
   --color-bg: var(--bg);
   --color-bg-2: var(--bg-2);
@@ -63,7 +65,9 @@
   --color-success: var(--success);
   --color-dot: var(--dot);
   --color-transparent: transparent;
+}
 
+@theme {
   --font-sans: var(--font-ugoki-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-ugoki-mono), ui-monospace, "SFMono-Regular", monospace;
 
