@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * Lab export panel: every export format with its settings, for checking exports on real devices
- * before the editor's export sheet exists (which reuses `useExport`).
+ * Export options (docs/02-experience.md §7): every format with its settings, then progress with
+ * a small preview of the frame being exported, the result, or what failed. Used by the editor's
+ * export sheet and the Lab.
  */
 
 import { useEffect, useId, useRef, useState } from 'react';
@@ -26,7 +27,7 @@ import {
   KEEPS_ALPHA,
 } from '@/engine/host';
 import { cn } from '@/lib/cn';
-import { canStreamToFile, useExport, useExportEncoders } from '../export/use-export';
+import { canStreamToFile, useExport, useExportEncoders } from './use-export';
 
 const FORMAT_LABELS: Record<ExportFormat, string> = {
   mp4: 'MP4',
@@ -54,6 +55,8 @@ type ExportPanelProps = {
   backdrop: Backdrop;
   /** The user's files the design uses, freshly decoded for the export worker. */
   assets: () => Promise<ExportAsset[]>;
+  /** Verify video formats right away (a sheet opened to export), not on first use. */
+  eager?: boolean;
 };
 
 const formatBytes = (bytes: number) =>
@@ -62,9 +65,11 @@ const formatBytes = (bytes: number) =>
 export function ExportPanel(props: ExportPanelProps) {
   const { state, capabilities } = props;
   // Verified once the panel is used, so the Lab's first frames never share the machine with it.
-  const [engaged, setEngaged] = useState(false);
+  const [engaged, setEngaged] = useState(props.eager ?? false);
   const { encoders, checking } = useExportEncoders(capabilities?.encoders ?? null, engaged);
   const [format, setFormat] = useState<ExportFormat>(state.transparent ? 'webm' : 'mp4');
+  /** The user chose a format: stop choosing one for them. */
+  const [picked, setPicked] = useState(false);
   const [resolution, setResolution] = useState(1080);
   const [fps, setFps] = useState(30);
   const [gifWidth, setGifWidth] = useState(640);
@@ -74,6 +79,17 @@ export function ExportPanel(props: ExportPanelProps) {
   const { status, start, cancel, reset } = useExport(capabilities);
   const alpha = state.transparent && !(bake && props.backdrop.kind !== 'none');
   const video = format === 'mp4' || format === 'webm';
+  const offered = (f: ExportFormat) =>
+    formatAvailability(f, encoders, { alpha: alpha && KEEPS_ALPHA[f] }).available;
+
+  // Until the user picks, start on the best format this browser can make: transparent designs
+  // keep their transparency (WebM, else PNG sequence), others prefer MP4.
+  useEffect(() => {
+    if (picked || checking || offered(format)) return;
+    const order: ExportFormat[] = alpha ? ['webm', 'png-zip', 'mp4'] : ['mp4', 'webm', 'png-zip'];
+    const best = order.find(offered);
+    if (best) setFormat(best);
+  });
   const available =
     video && checking
       ? ({ available: false, reason: 'Checking what this browser can encode…' } as const)
@@ -110,7 +126,10 @@ export function ExportPanel(props: ExportPanelProps) {
           value,
           label: FORMAT_LABELS[value],
         }))}
-        onValueChange={setFormat}
+        onValueChange={(next) => {
+          setPicked(true);
+          setFormat(next);
+        }}
         className="w-full"
       />
       <div className="grid grid-cols-2 gap-2">

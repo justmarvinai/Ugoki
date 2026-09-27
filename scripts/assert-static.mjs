@@ -20,8 +20,22 @@ const appRoutes = existsSync(join(dist, 'app-path-routes-manifest.json'))
 // Metadata files (favicon, icons, robots, sitemap) are emitted as static assets.
 const isMetadataFile = (route) => /\.(ico|png|svg|jpg|txt|xml|webmanifest)$/.test(route);
 
+// Dynamic segments are fine when every page is prerendered and anything else is a 404
+// (`dynamicParams = false`, i.e. `fallback: false`) — as long as some page was prerendered.
+const closed = new Set();
+for (const [route, entry] of Object.entries(prerender.dynamicRoutes ?? {})) {
+  if (entry.fallback !== false) continue;
+  const pattern = new RegExp(entry.routeRegex);
+  const pages = [...staticRoutes].filter((page) => pattern.test(page));
+  if (pages.length > 0) closed.add(route);
+}
+
 const dynamic = appRoutes.filter(
-  (route) => !staticRoutes.has(route) && !isMetadataFile(route) && route !== '/_not-found',
+  (route) =>
+    !staticRoutes.has(route) &&
+    !closed.has(route) &&
+    !isMetadataFile(route) &&
+    route !== '/_not-found',
 );
 
 if (dynamic.length > 0) {
@@ -30,4 +44,6 @@ if (dynamic.length > 0) {
   process.exit(1);
 }
 
-console.log(`assert-static: OK — ${staticRoutes.size} prerendered routes, no functions.`);
+console.log(
+  `assert-static: OK — ${staticRoutes.size} prerendered routes${closed.size > 0 ? ` (${[...closed].join(', ')}: every page prerendered)` : ''}, no functions.`,
+);

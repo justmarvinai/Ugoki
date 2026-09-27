@@ -1,11 +1,12 @@
 /**
  * Editor interface state (docs/05-architecture.md §6): what's selected and hovered on the
  * stage, preview options, open sheets, and hover previews — transient designs shown on the
- * stage while pointing at a Look or palette, never part of the design or its history.
+ * stage while pointing at a Look or palette, never part of the design or its history. Also the
+ * stage's editable regions as the worker last reported them (only the overlay subscribes).
  */
 
 import { createStore } from 'zustand/vanilla';
-import type { Backdrop, DesignState } from '@/engine/host';
+import type { Backdrop, DesignState, EditableRegion } from '@/engine/host';
 
 export type Sheet = 'export' | 'share' | 'shortcuts';
 
@@ -28,6 +29,8 @@ export type UiState = {
   sheet: Sheet | null;
   /** A design previewed on the stage instead of the project's (hovering a Look or palette). */
   preview: DesignState | null;
+  /** Movable groups and editable elements on the stage, in design coordinates. */
+  regions: readonly EditableRegion[];
   select(group: string | null): void;
   hover(control: string | null): void;
   focusControl(control: string): void;
@@ -37,6 +40,7 @@ export type UiState = {
   setBackdrop(backdrop: Backdrop): void;
   openSheet(sheet: Sheet | null): void;
   setPreview(preview: DesignState | null): void;
+  setRegions(regions: readonly EditableRegion[]): void;
 };
 
 export type UiStore = ReturnType<typeof createUiStore>;
@@ -52,6 +56,7 @@ export function createUiStore() {
     backdrop: { kind: 'none' },
     sheet: null,
     preview: null,
+    regions: [],
     select: (selected) => set({ selected }),
     hover: (hovered) => set({ hovered }),
     focusControl: (control) => set({ focus: { control, at: Date.now() } }),
@@ -61,5 +66,6 @@ export function createUiStore() {
     setBackdrop: (backdrop) => set({ backdrop }),
     openSheet: (sheet) => set({ sheet }),
     setPreview: (preview) => set({ preview }),
+    setRegions: (regions) => set({ regions }),
   }));
 }
