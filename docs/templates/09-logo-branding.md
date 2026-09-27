@@ -142,6 +142,8 @@ Category slug: `logo-branding` · Conventions: [`00-foundations.md`](00-foundati
 
 **Engine needs.** Bounce/gravity helpers · transform origin at the logo's base · shadow ellipse.
 
+**As built (Phase 3).** Real physics sets the rhythm: the logo falls from rest at the top edge (0.45 s), and one gravity with restitution √ratio (Low 0.36 · Medium 0.55 · High 0.7 of the previous height) gives flights of ≈ 0.67 s and 0.5 s — the last landing is at ≈ 1.7 s rather than 1.40, and the tagline starts during the last bounce (≈ 1.2 s). A 50 ms ground contact per impact builds the squash (scaleX = scaleY^−0.6: 0.82 → 1.12); a named spring releases it and its overshoot becomes the rebound's stretch; speed adds up to 8% stretch. The first bounce is capped so the logo never leaves the frame (tall marks bounce a little lower). Holds of ≥ 1.5 s get one small idle hop (Balanced/Punchy; a slow 1.2% breath in Calm), after the poster frame and settled well before the last frame, which stays the finished logo. Energy: Calm lands softly (lower bounces, `snappy` release), Punchy drops faster with a deeper squash (`bouncy`). Also has the shared *Logo color* control.
+
 ---
 
 ## 9.5 Resolve — *pixel mosaic*

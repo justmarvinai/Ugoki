@@ -25,6 +25,7 @@ const MOVING_BACKGROUND: Readonly<Record<string, string>> = {};
 /** Templates that end on a finished card by design (their exit is optional), with the reason. */
 const END_CARD: Readonly<Record<string, string>> = {
   sheen: 'ends on the lit logo unless Out is on',
+  bounce: 'ends on the landed logo unless Out is on',
 };
 
 const alphaIs = (frame: Frame, test: (alpha: number) => boolean) => {

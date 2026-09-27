@@ -72,6 +72,8 @@ Category slug: `transitions` · Conventions: [`00-foundations.md`](00-foundation
 
 **Engine needs.** Point controls · area-based easing · even-odd fills (hole).
 
+**As built (Phase 3).** No point control exists yet: the origin is two sliders (*Origin X/Y*, % of the frame, Layout group). The last ring — the cut frame — is the palette's background (its signature color); the rings before it take its other distinct roles (accent2, accent, accent3, fg…), cycling like Layers'; Brand palettes use tints with the brand color on top. Defaults: 4 rings, 4 colors, Ring style. Rings follow each other by 50 ms at 1.2 s (× Energy's stagger, growing with √duration). Energy: Calm blooms (`drift`), Balanced wipes (`snap`), Punchy bursts out of the origin (`glide`) and the hole whooshes open (`exit`) — mirrored around the cut. After the cut the top ring goes first (hole or collapse), so the doughnut's bands mirror the entrance.
+
 ---
 
 ## 8.3 Liquid — *organic wipe*
@@ -125,6 +127,8 @@ Category slug: `transitions` · Conventions: [`00-foundations.md`](00-foundation
 **The expensive detail.** Strip edges snap to device pixels at full coverage and overlap by 0.5 px — no hairline seams at the cut, at any resolution.
 
 **Engine needs.** Pixel snapping · stagger patterns.
+
+**As built (Phase 3).** Strips grow along their length from one frame edge (vertical: from the top, horizontal: from the left, diagonal: "\\" strips growing down-right, each over its own part of the frame so short corner strips keep pace) and leave toward the opposite edge in the same order. Each strip reaches a whole device pixel into both neighbours (rather than 0.5 px): axis-aligned edges sit on pixels, and diagonal edges — which can't — antialias over the neighbour's solid interior. Colors cycle foreground, background, accents (Ink + Paper); Brand palettes lead with the brand color. The stagger spreads over 30% (Calm, one soft wave, `drift`), 45% (Balanced) or 62% (Punchy, rapid slams) of each half.
 
 ---
 
