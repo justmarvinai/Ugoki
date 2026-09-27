@@ -33,10 +33,49 @@ export const TEMPLATES: readonly TemplateEntry[] = [
     tags: ['title', 'chapter', 'editorial', 'headline'],
     useCases: ['Chapter titles', 'Keynote headlines', 'Documentary title cards', 'YouTube'],
   },
+  {
+    id: 'line',
+    name: 'Line',
+    tagline: 'Minimal accent bar',
+    category: 'lower-thirds',
+    formats: ['16:9', '9:16', '1:1', '4:5'],
+    duration: { default: 6, min: 3, max: 20 },
+    structure: 'in-hold-out',
+    alpha: 'default',
+    tags: ['lower third', 'name', 'interview', 'minimal'],
+    useCases: ['Interviews', 'Webinars', 'Corporate video', 'Talking heads'],
+  },
+  {
+    id: 'sheen',
+    name: 'Sheen',
+    tagline: 'Light sweep',
+    category: 'logo-branding',
+    formats: ['16:9', '9:16', '1:1', '4:5'],
+    duration: { default: 4, min: 3, max: 8 },
+    structure: 'in-hold-out',
+    alpha: 'optional',
+    tags: ['logo', 'reveal', 'light', 'premium'],
+    useCases: ['Corporate intros', 'Premium brands', 'End cards', 'Event sponsors'],
+  },
+  {
+    id: 'layers',
+    name: 'Layers',
+    tagline: 'Stacked panel wipe',
+    category: 'transitions',
+    formats: ['16:9', '9:16', '1:1', '4:5'],
+    duration: { default: 1.2, min: 0.6, max: 2.4 },
+    structure: 'transition',
+    alpha: 'default',
+    tags: ['transition', 'wipe', 'panels', 'overlay'],
+    useCases: ['Vlogs', 'Promos', 'Social edits', 'Scene changes'],
+  },
 ];
 
 const LOADERS: Readonly<Record<string, () => Promise<{ default: AnyTemplate }>>> = {
   rise: () => import('./text-titles/rise'),
+  line: () => import('./lower-thirds/line'),
+  sheen: () => import('./logo-branding/sheen'),
+  layers: () => import('./transitions/layers'),
 };
 
 export function templateEntry(id: string): TemplateEntry | undefined {

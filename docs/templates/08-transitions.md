@@ -27,15 +27,18 @@ Category slug: `transitions` · Conventions: [`00-foundations.md`](00-foundation
 **Art direction.** Three full-bleed panels with a 12° skew sweep across the frame one after another; the last covers the frame at the cut; afterwards the panels continue off-frame in the same direction, uncovering B in reverse order.
 
 **Choreography**
-- `0.00–0.60` Panels enter (in-out expo), offsets 0.07 s; each panel's speed differs by a few percent so the leading edges fan out.
-- `0.60` **Cut point** — 100% coverage by the last panel.
-- `0.60–1.20` Panels exit in the same direction, reverse order.
+- `0.00–0.60` Panels enter with `snap` (our in-out curve for panels; Calm uses the softer `drift`), 0.07 s apart (× Energy's stagger); each panel's speed differs by a few percent (±3 / 4.5 / 6 % by Energy, seeded) so the leading edges fan out. The last panel covers the frame 30 ms before the cut.
+- `0.60` **Cut point** — 100% coverage by the last panel, skew included (1.5u overscan), held for at least ±30 ms.
+- `0.60–1.20` Panels exit in the same direction, reverse order, mirroring the entrance.
+- Speed compresses all of it around the cut; very short transitions shrink the gaps so every panel still moves.
 
 **Controls**
 - Style: Colors (2–4) · Skew (0–20°) · Layers (2–5)
-- Motion: Direction (8-way) · Speed
+- Motion: Direction (8-way) · Speed (1–2×)
 
-**Looks.** Cobalt/Acid/Ink · Mono (black/white/grey) · Brand Bold (brand tints)
+**Colors.** The top panel — the cut frame — is the palette's foreground; the panels below take its other distinct roles (accent2, background, accent, muted, surface) and cycle when there are more panels than colors. Acid gives *Cobalt · Acid · Ink*. Brand palettes use tints of the brand color, with the brand color itself on top. Layers never paints a background of its own (the palette's background is a panel color); opaque exports bake Scene A/B underneath.
+
+**Looks.** Cobalt · Acid · Ink (Acid palette) · Mono (Mono Light: black/white/grey) · Brand Bold (brand tints)
 
 **The expensive detail.** Slight per-panel speed differences so the edges fan out organically instead of moving in robotic parallel, plus directional motion blur.
 

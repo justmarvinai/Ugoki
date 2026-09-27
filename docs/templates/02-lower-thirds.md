@@ -25,20 +25,22 @@ Category slug: `lower-thirds` · Conventions: [`00-foundations.md`](00-foundatio
 **Art direction.** A 0.5u-wide vertical accent bar; name (wght 650) and title (wght 400, 80% opacity) stacked to its right with a 1.2u gap. No box — the type sits directly on footage.
 
 **Choreography**
-- `0.00–0.35` Bar grows vertically from its center (`snap`).
-- `0.15–0.75` Name slides out from *behind the bar* (mask edge = bar edge), travel 8u (`glide`).
-- `0.28–0.85` Title follows 0.13 s later with shorter travel.
+- `0.00–0.35` Bar grows vertically from its center (`snap`; Punchy overshoots a touch with `pop`).
+- `0.15–0.75` Name slides out from *behind the bar*: clipped at the bar's edge and to the slot's opening while the bar grows, travelling its own width plus the gap, so it starts fully inside the slot (Energy's entrance curve — `glide`, `snap` for Punchy).
+- `0.28–0.85` Title follows 0.13 s later, the same way.
 - `0.85–5.50` Hold: static.
-- `5.50–6.00` Title, then name, slide back into the bar (`exit`, 0.35 s); bar collapses to center (0.2 s).
+- `5.50–6.00` Title, then name (0.05 s later), slide back into the bar (`exit`, 0.3 s each); bar collapses to center (0.2 s).
+
+*Changed while building it (Phase 2)*: the text travels its full width instead of 8u — with 8u, most of a long name would have been visible at the first frame of its move instead of coming out of the slot.
 
 **Controls**
 - Content: Name · Title
-- Style: Shadow (on/off) · Size (S · M · L)
-- Layout: Anchor · offset
+- Style: Shadow (off by default: a soft, low-opacity shadow in the palette's background color — dark behind light type, light behind dark type) · Size (S · M · L)
+- Layout: Anchor (9 positions inside the safe area; right anchors mirror the lockup) · offset
 
 **Defaults.** `Aiko Tanaka` · `Creative Director, Halden`
 
-**Looks.** Ink · Paper (dark text for bright footage) · Brand Bold (bar in brand color)
+**Looks.** Ink · Paper (dark text for bright footage) · Brand Bold (the brand palette's dark variant: white type, bar in the brand color)
 
 **The expensive detail.** Text emerges from the bar edge, so the bar feels like a physical slot. The bar's height matches cap height of the name to baseline of the title — not the em boxes.
 

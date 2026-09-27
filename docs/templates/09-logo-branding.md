@@ -27,22 +27,23 @@ Category slug: `logo-branding` · Conventions: [`00-foundations.md`](00-foundati
 **Art direction.** The logo emerges from darkness; a specular light band sweeps across it — masked to the logo's own shape — followed by a soft bloom; the tagline tracks in underneath. Nothing else.
 
 **Choreography**
-- `0.00–1.00` Logo fades in with scale 0.96 → 1 and blur 10 → 0 (`glide`).
-- `1.10–1.90` A diagonal specular band (sharp core, soft falloff) sweeps across the logo, clipped to logo alpha.
-- `1.70–2.20` Soft bloom pulse on the logo (threshold only affects the band's highlight).
+- `0.00–1.00` Logo fades in with scale 0.96 → 1 and blur ≈ 1u → 0 (`glide`) — still in shade: dimmed toward the background until the light reaches it.
+- `1.10–1.90` A 25° specular band (sharp core, soft falloff) sweeps across the logo, clipped to logo alpha; the shade lifts behind it, and `1.80–2.30` the last of the light and shade fade out, leaving the clean logo.
+- `1.70–2.20` Bloom pulse on the band's highlight — on dark grounds only (on light grounds the sweep stays subtle and doesn't bloom).
 - `1.60–2.40` Tagline tracks in (+20% → +4%) and fades up.
-- `hold` Clean logo; an optional second, fainter sweep at the end of the hold.
+- `hold` Clean logo; the second sweep (on by default) crosses in the last 0.9 s of a hold of at least 1.3 s — half the light, no shade, a faint bloom.
+- `out` (optional, 0.6 s) Logo and tagline fade out while the logo shrinks to 0.98 and blurs.
 
 **Controls**
 - Content: Logo · Tagline
-- Style: Light color · Glow (Off · Soft · Strong) · Logo color mode
-- Motion: Second sweep (on/off) · Out (on/off)
+- Style: Light (White · Warm · Accent) · Glow (Off · Soft · Strong) · Logo color (Original · Mono · Accent)
+- Motion: Second sweep (on by default) · Out (off by default)
 
 **Defaults.** Nova logo · `Built for what's next`
 
-**Looks.** Ink · Midnight · Paper (dark logo, subtle sweep)
+**Looks.** Ink · Midnight (Editorial pairing, warm light) · Paper (dark logo, subtle sweep)
 
-**The expensive detail.** The sweep is masked to the logo's alpha with a sharp core and soft falloff, so it reads as light *on a material*, not a white stripe.
+**The expensive detail.** The sweep is masked to the logo's alpha with a sharp core and soft falloff, and it *lights* the logo — the logo waits in shade ahead of the band — so it reads as light *on a material*, not a white stripe (a white stripe on a white logo would be invisible).
 
 **Engine needs.** Alpha masks (track matte) · gradient bands · bloom (compositor) · blur (compositor).
 
