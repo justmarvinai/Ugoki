@@ -6,6 +6,7 @@
 
 import { placeholderGraphic } from '../assets/placeholders';
 import type { AssetRef, Graphic } from '../assets/types';
+import type { Effects } from '../compositor/effects';
 import { clamp } from '../core/math';
 import { hashString, mixSeeds, rngFor } from '../core/rng';
 import type { Canvas2D, CanvasDraw } from '../draw/canvas-draw';
@@ -125,6 +126,8 @@ export type RenderOptions = {
   /** Seconds; clamped to the scene's duration. */
   t: number;
   collectRegions?: boolean;
+  /** Effects backend for `g.fx` and luma masks (Canvas 2D when omitted). */
+  effects?: Effects;
 };
 
 /** Renders one frame of a built scene with `drawer`; returns the editor regions. */
@@ -140,6 +143,7 @@ export function renderScene(
     transparent: built.state.transparent,
     layout: built.state.layout,
     collectRegions: options.collectRegions ?? false,
+    effects: options.effects,
   });
   built.scene.render({
     t: clamp(options.t, 0, built.timeline.duration),

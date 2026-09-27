@@ -17,15 +17,36 @@ export type BloomOptions = {
   threshold: number;
 };
 
+/**
+ * An effect's result: the region (`x, y, width, height`, in `source` pixels) holding a
+ * frame-sized image to composite at the layer's origin. Valid until the next effect call.
+ */
+export type EffectImage = {
+  readonly source: CanvasImageSource;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+
 export interface Effects {
   readonly kind: 'gpu' | 'cpu';
   /** Gaussian blur; `sigma` in output pixels. */
-  blur(layer: OffscreenCanvas, sigma: number): CanvasImageSource;
+  blur(layer: OffscreenCanvas, sigma: number): EffectImage;
   /** The glow of a layer's bright parts, to be added (`lighter`) on top of it. */
-  bloom(layer: OffscreenCanvas, options: BloomOptions): CanvasImageSource;
+  bloom(layer: OffscreenCanvas, options: BloomOptions): EffectImage;
   /** Converts a matte's luminance to alpha (alpha mattes need no conversion). */
-  lumaToAlpha(layer: OffscreenCanvas): CanvasImageSource;
+  lumaToAlpha(layer: OffscreenCanvas): EffectImage;
 }
+
+/** A whole canvas as an effect result. */
+export const whole = (canvas: OffscreenCanvas): EffectImage => ({
+  source: canvas,
+  x: 0,
+  y: 0,
+  width: canvas.width,
+  height: canvas.height,
+});
 
 type Surface = { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D };
 
@@ -87,7 +108,11 @@ export class CpuEffects implements Effects {
   private readonly glow = surface(1, 1);
   private readonly filter = canvasFilterSupported();
 
-  blur(layer: OffscreenCanvas, sigma: number): CanvasImageSource {
+  blur(layer: OffscreenCanvas, sigma: number): EffectImage {
+    return whole(this.blurCanvas(layer, sigma));
+  }
+
+  private blurCanvas(layer: OffscreenCanvas, sigma: number): OffscreenCanvas {
     const { width, height } = layer;
     if (!(sigma > 0.25)) return layer;
     if (this.filter) {
@@ -100,8 +125,8 @@ export class CpuEffects implements Effects {
     return this.downsampleBlur(layer, sigma);
   }
 
-  bloom(layer: OffscreenCanvas, options: BloomOptions): CanvasImageSource {
-    const blurred = this.blur(layer, options.radius);
+  bloom(layer: OffscreenCanvas, options: BloomOptions): EffectImage {
+    const blurred = this.blurCanvas(layer, options.radius);
     const { width, height } = layer;
     const out = sized(this.glow, width, height);
     // Intensity > 1 adds the glow more than once.
@@ -114,14 +139,14 @@ export class CpuEffects implements Effects {
     }
     out.ctx.globalAlpha = 1;
     out.ctx.globalCompositeOperation = 'source-over';
-    return out.canvas;
+    return whole(out.canvas);
   }
 
-  lumaToAlpha(layer: OffscreenCanvas): CanvasImageSource {
+  lumaToAlpha(layer: OffscreenCanvas): EffectImage {
     const { width, height } = layer;
-    if (width * height > 4_000_000) return layer;
+    if (width * height > 4_000_000) return whole(layer);
     const ctx = layer.getContext('2d');
-    if (!ctx) return layer;
+    if (!ctx) return whole(layer);
     const image = ctx.getImageData(0, 0, width, height);
     const d = image.data;
     for (let i = 0; i < d.length; i += 4) {
@@ -135,11 +160,11 @@ export class CpuEffects implements Effects {
     }
     const out = sized(this.a, width, height);
     out.ctx.putImageData(image, 0, 0);
-    return out.canvas;
+    return whole(out.canvas);
   }
 
   /** Halves the image until the scale matches the blur, then scales back up smoothly. */
-  private downsampleBlur(layer: OffscreenCanvas, sigma: number): CanvasImageSource {
+  private downsampleBlur(layer: OffscreenCanvas, sigma: number): OffscreenCanvas {
     const { width, height } = layer;
     // Each halving blurs by roughly σ ≈ 0.6 × the scale step.
     const steps = Math.max(1, Math.min(6, Math.round(Math.log2(Math.max(1, sigma / 0.6)))));

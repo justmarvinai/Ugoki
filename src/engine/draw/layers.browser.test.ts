@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { placeholderGraphic } from '../assets/placeholders';
 import type { Graphic } from '../assets/types';
+import type { Effects } from '../compositor/effects';
+import { CpuEffects } from '../compositor/effects';
+import { GpuCompositor } from '../compositor/gpu';
 import { type Color, rgb } from '../core/color';
 import { createFrame } from '../template/formats';
 import { CanvasDraw } from './canvas-draw';
@@ -14,7 +17,7 @@ const SCALE = 0.25;
 
 type Frame = { ctx: OffscreenCanvasRenderingContext2D; draw: CanvasDraw };
 
-function render(fn: (g: Draw) => void, frameState?: Frame): Frame {
+function render(fn: (g: Draw) => void, frameState?: Frame, effects?: Effects): Frame {
   const frame = createFrame('1:1');
   const state =
     frameState ??
@@ -24,11 +27,13 @@ function render(fn: (g: Draw) => void, frameState?: Frame): Frame {
       if (!ctx) throw new Error('no 2d context');
       return { ctx, draw: new CanvasDraw() };
     })();
-  state.draw.begin({ ctx: state.ctx, frame, scale: SCALE, transparent: true });
+  state.draw.begin({ ctx: state.ctx, frame, scale: SCALE, transparent: true, effects });
   fn(state.draw);
   state.draw.end();
   return state;
 }
+
+const renderWith = (fn: (g: Draw) => void, effects: Effects) => render(fn, undefined, effects);
 
 const at = (f: Frame, x: number, y: number) => [
   ...f.ctx.getImageData(Math.floor(x * SCALE), Math.floor(y * SCALE), 1, 1).data,
@@ -75,7 +80,13 @@ describe('isolated layers', () => {
   });
 });
 
-describe('masks', () => {
+/** Every effects backend this browser has (WebGL2 where the worker has a GPU context). */
+const backends: [string, Effects][] = [['canvas 2d', new CpuEffects()]];
+const gpu = GpuCompositor.create();
+if (gpu) backends.push(['webgl2', gpu]);
+
+describe.each(backends)('masks (%s)', (_, effects) => {
+  const render = (fn: (g: Draw) => void) => renderWith(fn, effects);
   const content = (g: Draw) => g.rect({ x: 0, y: 0, w: 1080, h: 1080 }, { fill: RED });
   const disk = (g: Draw) => g.circle(540, 540, 200, { fill: WHITE });
 
@@ -104,7 +115,8 @@ describe('masks', () => {
   });
 });
 
-describe('effects', () => {
+describe.each(backends)('effects (%s)', (_, effects) => {
+  const render = (fn: (g: Draw) => void) => renderWith(fn, effects);
   const square = (g: Draw) => g.rect({ x: 440, y: 440, w: 200, h: 200 }, { fill: RED });
 
   it('blurs by a radius in u', () => {
@@ -128,8 +140,10 @@ describe('effects', () => {
   });
 
   it('adds glow around bright content with bloom', () => {
-    const plain = render((g) => g.fx({}, square));
-    const bloomed = render((g) => g.fx({ bloom: { radius: 3, intensity: 1 } }, square));
+    // Bloom lights up content above its luminance threshold (white here; red wouldn't glow).
+    const bright = (g: Draw) => g.rect({ x: 440, y: 440, w: 200, h: 200 }, { fill: WHITE });
+    const plain = render((g) => g.fx({}, bright));
+    const bloomed = render((g) => g.fx({ bloom: { radius: 3, intensity: 1 } }, bright));
     expect(at(plain, 420, 540)[3]).toBe(0);
     expect(at(bloomed, 420, 540)[3]).toBeGreaterThan(10);
   });

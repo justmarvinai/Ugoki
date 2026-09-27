@@ -8,10 +8,11 @@
  */
 
 import type { Graphic } from '../assets/types';
-import { CanvasDraw } from '../draw/canvas-draw';
+import { type Compositor, createCompositor } from '../compositor';
 import { probeCapabilities } from '../runtime/capabilities';
+import { FrameRenderer } from '../runtime/frame';
 import { AdaptiveQuality } from '../runtime/quality';
-import { type BuiltScene, buildScene, renderScene, userAssets } from '../runtime/scene';
+import { type BuiltScene, buildScene, userAssets } from '../runtime/scene';
 import type { AnyTemplate } from '../template/define';
 import { describeTemplate } from '../template/describe';
 import { outputSize } from '../template/formats';
@@ -44,13 +45,17 @@ const MIN_FRAME_INTERVAL = 10;
 const SCRUB_SETTLE = 120;
 /** Editor regions are posted at most this often while playing (ms). */
 const REGIONS_INTERVAL = 100;
+/** Motion-blur sub-frames of a paused preview frame (playback renders one). */
+const PREVIEW_SAMPLES = 8;
+/** Previews show motion blur as a 30 fps export would. */
+const PREVIEW_FRAME = 1 / 30;
 
 type View = {
   readonly id: ViewId;
   readonly canvas: OffscreenCanvas;
   readonly ctx: OffscreenCanvasRenderingContext2D;
   readonly interactive: boolean;
-  readonly drawer: CanvasDraw;
+  readonly frames: FrameRenderer;
   readonly quality: AdaptiveQuality;
   size: ViewSize;
   template: AnyTemplate | null;
@@ -98,6 +103,7 @@ export class RenderRuntime {
   private readonly assets = new Map<string, Graphic>();
   private readonly loadingFonts = new Set<string>();
   private text: TextEngineHandle | null = null;
+  private compositorInstance: Compositor | null = null;
   private textLoading = false;
   private frameRequested = false;
   private disposed = false;
@@ -213,7 +219,7 @@ export class RenderRuntime {
       canvas,
       ctx,
       interactive,
-      drawer: new CanvasDraw(),
+      frames: new FrameRenderer(this.compositor()),
       quality: new AdaptiveQuality(),
       size,
       template: null,
@@ -244,6 +250,12 @@ export class RenderRuntime {
     this.failWaiting(view, 'The view was detached');
     this.views.delete(id);
     this.updateBudgets();
+  }
+
+  /** One compositor per worker (a single WebGL2 context), created on first use. */
+  private compositor(): Compositor {
+    this.compositorInstance ??= createCompositor();
+    return this.compositorInstance;
   }
 
   private forEach(ids: readonly ViewId[], fn: (view: View) => void): void {
@@ -478,12 +490,14 @@ export class RenderRuntime {
     const quality = adaptive ? view.quality.scale : 1;
     const scale = this.fitCanvas(view, built, quality);
     const started = now();
-    let regions: ReturnType<typeof renderScene>;
+    let regions: ReturnType<FrameRenderer['render']>;
     try {
-      regions = renderScene(built, view.drawer, {
-        ctx: view.ctx,
-        scale,
+      regions = view.frames.render(built, view.ctx, {
         t: view.t,
+        scale,
+        // Motion blur on paused frames only: playback stays at one render per frame.
+        samples: view.playing || view.scrubbing ? 1 : PREVIEW_SAMPLES,
+        frameDuration: PREVIEW_FRAME,
         collectRegions: view.interactive,
       });
     } catch (error) {
@@ -563,7 +577,13 @@ export class RenderRuntime {
       const canvas = new OffscreenCanvas(size.width, size.height);
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas 2D is unavailable');
-      renderScene(built, new CanvasDraw(), { ctx, scale: size.width / built.frame.width, t });
+      // Stills are sharp (no motion blur) but finished like the video.
+      new FrameRenderer(this.compositor()).render(built, ctx, {
+        t,
+        scale: size.width / built.frame.width,
+        samples: 1,
+        frameDuration: PREVIEW_FRAME,
+      });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       this.post({ type: 'snapshot', requestId, blob });
     } catch (error) {

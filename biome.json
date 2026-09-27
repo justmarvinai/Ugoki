@@ -63,6 +63,9 @@
       "includes": ["src/engine/**"],
       "linter": {
         "rules": {
+          "correctness": {
+            "useHookAtTopLevel": "off"
+          },
           "style": {
             "noRestrictedImports": {
               "level": "error",

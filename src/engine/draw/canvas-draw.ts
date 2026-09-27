@@ -10,7 +10,7 @@
  */
 
 import type { Graphic } from '../assets/types';
-import { CpuEffects, type Effects } from '../compositor/effects';
+import { CpuEffects, type EffectImage, type Effects, whole } from '../compositor/effects';
 import { type Color, mixOklab, toCss, withAlpha } from '../core/color';
 import { clamp01, type Rect } from '../core/math';
 import type { FrameSpec } from '../template/formats';
@@ -274,8 +274,8 @@ const cpuEffects = () => {
   return sharedEffects;
 };
 
-/** Fills the whole surface with `color` and returns its canvas (used for `source-in` tints). */
-function solidCanvasColor(ctx: Canvas2D, color: Color): CanvasImageSource {
+/** Fills a frame-sized canvas with `color` (used for `source-in` tints). */
+function solidCanvasColor(ctx: Canvas2D, color: Color): OffscreenCanvas {
   tintSurface ??= createSurface();
   const { canvas } = ctx;
   prepareSurface(tintSurface, canvas.width, canvas.height);
@@ -557,7 +557,7 @@ export class CanvasDraw implements Draw {
     const surface = this.pushLayer();
     draw(this);
     this.popLayer();
-    if (opacity >= INVISIBLE) this.blit(surface.canvas, opacity, composite);
+    if (opacity >= INVISIBLE) this.blit(whole(surface.canvas), opacity, composite);
   }
 
   mask(matte: (g: Draw) => void, content: (g: Draw) => void, options: MaskOptions = {}): void {
@@ -570,10 +570,12 @@ export class CanvasDraw implements Draw {
     matte(this);
     this.popLayer();
     const alpha =
-      options.mode === 'luma' ? this.effects().lumaToAlpha(matteLayer.canvas) : matteLayer.canvas;
+      options.mode === 'luma'
+        ? this.effects().lumaToAlpha(matteLayer.canvas)
+        : whole(matteLayer.canvas);
     this.blit(alpha, 1, options.invert ? 'destination-out' : 'destination-in');
     this.popLayer();
-    if (opacity >= INVISIBLE) this.blit(contentLayer.canvas, opacity, composite);
+    if (opacity >= INVISIBLE) this.blit(whole(contentLayer.canvas), opacity, composite);
   }
 
   fx(options: FxOptions, draw: (g: Draw) => void): void {
@@ -587,7 +589,8 @@ export class CanvasDraw implements Draw {
     // Effect sizes are in u; the backend works in output pixels.
     const px = this.use().frame.u * this.s;
     const sigma = (options.blur ?? 0) * px;
-    const source = sigma > 0.25 ? this.effects().blur(surface.canvas, sigma) : surface.canvas;
+    const source =
+      sigma > 0.25 ? this.effects().blur(surface.canvas, sigma) : whole(surface.canvas);
     const { shadow, bloom } = options;
     const ctx = this.c;
     if (shadow) {
@@ -642,7 +645,7 @@ export class CanvasDraw implements Draw {
         // Tinted raster: paint the tint through the image's alpha on a layer.
         g.layer({ opacity }, () => {
           this.rasterGraphic(graphic.image, x, y, k, 1);
-          this.blit(solidCanvasColor(this.c, tint), 1, 'source-in');
+          this.blit(whole(solidCanvasColor(this.c, tint)), 1, 'source-in');
         });
       } else {
         this.rasterGraphic(graphic.image, x, y, k, opacity);
@@ -924,12 +927,13 @@ export class CanvasDraw implements Draw {
   }
 
   /** Composites a frame-sized image onto the current surface (the surface's clip applies). */
-  private blit(source: CanvasImageSource, opacity: number, op: GlobalCompositeOperation): void {
+  private blit(image: EffectImage, opacity: number, op: GlobalCompositeOperation): void {
     const ctx = this.c;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = opacity;
     ctx.globalCompositeOperation = op;
-    ctx.drawImage(source, 0, 0);
+    const { source, x, y, width, height } = image;
+    ctx.drawImage(source, x, y, width, height, 0, 0, width, height);
   }
 
   private push(): void {

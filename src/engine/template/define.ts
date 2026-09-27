@@ -92,6 +92,8 @@ export type TemplateDefinition<S extends ControlSchema> = {
   alpha: AlphaSupport;
   /** The hero frame in seconds at the default duration (gallery posters, thumbnails). */
   poster: number;
+  /** Motion-blur shutter angle in degrees when the genre needs one (default: from Energy). */
+  shutter?: number;
   palettes: readonly PaletteRef[];
   pairings: readonly PairingId[];
   controls: S;
