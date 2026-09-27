@@ -1,5 +1,6 @@
 /** Draw API types (docs/06-engine.md §6). Coordinates are design units (1080p px), y down. */
 
+import type { Graphic } from '../assets/types';
 import type { Color } from '../core/color';
 import type { Rect } from '../core/math';
 import type { FrameSpec } from '../template/formats';
@@ -50,7 +51,7 @@ export type Stroke = {
   trim?: readonly [number, number];
 };
 
-export type Paint = { fill?: Fill; stroke?: Stroke; opacity?: number };
+export type Paint = { fill?: Fill; stroke?: Stroke; opacity?: number; fillRule?: CanvasFillRule };
 
 export type Transform = {
   x?: number;
@@ -126,6 +127,37 @@ export type ImageOptions = {
   opacity?: number;
 };
 
+/** How a logo or image from a control is drawn (`g.graphic`). */
+export type GraphicOptions = {
+  /** `contain` (default) fits the whole artwork inside `dest`; `cover` fills it and crops. */
+  fit?: 'contain' | 'cover';
+  /** Point kept in view when cropping, and alignment inside `dest` for `contain` (0..1). */
+  focal?: { x: number; y: number };
+  /** Fit by the artwork's ink (default — logos with margins still fill `dest`) or its box. */
+  by?: 'ink' | 'box';
+  /** Paints the whole artwork in one color (logo color modes: mono, accent). */
+  tint?: Color | null;
+  /** Color of `currentColor` parts of untinted vector artwork (default black). */
+  current?: Color;
+  opacity?: number;
+};
+
+/** An isolated group: drawn on its own layer, then composited as one image. */
+export type LayerOptions = { opacity?: number; blend?: BlendMode };
+
+/** Track matte: `content` shows where `matte` is opaque (alpha) or bright (luma). */
+export type MaskOptions = { mode?: 'alpha' | 'luma'; invert?: boolean };
+
+/** Layer effects (docs/06-engine.md §9). Distances are in `u` (1% of the short side). */
+export type FxOptions = LayerOptions & {
+  /** Gaussian blur (σ, in u). */
+  blur?: number;
+  /** Adds a glow of the layer's bright parts: radius (σ, in u), intensity, threshold (0..1). */
+  bloom?: { radius: number; intensity: number; threshold?: number };
+  /** Soft drop shadow for legibility on footage: blur (σ, in u), offset (in u). */
+  shadow?: { color: Color; blur: number; opacity?: number; x?: number; y?: number };
+};
+
 export type EditableKind = 'movable' | 'editable';
 
 export type EditableRegion = {
@@ -153,7 +185,15 @@ export interface Draw {
   path(path: PathData, paint: Paint): void;
   text(text: TextBlock | TextLine, options?: TextDrawOptions): void;
   image(asset: ImageAsset, dest: Rect, options?: ImageOptions): void;
+  /** Draws a logo/image from a control (vector or raster), fitted into `dest`. */
+  graphic(graphic: Graphic, dest: Rect, options?: GraphicOptions): void;
   clip(shape: ClipShape, draw: (g: Draw) => void): void;
+  /** Draws `draw` on an isolated layer (group opacity and blend apply to the result). */
+  layer(options: LayerOptions, draw: (g: Draw) => void): void;
+  /** Shows `content` only where `matte` is painted (a track matte). */
+  mask(matte: (g: Draw) => void, content: (g: Draw) => void, options?: MaskOptions): void;
+  /** Draws `draw` on a layer and applies effects (blur, bloom, shadow) before compositing. */
+  fx(options: FxOptions, draw: (g: Draw) => void): void;
   /** A user-draggable group: applies the stored layout offset and registers it for the editor. */
   movable(id: string, bounds: Rect, draw: (g: Draw) => void): void;
   /** Registers a clickable region that focuses `controlKey` in the inspector. */

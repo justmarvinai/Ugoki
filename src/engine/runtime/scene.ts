@@ -4,6 +4,8 @@
  * is either complete or not swapped in at all.
  */
 
+import { placeholderGraphic } from '../assets/placeholders';
+import type { AssetRef, Graphic } from '../assets/types';
 import { clamp } from '../core/math';
 import { hashString, mixSeeds, rngFor } from '../core/rng';
 import type { Canvas2D, CanvasDraw } from '../draw/canvas-draw';
@@ -27,16 +29,34 @@ export type BuiltScene = {
   readonly pairing: Pairing;
   readonly timeline: Timeline;
   readonly scene: Scene;
+  /** Image controls whose file wasn't available (drawn with their placeholder instead). */
+  readonly missingAssets: readonly string[];
 };
+
+/** Finds a user's file (decoded) by the SHA-256 of its bytes. */
+export type AssetLookup = (hash: string) => Graphic | undefined;
 
 /** Loads the fonts a state needs, then builds its scene. */
 export async function prepareScene(
   template: AnyTemplate,
   state: DesignState,
   text: TextEngineHandle,
+  assets?: AssetLookup,
 ): Promise<BuiltScene> {
   await text.load(pairingFonts(state.pairing));
-  return buildScene(template, state, text);
+  return buildScene(template, state, text, assets);
+}
+
+/** The asset references a state uses (user files only), for loading them before a build. */
+export function userAssets(template: AnyTemplate, state: DesignState): string[] {
+  const hashes: string[] = [];
+  for (const [key, control] of Object.entries(template.controls as ControlSchema)) {
+    const ref = state.props[key] as AssetRef | null | undefined;
+    if (control.kind === 'image' && ref?.kind === 'user' && !hashes.includes(ref.hash)) {
+      hashes.push(ref.hash);
+    }
+  }
+  return hashes;
 }
 
 /** Builds a scene synchronously; the pairing's fonts must already be loaded. */
@@ -44,6 +64,7 @@ export function buildScene(
   template: AnyTemplate,
   state: DesignState,
   text: TextEngine,
+  assets?: AssetLookup,
 ): BuiltScene {
   const frame = createFrame(state.format);
   const energy = ENERGIES[state.energy];
@@ -59,6 +80,23 @@ export function buildScene(
   });
   // Different templates with the same user seed still get unrelated random streams.
   const seed = mixSeeds(hashString(template.id), state.seed);
+  const controls = template.controls as ControlSchema;
+  const missingAssets: string[] = [];
+  const graphic = (key: string): Graphic | null => {
+    const control = controls[key];
+    if (control?.kind !== 'image') throw new Error(`"${key}" is not an image control`);
+    const ref = props[key] as AssetRef | null;
+    if (ref === null) return null;
+    if (ref.kind === 'user') {
+      const found = assets?.(ref.hash);
+      if (found) return found;
+      if (!missingAssets.includes(key)) missingAssets.push(key);
+    } else {
+      const found = placeholderGraphic(ref.id);
+      if (found) return found;
+    }
+    return control.default.kind === 'placeholder' ? placeholderGraphic(control.default.id) : null;
+  };
   const context: BuildContext<ControlSchema> = {
     props,
     frame,
@@ -74,9 +112,10 @@ export function buildScene(
     // `gap × energy.stagger` (docs/04-motion-language.md §4).
     stagger: (gap) => (gap * energy.stagger) / energy.time,
     travel: (distance) => distance * energy.travel,
+    graphic,
   };
   const scene = template.build(context);
-  return { template, state, frame, palette, pairing, timeline, scene };
+  return { template, state, frame, palette, pairing, timeline, scene, missingAssets };
 }
 
 export type RenderOptions = {

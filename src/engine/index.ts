@@ -4,6 +4,15 @@
  * motion uses the named easings and springs of docs/04-motion-language.md.
  */
 
+// Assets
+export type {
+  AssetRef,
+  Graphic,
+  RasterGraphic,
+  ShapePaint,
+  VectorGraphic,
+  VectorShape,
+} from './assets/types';
 // Color
 export {
   adjustLightness,
@@ -55,9 +64,13 @@ export type {
   ClipShape,
   Draw,
   Fill,
+  FxOptions,
   GlyphTransform,
   Gradient,
+  GraphicOptions,
   GroupOptions,
+  LayerOptions,
+  MaskOptions,
   Paint,
   PathCommand,
   PathData,

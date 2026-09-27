@@ -4,6 +4,8 @@
  * each with its own template, state and transport.
  */
 
+import type { VectorGraphic } from '../assets/types';
+import type { Rect } from '../core/math';
 import type { EditableRegion } from '../draw/types';
 import type { Capabilities } from '../runtime/capabilities';
 import type { TemplateDescriptor } from '../template/describe';
@@ -16,6 +18,11 @@ export type ViewId = string;
 export type ViewSize = { width: number; height: number; dpr: number };
 
 export type QualityMode = 'adaptive' | 'full';
+
+/** A user's file, decoded on the main thread (raster bitmaps are transferred, not copied). */
+export type TransferableGraphic =
+  | { kind: 'vector'; graphic: VectorGraphic }
+  | { kind: 'raster'; bitmap: ImageBitmap; ink: Rect };
 
 export type HostMessage =
   | {
@@ -44,7 +51,10 @@ export type HostMessage =
   /** Renders a still at `shortSide` resolution (PNG). */
   | { type: 'snapshot'; requestId: number; view: ViewId; t: number; shortSide: number }
   /** Asks what the rendering side can do; answered with `capabilities`. */
-  | { type: 'probe' };
+  | { type: 'probe' }
+  /** Provides a user's file (by the SHA-256 of its bytes) to every view that references it. */
+  | { type: 'setAsset'; hash: string; asset: TransferableGraphic }
+  | { type: 'dropAsset'; hash: string };
 
 export type FrameInfo = {
   view: ViewId;
@@ -64,6 +74,8 @@ export type WorkerMessage =
       duration: number;
       sections: Readonly<Record<SectionName, Section>>;
       warnings: readonly TimelineWarning[];
+      /** Image controls whose file isn't available yet (drawn with their placeholder). */
+      missingAssets: readonly string[];
       /** Build time in milliseconds. */
       cost: number;
     }

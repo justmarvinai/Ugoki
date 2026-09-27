@@ -5,6 +5,9 @@
  * malformed input (e.g. from an edited share link).
  */
 
+import { isPlaceholder, type PlaceholderKind } from '../assets/placeholders';
+import type { AssetRef } from '../assets/types';
+
 export type ControlGroup = 'content' | 'style' | 'motion' | 'layout';
 
 type BaseControl = {
@@ -51,7 +54,18 @@ export type NumberControl = BaseControl & {
   unit?: string;
 };
 
-export type Control = TextControl | ChoiceControl | ToggleControl | NumberControl;
+/** A logo or image slot. Values are asset references; files stay on the user's device. */
+export type ImageControl = BaseControl & {
+  kind: 'image';
+  /** `logo`: vector preferred, fitted by its ink; `image`: photos and artwork. */
+  accept: PlaceholderKind;
+  /** A built-in placeholder, used until the user adds a file (and when a file is missing). */
+  default: AssetRef;
+  /** The slot may be emptied. */
+  optional?: boolean;
+};
+
+export type Control = TextControl | ChoiceControl | ToggleControl | NumberControl | ImageControl;
 export type ControlSchema = Record<string, Control>;
 
 export type ControlValue<C> = C extends TextControl
@@ -62,7 +76,9 @@ export type ControlValue<C> = C extends TextControl
       ? boolean
       : C extends NumberControl
         ? number
-        : never;
+        : C extends ImageControl
+          ? AssetRef | null
+          : never;
 
 export type Props<S extends ControlSchema> = { readonly [K in keyof S]: ControlValue<S[K]> };
 
@@ -94,7 +110,31 @@ export const c = {
     group: 'motion',
     ...options,
   }),
+  image: (options: WithOptionalGroup<ImageControl>): ImageControl => ({
+    kind: 'image',
+    group: 'content',
+    ...options,
+  }),
 };
+
+const HASH = /^[0-9a-f]{64}$/;
+
+/** A valid asset reference for `control`, or its default (null if optional and emptied). */
+export function sanitizeAssetRef(control: ImageControl, value: unknown): AssetRef | null {
+  if (value === null) return control.optional ? null : control.default;
+  if (typeof value !== 'object' || value === undefined) return control.default;
+  const ref = value as Record<string, unknown>;
+  if (ref.kind === 'placeholder' && typeof ref.id === 'string') {
+    return isPlaceholder(control.accept, ref.id)
+      ? { kind: 'placeholder', id: ref.id }
+      : control.default;
+  }
+  if (ref.kind === 'user' && typeof ref.hash === 'string' && HASH.test(ref.hash)) {
+    const name = typeof ref.name === 'string' ? stripUnsafe(ref.name).slice(0, 120) : undefined;
+    return name ? { kind: 'user', hash: ref.hash, name } : { kind: 'user', hash: ref.hash };
+  }
+  return control.default;
+}
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
@@ -150,6 +190,8 @@ export function sanitizeValue(control: Control, value: unknown): unknown {
       const steps = Math.round((clamped - control.min) / control.step);
       return Number((control.min + steps * control.step).toFixed(6));
     }
+    case 'image':
+      return sanitizeAssetRef(control, value);
   }
 }
 

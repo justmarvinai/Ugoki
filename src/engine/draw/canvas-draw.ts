@@ -1,15 +1,17 @@
 /**
- * Canvas 2D implementation of the Draw API (docs/06-engine.md §6) — the direct path for frames
- * that need no compositor work.
+ * Canvas 2D implementation of the Draw API (docs/06-engine.md §6).
  *
  * Templates draw in design units. The drawer keeps its own transform/opacity/blend stacks and
  * sets the full transform before each primitive, so per-glyph motion costs one `setTransform`
- * and one cached-path fill per glyph (no save/restore). Group opacity multiplies into each
- * primitive rather than compositing an isolated layer, and blend modes apply per primitive;
- * isolated layers, FX, mattes and motion blur arrive with the WebGL2 compositor (Phase 2).
+ * and one cached-path fill per glyph (no save/restore). `group` opacity multiplies into each
+ * primitive (ADR-023); `layer`, `mask` and `fx` draw onto pooled frame-sized layers that are
+ * composited back as one image — effects run through the compositor's `Effects` backend
+ * (WebGL2, or Canvas 2D without it).
  */
 
-import { type Color, mixOklab, toCss } from '../core/color';
+import type { Graphic } from '../assets/types';
+import { CpuEffects, type Effects } from '../compositor/effects';
+import { type Color, mixOklab, toCss, withAlpha } from '../core/color';
 import { clamp01, type Rect } from '../core/math';
 import type { FrameSpec } from '../template/formats';
 import type { Glyph, TextBlock, TextLine } from '../text/types';
@@ -21,12 +23,16 @@ import type {
   EditableKind,
   EditableRegion,
   Fill,
+  FxOptions,
   GlyphTransform,
   Gradient,
+  GraphicOptions,
   GroupOptions,
   ImageAsset,
   ImageOptions,
+  LayerOptions,
   LayoutOffset,
+  MaskOptions,
   Paint,
   PathData,
   Stroke,
@@ -46,10 +52,25 @@ export type DrawTarget = {
   layout?: Readonly<Record<string, LayoutOffset>>;
   /** Record movable/editable regions for the editor overlay. */
   collectRegions?: boolean;
+  /** Effects backend for `fx` and luma masks (Canvas 2D effects when omitted). */
+  effects?: Effects;
+};
+
+type Surface = { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D };
+
+type LayerEntry = {
+  surface: Surface;
+  parent: Canvas2D;
+  parentSaves: number;
+  opacity: number;
+  composite: GlobalCompositeOperation;
+  font: string;
 };
 
 const DEG = Math.PI / 180;
 const MAX_DEPTH = 64;
+/** Nested isolated layers (each is a frame-sized canvas). */
+const MAX_LAYERS = 8;
 /** Below this opacity nothing is drawn. */
 const INVISIBLE = 1 / 1024;
 const BLACK: Color = { r: 0, g: 0, b: 0, a: 1 };
@@ -247,12 +268,56 @@ function solidOf(fill: Fill): Color {
 const clampRadius = (r: Rect, radius: number) =>
   Math.max(0, Math.min(radius, Math.abs(r.w) / 2, Math.abs(r.h) / 2));
 
+let sharedEffects: CpuEffects | null = null;
+const cpuEffects = () => {
+  sharedEffects ??= new CpuEffects();
+  return sharedEffects;
+};
+
+/** Fills the whole surface with `color` and returns its canvas (used for `source-in` tints). */
+function solidCanvasColor(ctx: Canvas2D, color: Color): CanvasImageSource {
+  tintSurface ??= createSurface();
+  const { canvas } = ctx;
+  prepareSurface(tintSurface, canvas.width, canvas.height);
+  tintSurface.ctx.fillStyle = toCss(color);
+  tintSurface.ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return tintSurface.canvas;
+}
+
+let tintSurface: Surface | null = null;
+
+function createSurface(): Surface {
+  const canvas = new OffscreenCanvas(1, 1);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D is unavailable');
+  return { canvas, ctx };
+}
+
+/** Sizes a layer to the frame (clearing it) and resets its drawing state. */
+function prepareSurface(surface: Surface, width: number, height: number): void {
+  const { canvas, ctx } = surface;
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  } else {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
 // --- the drawer ---------------------------------------------------------------------------
 
 export class CanvasDraw implements Draw {
+  /** The surface being drawn on: the target's canvas, or the innermost layer. */
   private ctx: Canvas2D | null = null;
   private target: DrawTarget | null = null;
   private s = 1;
+  private readonly surfaces: Surface[] = [];
+  private readonly layers: LayerEntry[] = [];
 
   // Current state and the saved levels (6 matrix entries + opacity per level).
   private readonly m = new Matrix();
@@ -261,7 +326,7 @@ export class CanvasDraw implements Draw {
   private readonly stack = new Float64Array(MAX_DEPTH * 7);
   private readonly composites: GlobalCompositeOperation[] = [];
   private depth = 0;
-  /** Outstanding ctx.save() calls (clips), unwound if a render throws. */
+  /** Outstanding ctx.save() calls (clips) on the current surface, unwound if a render throws. */
   private saves = 0;
   /** Last `ctx.font` we set (setting it re-parses the font string). */
   private font = '';
@@ -281,9 +346,7 @@ export class CanvasDraw implements Draw {
 
   /** Starts a frame: resets all state and clears the canvas. */
   begin(target: DrawTarget): void {
-    if (this.ctx) {
-      for (; this.saves > 0; this.saves--) this.ctx.restore();
-    }
+    this.unwind();
     const { ctx } = target;
     this.ctx = ctx;
     this.target = target;
@@ -304,8 +367,19 @@ export class CanvasDraw implements Draw {
 
   /** Ends the frame; returns the editor regions (empty unless `collectRegions`). */
   end(): EditableRegion[] {
+    this.unwind();
     this.ctx = null;
     return [...this.regions.values()];
+  }
+
+  /** Restores every surface's clip state and leaves all layers (after a throw mid-frame). */
+  private unwind(): void {
+    if (this.ctx) for (; this.saves > 0; this.saves--) this.ctx.restore();
+    for (let top = this.layers.pop(); top; top = this.layers.pop()) {
+      this.ctx = top.parent;
+      for (this.saves = top.parentSaves; this.saves > 0; this.saves--) this.ctx.restore();
+    }
+    this.saves = 0;
   }
 
   // --- Draw API ---------------------------------------------------------------------------
@@ -314,7 +388,7 @@ export class CanvasDraw implements Draw {
     const target = this.use();
     if (options?.background && target.transparent) return;
     if (this.opacity < INVISIBLE) return;
-    const ctx = target.ctx;
+    const ctx = this.c;
     ctx.setTransform(this.s, 0, 0, this.s, 0, 0);
     ctx.globalAlpha = this.opacity;
     ctx.globalCompositeOperation = this.composite;
@@ -355,7 +429,7 @@ export class CanvasDraw implements Draw {
 
   rect(r: Rect, paint: Paint): void {
     if (!this.prepare(paint)) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     ctx.beginPath();
     ctx.rect(r.x, r.y, r.w, r.h);
     this.paint(paint, 2 * (Math.abs(r.w) + Math.abs(r.h)));
@@ -363,7 +437,7 @@ export class CanvasDraw implements Draw {
 
   roundRect(r: Rect, radius: number, paint: Paint): void {
     if (!this.prepare(paint)) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     const rr = clampRadius(r, radius);
     ctx.beginPath();
     ctx.roundRect(r.x, r.y, r.w, r.h, rr);
@@ -372,7 +446,7 @@ export class CanvasDraw implements Draw {
 
   circle(cx: number, cy: number, radius: number, paint: Paint): void {
     if (!(radius > 0) || !this.prepare(paint)) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     ctx.beginPath();
     // Start at 12 o'clock so trim paths draw on from the top.
     ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI * 1.5);
@@ -381,7 +455,7 @@ export class CanvasDraw implements Draw {
 
   line(x1: number, y1: number, x2: number, y2: number, stroke: Stroke): void {
     if (!this.prepareAlpha(1)) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     if (!this.applyStroke(stroke, Math.hypot(x2 - x1, y2 - y1))) return;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -391,11 +465,11 @@ export class CanvasDraw implements Draw {
 
   path(path: PathData, paint: Paint): void {
     if (!this.prepare(paint)) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     const object = pathObject(path);
     if (paint.fill) {
       ctx.fillStyle = this.style(paint.fill, 0, 0);
-      ctx.fill(object);
+      ctx.fill(object, paint.fillRule ?? 'nonzero');
     }
     if (
       paint.stroke &&
@@ -408,7 +482,7 @@ export class CanvasDraw implements Draw {
   text(text: TextBlock | TextLine, options: TextDrawOptions = NO_OPTIONS): void {
     const opacity = this.opacity * (options.opacity ?? 1);
     if (opacity < INVISIBLE) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     ctx.globalCompositeOperation = this.composite;
     // Outline-only text has no fill unless one is given; plain text defaults to black.
     const fill = options.fill ?? (options.outline ? null : BLACK);
@@ -420,7 +494,7 @@ export class CanvasDraw implements Draw {
   image(asset: ImageAsset, dest: Rect, options: ImageOptions = {}): void {
     if (!(asset.width > 0 && asset.height > 0 && dest.w > 0 && dest.h > 0)) return;
     if (!this.prepareAlpha(options.opacity ?? 1)) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     const focalX = clamp01(options.focal?.x ?? 0.5);
     const focalY = clamp01(options.focal?.y ?? 0.5);
     const scale =
@@ -455,7 +529,7 @@ export class CanvasDraw implements Draw {
 
   clip(shape: ClipShape, draw: (g: Draw) => void): void {
     if (!this.applyTransform()) return;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     ctx.save();
     this.saves++;
     if ('path' in shape) {
@@ -474,6 +548,108 @@ export class CanvasDraw implements Draw {
     ctx.restore();
     this.saves--;
     this.font = '';
+  }
+
+  layer(options: LayerOptions, draw: (g: Draw) => void): void {
+    const opacity = this.opacity * (options.opacity ?? 1);
+    if (opacity < INVISIBLE && !this.target?.collectRegions) return;
+    const composite = options.blend ? COMPOSITE[options.blend] : this.composite;
+    const surface = this.pushLayer();
+    draw(this);
+    this.popLayer();
+    if (opacity >= INVISIBLE) this.blit(surface.canvas, opacity, composite);
+  }
+
+  mask(matte: (g: Draw) => void, content: (g: Draw) => void, options: MaskOptions = {}): void {
+    const opacity = this.opacity;
+    if (opacity < INVISIBLE && !this.target?.collectRegions) return;
+    const composite = this.composite;
+    const contentLayer = this.pushLayer();
+    content(this);
+    const matteLayer = this.pushLayer();
+    matte(this);
+    this.popLayer();
+    const alpha =
+      options.mode === 'luma' ? this.effects().lumaToAlpha(matteLayer.canvas) : matteLayer.canvas;
+    this.blit(alpha, 1, options.invert ? 'destination-out' : 'destination-in');
+    this.popLayer();
+    if (opacity >= INVISIBLE) this.blit(contentLayer.canvas, opacity, composite);
+  }
+
+  fx(options: FxOptions, draw: (g: Draw) => void): void {
+    const opacity = this.opacity * (options.opacity ?? 1);
+    if (opacity < INVISIBLE && !this.target?.collectRegions) return;
+    const composite = options.blend ? COMPOSITE[options.blend] : this.composite;
+    const surface = this.pushLayer();
+    draw(this);
+    this.popLayer();
+    if (opacity < INVISIBLE) return;
+    // Effect sizes are in u; the backend works in output pixels.
+    const px = this.use().frame.u * this.s;
+    const sigma = (options.blur ?? 0) * px;
+    const source = sigma > 0.25 ? this.effects().blur(surface.canvas, sigma) : surface.canvas;
+    const { shadow, bloom } = options;
+    const ctx = this.c;
+    if (shadow) {
+      ctx.shadowColor = toCss(withAlpha(shadow.color, shadow.color.a * (shadow.opacity ?? 1)));
+      // Canvas shadows blur with σ = shadowBlur / 2.
+      ctx.shadowBlur = 2 * shadow.blur * px;
+      ctx.shadowOffsetX = (shadow.x ?? 0) * px;
+      ctx.shadowOffsetY = (shadow.y ?? 0) * px;
+    }
+    this.blit(source, opacity, composite);
+    if (shadow) {
+      ctx.shadowColor = 'rgba(0,0,0,0)';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+    if (bloom && bloom.intensity > 0) {
+      const glow = this.effects().bloom(surface.canvas, {
+        radius: bloom.radius * px,
+        intensity: bloom.intensity,
+        threshold: bloom.threshold ?? 0.6,
+      });
+      this.blit(glow, opacity, 'lighter');
+    }
+  }
+
+  graphic(graphic: Graphic, dest: Rect, options: GraphicOptions = {}): void {
+    const opacity = options.opacity ?? 1;
+    if (this.opacity * opacity < INVISIBLE) return;
+    const box =
+      options.by === 'box'
+        ? graphic.kind === 'vector'
+          ? graphic.box
+          : { x: 0, y: 0, w: graphic.image.width, h: graphic.image.height }
+        : graphic.ink;
+    if (!(box.w > 0 && box.h > 0 && dest.w > 0 && dest.h > 0)) return;
+    const cover = options.fit === 'cover';
+    const k = cover
+      ? Math.max(dest.w / box.w, dest.h / box.h)
+      : Math.min(dest.w / box.w, dest.h / box.h);
+    const fx = clamp01(options.focal?.x ?? 0.5);
+    const fy = clamp01(options.focal?.y ?? 0.5);
+    const x = dest.x + (dest.w - box.w * k) * fx - box.x * k;
+    const y = dest.y + (dest.h - box.h * k) * fy - box.y * k;
+    const tint = options.tint ?? null;
+    const draw = (g: Draw) => {
+      if (graphic.kind === 'vector') {
+        g.group({ x, y, scale: k }, () =>
+          this.vectorShapes(graphic, tint, options.current, opacity),
+        );
+      } else if (tint) {
+        // Tinted raster: paint the tint through the image's alpha on a layer.
+        g.layer({ opacity }, () => {
+          this.rasterGraphic(graphic.image, x, y, k, 1);
+          this.blit(solidCanvasColor(this.c, tint), 1, 'source-in');
+        });
+      } else {
+        this.rasterGraphic(graphic.image, x, y, k, opacity);
+      }
+    };
+    if (cover) this.clip(dest, draw);
+    else draw(this);
   }
 
   movable(id: string, bounds: Rect, draw: (g: Draw) => void): void {
@@ -505,6 +681,56 @@ export class CanvasDraw implements Draw {
     this.register('editable', controlKey, bounds);
   }
 
+  private vectorShapes(
+    graphic: Extract<Graphic, { kind: 'vector' }>,
+    tint: Color | null,
+    current: Color | undefined,
+    opacity: number,
+  ): void {
+    for (const shape of graphic.shapes) {
+      const alpha = opacity * shape.opacity;
+      const fill = tint ?? (shape.fill === 'current' ? (current ?? BLACK) : shape.fill);
+      if (fill) {
+        this.path(shape.path, {
+          fill,
+          fillRule: shape.fillRule,
+          opacity: alpha * shape.fillOpacity,
+        });
+      }
+      const strokeColor = tint ?? (shape.stroke === 'current' ? (current ?? BLACK) : shape.stroke);
+      if (strokeColor) {
+        this.path(shape.path, {
+          stroke: {
+            color: strokeColor,
+            width: shape.strokeWidth,
+            cap: shape.lineCap,
+            join: shape.lineJoin,
+          },
+          opacity: alpha * shape.strokeOpacity,
+        });
+      }
+    }
+  }
+
+  /** Draws a raster image with its pixel (0, 0) at (x, y), scaled by k, in group space. */
+  private rasterGraphic(image: ImageAsset, x: number, y: number, k: number, opacity: number): void {
+    if (!this.prepareAlpha(opacity)) return;
+    const ctx = this.c;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+      image.source,
+      0,
+      0,
+      image.width,
+      image.height,
+      x,
+      y,
+      image.width * k,
+      image.height * k,
+    );
+  }
+
   // --- text -------------------------------------------------------------------------------
 
   private textStatic(
@@ -513,7 +739,7 @@ export class CanvasDraw implements Draw {
     options: TextDrawOptions,
     opacity: number,
   ): void {
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     const ox = options.x ?? 0;
     const oy = options.y ?? 0;
     const { outline } = options;
@@ -555,7 +781,7 @@ export class CanvasDraw implements Draw {
     opacity: number,
     animate: (glyph: Glyph, line: TextLine) => GlyphTransform | null,
   ): void {
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     const ox = options.x ?? 0;
     const oy = options.y ?? 0;
     const { outline } = options;
@@ -626,7 +852,7 @@ export class CanvasDraw implements Draw {
 
   /** Draws a fallback glyph with `fillText`; `this.local` holds its transform. */
   private fallbackGlyph(glyph: Glyph, color: Color, alpha: number): void {
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     if (!glyph.fallback || !this.setTransform(this.glyphMatrix.multiply(this.m, this.local)))
       return;
     const font = `${glyph.size}px ${glyph.fallback.font}`;
@@ -644,6 +870,66 @@ export class CanvasDraw implements Draw {
   private use(): DrawTarget {
     if (!this.target || !this.ctx) throw new Error('Draw used outside begin()/end()');
     return this.target;
+  }
+
+  /** The current surface's context. */
+  private get c(): Canvas2D {
+    if (!this.ctx) throw new Error('Draw used outside begin()/end()');
+    return this.ctx;
+  }
+
+  private effects(): Effects {
+    return this.target?.effects ?? cpuEffects();
+  }
+
+  // --- layers -----------------------------------------------------------------------------
+
+  /** Starts drawing on a fresh frame-sized layer. */
+  private pushLayer(): Surface {
+    const root = this.use().ctx.canvas;
+    const depth = this.layers.length;
+    if (depth >= MAX_LAYERS) throw new Error('Draw: layers are nested too deeply');
+    let surface = this.surfaces[depth];
+    if (!surface) {
+      surface = createSurface();
+      this.surfaces[depth] = surface;
+    }
+    prepareSurface(surface, root.width, root.height);
+    this.layers.push({
+      surface,
+      parent: this.c,
+      parentSaves: this.saves,
+      opacity: this.opacity,
+      composite: this.composite,
+      font: this.font,
+    });
+    this.ctx = surface.ctx;
+    this.saves = 0;
+    this.opacity = 1;
+    this.composite = 'source-over';
+    this.font = '';
+    return surface;
+  }
+
+  /** Returns to the parent surface (the layer's pixels stay until its next use). */
+  private popLayer(): void {
+    const top = this.layers.pop();
+    if (!top) throw new Error('Draw: no layer to end');
+    for (; this.saves > 0; this.saves--) this.c.restore();
+    this.ctx = top.parent;
+    this.saves = top.parentSaves;
+    this.opacity = top.opacity;
+    this.composite = top.composite;
+    this.font = top.font;
+  }
+
+  /** Composites a frame-sized image onto the current surface (the surface's clip applies). */
+  private blit(source: CanvasImageSource, opacity: number, op: GlobalCompositeOperation): void {
+    const ctx = this.c;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = opacity;
+    ctx.globalCompositeOperation = op;
+    ctx.drawImage(source, 0, 0);
   }
 
   private push(): void {
@@ -684,7 +970,7 @@ export class CanvasDraw implements Draw {
     const s = this.s;
     const { a, b, c, d, e, f } = m;
     if (!Number.isFinite(a + b + c + d + e + f)) return false;
-    this.use().ctx.setTransform(a * s, b * s, c * s, d * s, e * s, f * s);
+    this.c.setTransform(a * s, b * s, c * s, d * s, e * s, f * s);
     return true;
   }
 
@@ -700,7 +986,7 @@ export class CanvasDraw implements Draw {
   private prepareAlpha(opacity: number): boolean {
     const alpha = this.opacity * opacity;
     if (alpha < INVISIBLE || !this.applyTransform()) return false;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     ctx.globalAlpha = alpha;
     ctx.globalCompositeOperation = this.composite;
     return true;
@@ -708,10 +994,10 @@ export class CanvasDraw implements Draw {
 
   /** Fills and/or strokes the current path. */
   private paint(paint: Paint, length: number): void {
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     if (paint.fill) {
       ctx.fillStyle = this.style(paint.fill, 0, 0);
-      ctx.fill();
+      ctx.fill(paint.fillRule ?? 'nonzero');
     }
     if (paint.stroke && this.applyStroke(paint.stroke, length)) ctx.stroke();
   }
@@ -719,7 +1005,7 @@ export class CanvasDraw implements Draw {
   /** Configures stroke state; false when nothing would be visible. */
   private applyStroke(stroke: Stroke, length: number): boolean {
     if (!(stroke.width > 0)) return false;
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     ctx.strokeStyle = toCss(stroke.color);
     ctx.lineWidth = stroke.width;
     ctx.lineCap = stroke.cap ?? 'butt';
@@ -750,7 +1036,7 @@ export class CanvasDraw implements Draw {
   /** Canvas paint for a fill; gradients are shifted by (−dx, −dy) to stay in group space. */
   private style(fill: Fill, dx: number, dy: number): string | CanvasGradient {
     if (!isGradient(fill)) return toCss(fill);
-    const ctx = this.use().ctx;
+    const ctx = this.c;
     const gradient =
       fill.kind === 'linear'
         ? ctx.createLinearGradient(fill.x0 - dx, fill.y0 - dy, fill.x1 - dx, fill.y1 - dy)

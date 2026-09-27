@@ -7,10 +7,11 @@
  * never shows a half-built state; a failing build keeps the last good scene on screen.
  */
 
+import type { Graphic } from '../assets/types';
 import { CanvasDraw } from '../draw/canvas-draw';
 import { probeCapabilities } from '../runtime/capabilities';
 import { AdaptiveQuality } from '../runtime/quality';
-import { type BuiltScene, buildScene, renderScene } from '../runtime/scene';
+import { type BuiltScene, buildScene, renderScene, userAssets } from '../runtime/scene';
 import type { AnyTemplate } from '../template/define';
 import { describeTemplate } from '../template/describe';
 import { outputSize } from '../template/formats';
@@ -18,7 +19,14 @@ import { pairingFonts } from '../template/pairings';
 import { type DesignState, initialState, sanitizeState } from '../template/state';
 import { createTextEngine, type TextEngineHandle } from '../text/engine';
 import { createFetchLoader, type FontBytesLoader } from '../text/font-source';
-import type { HostMessage, QualityMode, ViewId, ViewSize, WorkerMessage } from './protocol';
+import type {
+  HostMessage,
+  QualityMode,
+  TransferableGraphic,
+  ViewId,
+  ViewSize,
+  WorkerMessage,
+} from './protocol';
 
 export type TemplateLoader = (id: string) => Promise<AnyTemplate>;
 
@@ -86,6 +94,8 @@ const messageOf = (error: unknown) => (error instanceof Error ? error.message : 
 export class RenderRuntime {
   private readonly views = new Map<ViewId, View>();
   private readonly templates = new Map<string, Promise<AnyTemplate>>();
+  /** Users' files by content hash, shared by all views. */
+  private readonly assets = new Map<string, Graphic>();
   private readonly loadingFonts = new Set<string>();
   private text: TextEngineHandle | null = null;
   private textLoading = false;
@@ -149,6 +159,38 @@ export class RenderRuntime {
           this.post({ type: 'capabilities', capabilities }),
         );
         break;
+      case 'setAsset':
+        this.setAsset(message.hash, message.asset);
+        break;
+      case 'dropAsset': {
+        const asset = this.assets.get(message.hash);
+        if (asset?.kind === 'raster') (asset.image.source as ImageBitmap).close?.();
+        this.assets.delete(message.hash);
+        break;
+      }
+    }
+  }
+
+  private setAsset(hash: string, asset: TransferableGraphic): void {
+    const previous = this.assets.get(hash);
+    if (previous?.kind === 'raster') (previous.image.source as ImageBitmap).close?.();
+    this.assets.set(
+      hash,
+      asset.kind === 'vector'
+        ? asset.graphic
+        : {
+            kind: 'raster',
+            image: { source: asset.bitmap, width: asset.bitmap.width, height: asset.bitmap.height },
+            ink: asset.ink,
+          },
+    );
+    // Rebuild views that drew a placeholder because this file wasn't here yet.
+    for (const view of this.views.values()) {
+      const built = view.built;
+      if (!built || !view.template || built.missingAssets.length === 0) continue;
+      if (userAssets(view.template, built.state).includes(hash)) {
+        this.queueBuild(view, view.pending ?? built.state);
+      }
     }
   }
 
@@ -284,7 +326,7 @@ export class RenderRuntime {
   private build(view: View, template: AnyTemplate, state: DesignState, text: TextEngineHandle) {
     const started = now();
     try {
-      const built = buildScene(template, state, text);
+      const built = buildScene(template, state, text, (hash) => this.assets.get(hash));
       view.built = built;
       view.lastError = null;
       if (view.t > built.timeline.duration) view.t = built.timeline.duration;
@@ -294,6 +336,7 @@ export class RenderRuntime {
         duration: built.timeline.duration,
         sections: built.timeline.sections,
         warnings: built.timeline.warnings,
+        missingAssets: built.missingAssets,
         cost: now() - started,
       });
       this.invalidate(view);

@@ -4,7 +4,14 @@
  */
 
 import type { DesignState } from '../template/state';
-import type { HostMessage, QualityMode, ViewId, ViewSize, WorkerMessage } from './protocol';
+import type {
+  HostMessage,
+  QualityMode,
+  TransferableGraphic,
+  ViewId,
+  ViewSize,
+  WorkerMessage,
+} from './protocol';
 
 /** A Worker, or anything with the same messaging shape (see `createInlineEndpoint`). */
 export type RenderEndpoint = {
@@ -86,6 +93,15 @@ export class RenderClient {
   /** Asks the rendering side for its capabilities (answered with a `capabilities` message). */
   probe(): void {
     this.send({ type: 'probe' });
+  }
+
+  /** Hands a decoded user file to the worker; a raster bitmap is transferred (not usable here after). */
+  setAsset(hash: string, asset: TransferableGraphic): void {
+    this.send({ type: 'setAsset', hash, asset }, asset.kind === 'raster' ? [asset.bitmap] : []);
+  }
+
+  dropAsset(hash: string): void {
+    this.send({ type: 'dropAsset', hash });
   }
 
   /** Subscribes to worker messages; returns the unsubscribe function. */
