@@ -202,3 +202,60 @@ test('the Lab previews overlays over a backdrop and takes a logo from this devic
   await expect(page.getByRole('button', { name: 'Nova' })).toHaveAttribute('aria-pressed', 'false');
   expect(errors).toEqual([]);
 });
+
+test('the Lab exports a PNG sequence through the export worker', async ({ page }) => {
+  const errors = watchErrors(page);
+  // Download path (browsers without a save picker).
+  await page.addInitScript(() => {
+    delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker;
+  });
+  await open(page, '/lab');
+  await page.waitForFunction(() => Boolean(window.__ugokiLab));
+  await page.getByRole('button', { name: 'Min 3 s' }).click();
+  await page
+    .getByRole('group', { name: 'Export format' })
+    .getByRole('button', { name: 'PNG seq.' })
+    .click();
+  await page.getByLabel('Resolution').selectOption('720');
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 60_000 }),
+    page.getByRole('button', { name: 'Export PNG seq.' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('ugoki-rise-1280x720-30fps.zip');
+  const path = await download.path();
+  const { size } = await import('node:fs/promises').then((fs) => fs.stat(path));
+  expect(size).toBeGreaterThan(200_000);
+  await expect(page.getByText('ugoki-rise-1280x720-30fps.zip')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('streams an export into the file the user picked', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'The save picker is Chromium-only');
+  const errors = watchErrors(page);
+  // The real picker needs a person; hand back a file from the origin's private file system.
+  await page.addInitScript(() => {
+    (window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = async (options: {
+      suggestedName: string;
+    }) => {
+      const root = await navigator.storage.getDirectory();
+      return root.getFileHandle(options.suggestedName, { create: true });
+    };
+  });
+  await open(page, '/lab');
+  await page.waitForFunction(() => Boolean(window.__ugokiLab));
+  await page.getByRole('button', { name: 'Min 3 s' }).click();
+  await page
+    .getByRole('group', { name: 'Export format' })
+    .getByRole('button', { name: 'PNG seq.' })
+    .click();
+  await page.getByLabel('Resolution').selectOption('720');
+  await page.getByRole('button', { name: 'Export PNG seq.' }).click();
+  await expect(page.getByText(/· saved$/)).toBeVisible({ timeout: 60_000 });
+  const size = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('ugoki-rise-1280x720-30fps.zip');
+    return (await handle.getFile()).size;
+  });
+  expect(size).toBeGreaterThan(200_000);
+  expect(errors).toEqual([]);
+});

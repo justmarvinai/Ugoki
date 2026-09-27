@@ -26,6 +26,7 @@ import {
 import { TEMPLATES } from '@/templates/registry';
 import { createRenderEndpoint } from '@/workers';
 import { importFile } from '../assets/import-file';
+import { ExportPanel } from './export-panel';
 import { type Focus, Inspector } from './inspector';
 import { LabView } from './lab-view';
 import { createPlayhead, createStats } from './stores';
@@ -260,11 +261,31 @@ export function Lab() {
     if (client && views.length > 0) client.setBackdrop(views, backdrop);
   }, [client, views, backdrop]);
 
+  /** The user's files by hash (kept on this device, re-decoded for each export). */
+  const files = useRef(new Map<string, File>());
+
   /** Reads a user's file on this device and hands it to the worker. */
   const addFile = async (file: File) => {
     const imported = await importFile(file);
+    files.current.set(imported.hash, file);
     client?.setAsset(imported.hash, imported.asset);
     return imported;
+  };
+
+  /** The files a design and its backdrop use, decoded again for the export worker. */
+  const exportAssets = async (design: DesignState) => {
+    const hashes = new Set<string>();
+    for (const value of Object.values(design.props)) {
+      const ref = value as { kind?: string; hash?: string } | null;
+      if (ref?.kind === 'user' && typeof ref.hash === 'string') hashes.add(ref.hash);
+    }
+    if (backdrop.kind === 'image') hashes.add(backdrop.hash);
+    const assets = [];
+    for (const hash of hashes) {
+      const file = files.current.get(hash);
+      if (file) assets.push({ hash, asset: (await importFile(file)).asset });
+    }
+    return assets;
   };
 
   // Stage size → view layout. Measured before the first paint, so views never mount at 0 × 0
@@ -473,6 +494,17 @@ export function Lab() {
                 backdrop={backdrop}
                 onBackdrop={setBackdrop}
                 onAddFile={addFile}
+                exportPanel={
+                  <ExportPanel
+                    state={state}
+                    cut={timeline?.cut ?? null}
+                    transition={descriptor.structure === 'transition'}
+                    capabilities={capabilities}
+                    time={() => playhead.get().t}
+                    backdrop={backdrop}
+                    assets={() => exportAssets(state)}
+                  />
+                }
               />
             ) : (
               <p className="px-5 py-5 text-[13px] text-fg-3" aria-live="polite">

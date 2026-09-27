@@ -60,6 +60,7 @@ type InspectorProps = {
   onBackdrop: (backdrop: Backdrop) => void;
   /** Reads a user's file on this device and hands it to the renderer. */
   onAddFile: (file: File) => Promise<ImportedFile>;
+  exportPanel?: ReactNode;
 };
 
 const ENERGY_LABELS: Record<EnergyId, string> = {
@@ -309,6 +310,8 @@ export function Inspector(props: InspectorProps) {
           <DownloadIcon size={18} /> PNG stills at 1080p
         </Button>
       </Group>
+
+      {props.exportPanel && <Group title="Export">{props.exportPanel}</Group>}
 
       <Group title="This device">
         <DeviceReport capabilities={props.capabilities} inline={props.inline} />
