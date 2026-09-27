@@ -2,10 +2,11 @@
 
 Ugoki (動き, "movement") is a browser-based motion design tool: users pick an art-directed template, customize it (text, colors, images, timing, layout), preview it live and export video — **rendered entirely on the user's device**. Flow: **Choose → Customize → Preview → Export.**
 
-## Current phase: 2 — Editor & export MVP
+## Current phase: 3 — Template wave 1
 
 - The owner gave the go-ahead to code on 2026-09-26. Work phase by phase as laid out in `ROADMAP.md`; don't start a new phase's scope without finishing (or explicitly re-planning) the current one.
-- Phase 1 (0.1.0) is merged. Phase 2 (scope and exit in `ROADMAP.md`) goes to `main` as one PR. The repo is on Vercel (O3, 2026-09-26): every branch and PR gets a preview deployment (Vercel comments its URL on the PR) — link it in the PR.
+- Phases 1 (0.1.0) and 2 (0.2.0) are merged. Phase 3 (scope and exit in `ROADMAP.md`) goes to `main` as one PR. The repo is on Vercel (O3, 2026-09-26): every branch and PR gets a preview deployment (Vercel comments its URL on the PR) — link it in the PR.
+- **Pace (owner, 2026-09-27, E6)**: finish phases faster — still working and looking good, but no excessive checking. **Don't watch PRs or CI** (no PR subscriptions, no CI babysitting); the owner tests the preview and reports what's broken. Run the fast local checks listed under Workflow, parallelize independent work, and judge templates on contact sheets (`pnpm sheet`).
 - The owner's decisions (2026-09-26) are recorded in `USER_QUESTIONS.md` — a decision table plus open items (O1 = the go-ahead). New product/brand questions go there too; when answered, update the affected docs and ADRs.
 - Progress is tracked in `ROADMAP.md` (tick boxes as work lands).
 
@@ -58,6 +59,7 @@ pnpm test           # vitest unit tests (Node; HarfBuzz runs in Node too)
 pnpm test:browser   # vitest browser mode: engine, runtime, worker, template checks, spikes
 pnpm test:golden    # golden frames (Chromium references; add --update to accept intentional changes)
 pnpm test:e2e       # playwright against the production build (run pnpm build first)
+pnpm sheet <id> [mode…]  # contact sheets of a template → .sheets/<id>-<mode>.png (timeline, looks, energy, duration, stress, transparent, big)
 pnpm fonts          # rebuild fonts from pinned sources (python3 + fonttools[woff]==4.60.1)
 pnpm check          # typecheck + lint + unit
 ```
@@ -102,16 +104,16 @@ scripts/         fonts.py, assert-static.mjs
 ## Implementing a template
 
 1. Read its spec in `docs/templates/` and `00-foundations.md`.
-2. Register it in `src/templates/registry.ts` (metadata + loader), then build it in `/lab`: all formats, all three energies, min/max duration, stress text (1 word, max length, diacritics, numbers), all its palettes + Brand palettes, transparent background if supported.
+2. Build it against contact sheets (`pnpm sheet <id> timeline looks stress big …`) — all formats, all three energies, min/max duration, stress text (1 word, max length, diacritics, numbers), all its palettes + Brand palettes, transparent background if supported — then register it in `src/templates/registry.ts` (metadata + loader) and try it in `/lab` and the editor.
 3. Implement "the expensive detail" from the spec — it is not optional.
 4. Check the quality bar (foundations §9), render-cost budget (≤ 8 ms/frame @1080p-eq on the reference desktop), determinism (two renders identical).
-5. Add browser checks in `tests/templates/<id>.browser.test.ts` (see `rise.browser.test.ts`: clean edit points per format × Look × energy, stress text inside safe areas, transparency, determinism) and golden frames in `tests/golden/`.
+5. Registering it is enough for the shared checks: `tests/templates/catalog.browser.test.ts` (clean edit points per format × Look, editable text inside title-safe with stress text, energies, min/max duration, transparency, loops, transition coverage, determinism) and `tests/golden/catalog.test.ts` (poster and entrance frames; accept new references with `pnpm test:golden --update`). Write a template-specific test only for behavior those can't see (see `rise.browser.test.ts`).
 6. If you deviate from the spec, update the spec in the same PR and say why.
 
 ## Workflow
 
 - Develop on the branch you were given; Conventional Commits (`feat(engine): …`, `feat(template/rise): …`, `fix(export): …`, `docs: …`).
 - One PR per roadmap phase (target branch `main`), with a Vercel preview link and a short written walkthrough for the owner (decision E2).
-- Before pushing: `pnpm check` (typecheck + lint + unit) and `pnpm test:browser`; golden frames when templates/engine changed; `pnpm build && pnpm test:e2e` when routes or the worker path changed.
+- Before pushing: `pnpm check` (typecheck + lint + unit) and the browser tests for what changed (`tests/templates/catalog.browser.test.ts` covers every template); golden frames when templates/engine changed; `pnpm build && pnpm test:e2e` when routes or the worker path changed. Don't wait on CI after pushing (E6).
 - Keep docs alive: `CHANGELOG.md` (Keep a Changelog) for user-visible changes, `ROADMAP.md` checkboxes, new ADRs in `docs/08-decisions.md` for architectural changes.
 - Product/brand questions go to the user (add them to `USER_QUESTIONS.md`); technical choices within these docs' constraints can be made and logged as ADRs.

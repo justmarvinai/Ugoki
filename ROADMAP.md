@@ -96,6 +96,8 @@
 
 **Exit**: Choose → Customize → Preview → Export works end-to-end for 4 templates in all target browsers; exported frame N equals preview at `t = N / fps`.
 
+*Status*: done — merged 2026-09-27; the owner tested the preview: "Everything works". The export QA matrix stays open for real-Safari reports (O6).
+
 ---
 
 ## Phase 3 — Template wave 1 → `0.3.0`
