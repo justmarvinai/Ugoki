@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/button';
-import type { DraftRecord } from '@/lib/db';
+import { type DraftRecord, type StoredBytes, toBlob } from '@/lib/db';
 import { TEMPLATES } from '@/templates/registry';
 import { deleteDraft, duplicateDraft, recentDrafts } from './drafts';
 
@@ -66,7 +66,7 @@ export function DraftList() {
                 href={`/editor/${draft.templateId}?draft=${draft.id}`}
                 className="group flex flex-col gap-3 rounded-[14px] focus-visible:outline-2 focus-visible:outline-focus"
               >
-                <Thumbnail blob={draft.thumbnail} label={draft.name} />
+                <Thumbnail image={draft.thumbnail} label={draft.name} />
                 <span className="px-1">
                   <span className="block truncate text-[15px] font-[650] group-hover:underline">
                     {draft.name}
@@ -117,14 +117,14 @@ export function DraftList() {
   );
 }
 
-function Thumbnail({ blob, label }: { blob: Blob | undefined; label: string }) {
+function Thumbnail({ image, label }: { image: StoredBytes | undefined; label: string }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!blob) return;
-    const next = URL.createObjectURL(blob);
+    if (!image) return;
+    const next = URL.createObjectURL(toBlob(image));
     setUrl(next);
     return () => URL.revokeObjectURL(next);
-  }, [blob]);
+  }, [image]);
   return (
     <span className="flex aspect-video items-center justify-center overflow-hidden rounded-[14px] bg-bg-3">
       {url ? (

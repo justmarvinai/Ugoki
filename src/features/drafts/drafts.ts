@@ -15,6 +15,7 @@ import {
   db,
   draftId,
   storageError,
+  toStored,
 } from '@/lib/db';
 import type { ProjectStore } from '@/stores/project';
 
@@ -56,7 +57,8 @@ function createAutosaver(
       const snap = thumbnail();
       if (snap && now - lastThumbnail > THUMBNAIL_EVERY) {
         lastThumbnail = now;
-        image = (await snap().catch(() => null)) ?? image;
+        const still = await snap().catch(() => null);
+        if (still) image = await toStored(still);
       }
       const record: DraftRecord = {
         id: key,
@@ -138,14 +140,18 @@ export function useAutosave({
 export async function keepFile(hash: string, file: File): Promise<void> {
   const database = db();
   if (!database) return;
-  const record: AssetRecord = {
-    hash,
-    blob: file,
-    name: file.name,
-    mime: file.type,
-    createdAt: Date.now(),
-  };
-  await database.assets.put(record).catch(() => undefined);
+  try {
+    const record: AssetRecord = {
+      hash,
+      bytes: await file.arrayBuffer(),
+      name: file.name,
+      mime: file.type,
+      createdAt: Date.now(),
+    };
+    await database.assets.put(record);
+  } catch {
+    // The draft still saves; the file just won't come back after a reload.
+  }
 }
 
 /** A draft and the files it uses, or null if it isn't on this device. */
@@ -158,7 +164,7 @@ export async function openDraft(
   const files = new Map<string, File>();
   for (const hash of assetHashes(draft.state)) {
     const asset = await database.assets.get(hash).catch(() => undefined);
-    if (asset) files.set(hash, new File([asset.blob], asset.name, { type: asset.mime }));
+    if (asset) files.set(hash, new File([asset.bytes], asset.name, { type: asset.mime }));
   }
   return { draft, files };
 }

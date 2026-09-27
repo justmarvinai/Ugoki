@@ -6,6 +6,12 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { DesignState } from '@/engine/host';
 
+/**
+ * Bytes are stored as ArrayBuffers, not Blobs: browsers keep Blobs in IndexedDB as files, which
+ * WebKit's private and ephemeral sessions refuse to write — ArrayBuffers are stored inline.
+ */
+export type StoredBytes = { bytes: ArrayBuffer; type: string };
+
 export type DraftRecord = {
   id: string;
   templateId: string;
@@ -14,18 +20,24 @@ export type DraftRecord = {
   name: string;
   createdAt: number;
   updatedAt: number;
-  /** A small still of the design (PNG or WebP), for lists. */
-  thumbnail?: Blob;
+  /** A small still of the design (PNG), for lists. */
+  thumbnail?: StoredBytes;
 };
 
 /** A file the user added, by the SHA-256 of its bytes (shared by every draft that uses it). */
 export type AssetRecord = {
   hash: string;
-  blob: Blob;
+  bytes: ArrayBuffer;
   name: string;
   mime: string;
   createdAt: number;
 };
+
+export async function toStored(blob: Blob): Promise<StoredBytes> {
+  return { bytes: await blob.arrayBuffer(), type: blob.type };
+}
+
+export const toBlob = (stored: StoredBytes) => new Blob([stored.bytes], { type: stored.type });
 
 export type PrefRecord = { key: string; value: unknown };
 

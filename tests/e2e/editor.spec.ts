@@ -84,8 +84,13 @@ test('Choose → Customize → Export: a template, edited, undone and exported',
   expect(errors).toEqual([]);
 });
 
-test('every template opens in the editor', async ({ page }) => {
+test('every template opens in the editor and exports', async ({ page }) => {
+  test.slow();
   const errors = watchErrors(page);
+  // Download path (browsers without a save picker).
+  await page.addInitScript(() => {
+    delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker;
+  });
   for (const [id, name] of [
     ['rise', 'Rise'],
     ['line', 'Line'],
@@ -101,6 +106,21 @@ test('every template opens in the editor', async ({ page }) => {
     // worker still fetches the text engine makes WebKit log the cancelled fetch as an error.
     await expect(page.locator('output[aria-label="Time"]')).not.toContainText('/ 00:00.00');
     await expect.poll(() => stageCoverage(page), { timeout: 10_000 }).toBeGreaterThan(0.99);
+
+    // A still of the poster frame, through the export worker.
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const sheet = page.getByRole('dialog', { name: 'Export' });
+    await sheet
+      .getByRole('group', { name: 'Export format' })
+      .getByRole('button', { name: 'Still' })
+      .click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30_000 }),
+      sheet.getByRole('button', { name: 'Export Still' }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(
+      new RegExp(`^ugoki-${id}-1920x1080-[\\d.]+s\\.png$`),
+    );
   }
   expect(errors).toEqual([]);
 });
@@ -136,8 +156,13 @@ test('drafts save as you edit and reopen', async ({ page }) => {
   const errors = watchErrors(page);
   await openEditor(page, '/editor/line');
   await page.getByRole('textbox', { name: 'Name' }).fill('Mika Draft');
+  // Saved — or, if the browser refused, the top bar says why (and the test shows it).
+  const bar = page.getByRole('banner');
+  const saved = bar.getByRole('status').filter({ hasText: 'Saved on this device' });
+  await expect(saved.or(bar.getByRole('alert'))).toBeVisible({ timeout: 5000 });
+  await expect(bar.getByRole('alert')).not.toBeVisible();
   // Autosave names the draft in the address bar, so a reload reopens it.
-  await expect(page).toHaveURL(/\?draft=[\w-]+$/, { timeout: 5000 });
+  await expect(page).toHaveURL(/\?draft=[\w-]+$/);
   await page.reload();
   await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Mika Draft', {
     timeout: 15_000,
