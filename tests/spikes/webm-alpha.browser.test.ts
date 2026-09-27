@@ -17,14 +17,18 @@ import {
   WebMOutputFormat,
 } from 'mediabunny';
 import { expect, test } from 'vitest';
+import { encodesMotion } from '@/engine/runtime/capabilities';
 import { initialState } from '@/engine/template/state';
 import { loadTemplate } from '@/templates/registry';
 import { build, render } from '../support/render';
 
+// Encoders that accept VP9 but don't encode motion (CI's WebKit) are turned down by the probe,
+// as in the product: this round trip starts on a still frame, which such an encoder keeps.
 const canEncodeVp9 = async () =>
   typeof VideoEncoder !== 'undefined' &&
   (await VideoEncoder.isConfigSupported({ codec: 'vp09.00.10.08', width: 480, height: 270 }))
-    .supported === true;
+    .supported === true &&
+  (await encodesMotion('vp09.00.10.08'));
 
 test('transparent WebM round trip keeps the alpha channel', async (context) => {
   if (!(await canEncodeVp9())) context.skip();
@@ -83,8 +87,8 @@ test('transparent WebM round trip keeps the alpha channel', async (context) => {
   }
   const total = data.length / 4;
   console.info(`alpha histogram: clear ${clear}, solid ${solid}, partial ${partial}`);
-  // Encoders pick different bitrates (Chromium ~46 KB, WebKit ~8 KB for these 60 frames), so a
-  // lossy alpha plane softens edges by different amounts; assert the property, not a count.
+  // Encoders pick different bitrates (Chromium ~46 KB, Firefox ~121 KB for these 60 frames), so
+  // a lossy alpha plane softens edges by different amounts; assert the property, not a count.
   expect(clear / total).toBeGreaterThan(0.7); // the background stays transparent
   expect((solid + partial) / total).toBeGreaterThan(0.03); // the headline keeps its coverage
   expect(solid / total).toBeGreaterThan(0.01); // with an opaque core

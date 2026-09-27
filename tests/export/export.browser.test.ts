@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { createCompositor } from '@/engine/compositor';
 import { type ExportEnvironment, type ExportJob, runExport } from '@/engine/export/run';
 import { type ExportSettings, exportSize, motionBudget } from '@/engine/export/settings';
+import { encodesMotion } from '@/engine/runtime/capabilities';
 import { FrameRenderer } from '@/engine/runtime/frame';
 import { buildScene } from '@/engine/runtime/scene';
 import { type DesignState, initialState } from '@/engine/template/state';
@@ -121,9 +122,11 @@ async function canWriteFiles(): Promise<boolean> {
   }
 }
 
+/** Whether Ugoki offers `codec` here: declared supported, and it encodes motion (the probe). */
 const canEncode = async (codec: string) =>
   typeof VideoEncoder !== 'undefined' &&
-  (await VideoEncoder.isConfigSupported({ codec, width: 320, height: 180 })).supported === true;
+  (await VideoEncoder.isConfigSupported({ codec, width: 320, height: 180 })).supported === true &&
+  (await encodesMotion(codec));
 
 describe('exports', () => {
   it('writes a PNG sequence whose frame N is the preview at t = N / fps', async () => {
