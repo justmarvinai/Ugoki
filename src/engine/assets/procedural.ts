@@ -5,10 +5,17 @@
  * is the object), the other sets are full-bleed.
  *
  * Images are drawn with Canvas 2D into an OffscreenCanvas the first time they're used (render
- * and export workers); where there's no OffscreenCanvas (Node), there's no image.
+ * and export workers; each takes tens of milliseconds, then it's cached); where there's no
+ * OffscreenCanvas (Node), there's no image. The painters are art-directed and seeded
+ * (procedural/): scenes are stylized travel photographs, artworks generative posters, objects
+ * studio product renders, portraits flat illustrations.
  */
 
-import type { Rect } from '../core/math';
+import { ARTWORKS } from './procedural/artworks';
+import type { Painter } from './procedural/kit';
+import { OBJECTS } from './procedural/objects';
+import { PORTRAITS } from './procedural/portraits';
+import { SCENES } from './procedural/scenes';
 import type { RasterGraphic } from './types';
 
 export type ProceduralSet = 'scene' | 'artwork' | 'object' | 'portrait';
@@ -62,94 +69,25 @@ export const proceduralIds = (set: ProceduralSet): ProceduralImageId[] =>
     (id) => PROCEDURAL_IMAGES[id].set === set,
   );
 
-type Canvas2D = OffscreenCanvasRenderingContext2D;
-
-/** Draws one image into `ctx` (w × h) and returns its ink (the object, for cut-outs). */
-type Painter = (ctx: Canvas2D, w: number, h: number) => Rect;
-
-const full = (w: number, h: number): Rect => ({ x: 0, y: 0, w, h });
-
-// Stand-ins until the art-directed generators land: gradients and simple shapes of the right
-// kind and proportions, so layouts can be built against them.
-const painters: Record<ProceduralSet, (index: number) => Painter> = {
-  scene: (index) => (ctx, w, h) => {
-    const skies = ['#9fd3f0', '#f3c58b', '#b9d8f5', '#bfe3c4', '#f59a6b', '#1c2a4a'];
-    const grounds = ['#2f6f8f', '#d9a25f', '#5b6f86', '#5f8f4f', '#6b3f5f', '#0d1426'];
-    const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, skies[index % skies.length]!);
-    sky.addColorStop(1, '#ffffff');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#fff6d8';
-    ctx.beginPath();
-    ctx.arc(w * 0.7, h * 0.38, h * 0.09, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = grounds[index % grounds.length]!;
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.72);
-    ctx.quadraticCurveTo(w * 0.35, h * 0.55, w * 0.62, h * 0.7);
-    ctx.quadraticCurveTo(w * 0.85, h * 0.8, w, h * 0.66);
-    ctx.lineTo(w, h);
-    ctx.lineTo(0, h);
-    ctx.fill();
-    return full(w, h);
-  },
-  artwork: (index) => (ctx, w, h) => {
-    const colors = [
-      '#f2e8d5',
-      '#1d3fbb',
-      '#e8452c',
-      '#f5c400',
-      '#101820',
-      '#2f8f6f',
-      '#f28ab2',
-      '#7a5cff',
-    ];
-    ctx.fillStyle = colors[index % colors.length]!;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = colors[(index + 3) % colors.length]!;
-    ctx.beginPath();
-    ctx.arc(w * 0.5, h * 0.42, w * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = colors[(index + 5) % colors.length]!;
-    ctx.fillRect(w * 0.12, h * 0.7, w * 0.76, h * 0.12);
-    return full(w, h);
-  },
-  object: (index) => (ctx, w, h) => {
-    const colors = ['#2b6cf2', '#e8452c', '#1f1f24', '#d8d8dc', '#b08d57'];
-    const shapes: Rect[] = [
-      { x: w * 0.36, y: h * 0.08, w: w * 0.28, h: h * 0.84 },
-      { x: w * 0.3, y: h * 0.22, w: w * 0.4, h: h * 0.62 },
-      { x: w * 0.22, y: h * 0.2, w: w * 0.56, h: h * 0.66 },
-      { x: w * 0.3, y: h * 0.12, w: w * 0.4, h: h * 0.76 },
-      { x: w * 0.3, y: h * 0.25, w: w * 0.4, h: h * 0.5 },
-    ];
-    const r = shapes[index % shapes.length]!;
-    const body = ctx.createLinearGradient(r.x, 0, r.x + r.w, 0);
-    body.addColorStop(0, colors[index % colors.length]!);
-    body.addColorStop(0.35, '#ffffff');
-    body.addColorStop(0.5, colors[index % colors.length]!);
-    body.addColorStop(1, '#000000');
-    ctx.fillStyle = body;
-    ctx.beginPath();
-    ctx.roundRect(r.x, r.y, r.w, r.h, r.w * 0.2);
-    ctx.fill();
-    return r;
-  },
-  portrait: (index) => (ctx, w, h) => {
-    const colors = ['#f2c14e', '#7fb8e6', '#f28ab2', '#8fd19e'];
-    ctx.fillStyle = colors[index % colors.length]!;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath();
-    ctx.arc(w * 0.5, h * 0.42, w * 0.18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(w * 0.5, h * 1.02, w * 0.36, h * 0.34, 0, 0, Math.PI * 2);
-    ctx.fill();
-    return full(w, h);
-  },
+/** Painters of each set, in declaration order (see procedural/ for how each set is made). */
+const PAINTERS: Readonly<Record<ProceduralSet, readonly Painter[]>> = {
+  scene: SCENES,
+  artwork: ARTWORKS,
+  object: OBJECTS,
+  portrait: PORTRAITS,
 };
+
+/** Paints an image at its full size into a new canvas (not cached). */
+function paintImage(id: ProceduralImageId): RasterGraphic | null {
+  if (typeof OffscreenCanvas === 'undefined') return null;
+  const spec = PROCEDURAL_IMAGES[id];
+  const paint = PAINTERS[spec.set][proceduralIds(spec.set).indexOf(id)];
+  const canvas = new OffscreenCanvas(spec.w, spec.h);
+  const ctx = canvas.getContext('2d');
+  if (!paint || !ctx) return null;
+  const ink = paint(ctx, spec.w, spec.h);
+  return { kind: 'raster', image: { source: canvas, width: spec.w, height: spec.h }, ink };
+}
 
 const cache = new Map<ProceduralImageId, RasterGraphic>();
 
@@ -157,18 +95,58 @@ const cache = new Map<ProceduralImageId, RasterGraphic>();
 export function proceduralImage(id: ProceduralImageId): RasterGraphic | null {
   const cached = cache.get(id);
   if (cached) return cached;
-  if (typeof OffscreenCanvas === 'undefined') return null;
+  const graphic = paintImage(id);
+  if (graphic) cache.set(id, graphic);
+  return graphic;
+}
+
+const previews = new Map<string, RasterGraphic>();
+
+/**
+ * A small copy of a procedural image — its long side at most `maxSide` px, its ink scaled
+ * along — for thumbnails such as the editor's placeholder pickers. The image is painted at full
+ * size, scaled down in halving steps (sharp and alias-free in every browser) and only the small
+ * copy is cached: the full-size canvas is dropped unless `proceduralImage` already holds it, so
+ * a picker on the main thread keeps kilobytes, not megabytes.
+ */
+export function proceduralPreview(id: ProceduralImageId, maxSide: number): RasterGraphic | null {
   const spec = PROCEDURAL_IMAGES[id];
-  const canvas = new OffscreenCanvas(spec.w, spec.h);
+  const side = Math.max(1, Math.round(maxSide));
+  const key = `${id}@${side}`;
+  const cached = previews.get(key);
+  if (cached) return cached;
+  const full = cache.get(id) ?? paintImage(id);
+  if (!full) return null;
+  const k = Math.min(1, side / Math.max(spec.w, spec.h));
+  const w = Math.max(1, Math.round(spec.w * k));
+  const h = Math.max(1, Math.round(spec.h * k));
+  let source: CanvasImageSource = full.image.source;
+  let sw = spec.w;
+  let sh = spec.h;
+  while (sw / 2 >= w && sh / 2 >= h) {
+    const half = new OffscreenCanvas(Math.ceil(sw / 2), Math.ceil(sh / 2));
+    const hctx = half.getContext('2d');
+    if (!hctx) break;
+    // At exactly half size, bilinear sampling averages 2 × 2 pixels: a clean box filter.
+    hctx.imageSmoothingQuality = 'low';
+    hctx.drawImage(source, 0, 0, sw, sh, 0, 0, half.width, half.height);
+    source = half;
+    sw = half.width;
+    sh = half.height;
+  }
+  const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  const index = proceduralIds(spec.set).indexOf(id);
-  const ink = painters[spec.set](index)(ctx, spec.w, spec.h);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, 0, 0, sw, sh, 0, 0, w, h);
+  const sx = w / spec.w;
+  const sy = h / spec.h;
+  const { ink } = full;
   const graphic: RasterGraphic = {
     kind: 'raster',
-    image: { source: canvas, width: spec.w, height: spec.h },
-    ink,
+    image: { source: canvas, width: w, height: h },
+    ink: { x: ink.x * sx, y: ink.y * sy, w: ink.w * sx, h: ink.h * sy },
   };
-  cache.set(id, graphic);
+  previews.set(key, graphic);
   return graphic;
 }

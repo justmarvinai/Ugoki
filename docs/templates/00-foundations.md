@@ -205,7 +205,7 @@ Diverse, fictional, and deliberately including diacritics to prove typography: *
 |---|---|---|
 | **Artworks** | Seeded generative posters: Bauhaus shapes, gradient fields, type fragments, grain | Showcase (Columns, Ring), Hype |
 | **Scenes** | Stylized "photographs": layered hills, sun, sea, sky gradients, film grain; day/dusk/night variants | Stack, Zoom, Compare, Cinematic background |
-| **Objects** | Studio "product renders" drawn with gradients, highlights and contact shadows: bottle, can, speaker, phone, watch | Product & Ads |
+| **Objects** | Studio "product renders" drawn with gradients, rim lights and highlights on transparency: bottle, can, speaker, phone, watch — templates add the contact shadow for their own floor | Product & Ads |
 | **Screens** | App screens rendered by the Ugoki UI kit (finance home, feed, analytics, chat, settings) | Float, Scroll, UI templates |
 | **Footage backdrop** | A softly moving, blurred, footage-like backdrop used *only in preview* behind transparent templates | Lower thirds, transitions, logos |
 

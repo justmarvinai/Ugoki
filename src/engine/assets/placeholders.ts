@@ -11,6 +11,7 @@ import {
   type ProceduralSet,
   proceduralIds,
   proceduralImage,
+  proceduralPreview,
 } from './procedural';
 import { importSvg } from './svg';
 import type { Graphic } from './types';
@@ -49,6 +50,14 @@ export function placeholderGraphic(id: string): Graphic | null {
   if (!result.ok) throw new Error(`Placeholder "${id}" failed to import: ${result.detail}`);
   cache.set(id, result.graphic);
   return result.graphic;
+}
+
+/**
+ * Artwork for a thumbnail of a placeholder: procedural images as a small copy (at most
+ * `maxSide` px, without keeping the full-size image around), logos as they are (vector).
+ */
+export function placeholderPreview(id: string, maxSide: number): Graphic | null {
+  return isProceduralImage(id) ? proceduralPreview(id, maxSide) : placeholderGraphic(id);
 }
 
 export function isPlaceholder(kind: PlaceholderKind, id: string): boolean {

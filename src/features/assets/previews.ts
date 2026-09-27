@@ -1,14 +1,15 @@
 /**
  * Previews of what image controls show, drawn on the main thread for the inspector: placeholder
  * swatches and the focal-point picker (docs/03-design-system.md §8, Image drop). Placeholders
- * come from the engine (`placeholderGraphic`: the logos and procedural images the render worker
- * draws too); the user's files are read again from their bytes with the import's own checks.
+ * come from the engine (`placeholderPreview`: the logos, and small copies of the procedural images
+ * the render worker draws too); the user's files are read again from their bytes with the import's
+ * own checks.
  *
  * A preview is the artwork's ink box — the part templates fit, which the focal point is relative
  * to — scaled down once and cached. They're made one at a time, each in a task of its own.
  */
 
-import { type AssetRef, type Graphic, placeholderGraphic, toCss } from '@/engine/host';
+import { type AssetRef, type Graphic, placeholderPreview, toCss } from '@/engine/host';
 import { readImage } from './import-file';
 
 export type Preview = {
@@ -103,7 +104,7 @@ async function make(source: string): Promise<Preview | null> {
   const kind = source.slice(0, colon);
   const id = source.slice(colon + 1);
   if (kind === 'placeholder') {
-    const graphic = placeholderGraphic(id);
+    const graphic = placeholderPreview(id, SIDE);
     return graphic ? fromGraphic(graphic) : null;
   }
   const file = files.get(id);

@@ -65,6 +65,7 @@ export { stepped, wave } from './core/time';
 export type {
   BlendMode,
   ClipShape,
+  ColorAdjust,
   Draw,
   Fill,
   FxOptions,

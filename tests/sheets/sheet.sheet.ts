@@ -244,11 +244,17 @@ async function sheet(template: AnyTemplate, mode: string): Promise<string> {
 
 const id = inject('sheet');
 const modes = (inject('sheetMode') || 'timeline').split(',');
+/** Sheet ids other files in this project handle (see tests/sheets/imagery.sheet.ts). */
+const OTHER_SHEETS = new Set(['imagery']);
 
 for (const mode of modes) {
-  test.runIf(Boolean(id))(`${id} — ${mode}`, { timeout: 180_000 }, async () => {
-    const template = await loadById(id);
-    const file = await sheet(template, mode);
-    console.info(`sheet: ${file}`);
-  });
+  test.runIf(Boolean(id) && !OTHER_SHEETS.has(id))(
+    `${id} — ${mode}`,
+    { timeout: 180_000 },
+    async () => {
+      const template = await loadById(id);
+      const file = await sheet(template, mode);
+      console.info(`sheet: ${file}`);
+    },
+  );
 }

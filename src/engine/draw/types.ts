@@ -153,6 +153,26 @@ export type LayerOptions = { opacity?: number; blend?: BlendMode; bounds?: Rect 
 /** Track matte: `content` shows where `matte` is opaque (alpha) or bright (luma). */
 export type MaskOptions = { mode?: 'alpha' | 'luma'; invert?: boolean; bounds?: Rect };
 
+/**
+ * Color adjustment of a layer (grading), CSS-filter-like factors: 1 leaves a channel unchanged
+ * (the default), values are clamped to 0 … 2. Applied in this order, to straight
+ * (unpremultiplied) color — alpha is never touched, so transparent pixels stay transparent and
+ * edges don't darken.
+ */
+export type ColorAdjust = {
+  /** Multiplies the color: 0 = black, 1 = unchanged, 1.2 = 20% brighter (highlights clip). */
+  brightness?: number;
+  /** Slope around mid grey: 0 = flat grey, 1 = unchanged, 2 = twice the contrast. */
+  contrast?: number;
+  /** Around each pixel's luma: 0 = greyscale, 1 = unchanged, 2 = twice the saturation. */
+  saturation?: number;
+  /**
+   * Colorizes: each pixel's luma mapped onto black → `color` → white (so lightness is kept),
+   * mixed in by `amount` (0 … 1; 1 = monochrome in the tint's hue, 0.1–0.3 = a color cast).
+   */
+  tint?: { color: Color; amount: number };
+};
+
 /** Layer effects (docs/06-engine.md §9). Distances are in `u` (1% of the short side). */
 export type FxOptions = LayerOptions & {
   /** Gaussian blur (σ, in u). */
@@ -161,6 +181,8 @@ export type FxOptions = LayerOptions & {
   bloom?: { radius: number; intensity: number; threshold?: number };
   /** Soft drop shadow for legibility on footage: blur (σ, in u), offset (in u). */
   shadow?: { color: Color; blur: number; opacity?: number; x?: number; y?: number };
+  /** Color adjustment, applied after the blur (bloom still glows from the unadjusted layer). */
+  adjust?: ColorAdjust;
 };
 
 export type EditableKind = 'movable' | 'editable';

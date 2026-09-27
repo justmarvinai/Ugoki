@@ -11,6 +11,7 @@ export {
   PLACEHOLDERS,
   type PlaceholderKind,
   placeholderGraphic,
+  placeholderPreview,
 } from '../assets/placeholders';
 export { importSvg, type SvgImport, sanitizeSvg } from '../assets/svg';
 export type { AssetRef, FocalPoint, Graphic, VectorGraphic } from '../assets/types';

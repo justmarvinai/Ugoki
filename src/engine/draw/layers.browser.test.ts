@@ -39,6 +39,24 @@ const at = (f: Frame, x: number, y: number) => [
   ...f.ctx.getImageData(Math.floor(x * SCALE), Math.floor(y * SCALE), 1, 1).data,
 ];
 
+const pixels = (f: Frame) => f.ctx.getImageData(0, 0, 270, 270).data;
+
+/** Largest difference in premultiplied color or alpha (color is meaningless where α ≈ 0). */
+const maxDiff = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
+  let max = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    const aa = a[i + 3] ?? 0;
+    const ba = b[i + 3] ?? 0;
+    max = Math.max(max, Math.abs(aa - ba));
+    for (let c = 0; c < 3; c++) {
+      const pa = ((a[i + c] ?? 0) * aa) / 255;
+      const pb = ((b[i + c] ?? 0) * ba) / 255;
+      max = Math.max(max, Math.abs(pa - pb));
+    }
+  }
+  return max;
+};
+
 const near = (px: number[], c: Color, alpha = 1, tolerance = 3) =>
   Math.abs((px[3] ?? 0) - alpha * 255) <= tolerance &&
   (alpha === 0 ||
@@ -156,22 +174,6 @@ describe.each(backends)('effects (%s)', (_, effects) => {
 describe.each(backends)('bounded layers (%s)', (_, effects) => {
   const render = (fn: (g: Draw) => void) => renderWith(fn, effects);
   const square = (g: Draw) => g.rect({ x: 440, y: 440, w: 200, h: 200 }, { fill: RED });
-  const pixels = (f: Frame) => f.ctx.getImageData(0, 0, 270, 270).data;
-  /** Largest difference in premultiplied color or alpha (color is meaningless where α ≈ 0). */
-  const maxDiff = (a: Uint8ClampedArray, b: Uint8ClampedArray) => {
-    let max = 0;
-    for (let i = 0; i < a.length; i += 4) {
-      const aa = a[i + 3] ?? 0;
-      const ba = b[i + 3] ?? 0;
-      max = Math.max(max, Math.abs(aa - ba));
-      for (let c = 0; c < 3; c++) {
-        const pa = ((a[i + c] ?? 0) * aa) / 255;
-        const pb = ((b[i + c] ?? 0) * ba) / 255;
-        max = Math.max(max, Math.abs(pa - pb));
-      }
-    }
-    return max;
-  };
   const around = { x: 400, y: 400, w: 280, h: 280 };
 
   it('renders the same as a frame-sized layer when the content fits', () => {
@@ -222,6 +224,96 @@ describe.each(backends)('bounded layers (%s)', (_, effects) => {
     // The square, halved around the center and moved right by 200: 490..590 → 690..790.
     expect(at(f, 740, 540)[3]).toBeCloseTo(128, -1);
     expect(at(f, 540, 540)[3]).toBe(0);
+  });
+});
+
+describe.each(backends)('color adjust (%s)', (_, effects) => {
+  const render = (fn: (g: Draw) => void) => renderWith(fn, effects);
+  const square = (fill: Color) => (g: Draw) => g.rect({ x: 440, y: 440, w: 200, h: 200 }, { fill });
+  const luma = (px: number[]) =>
+    0.2126 * (px[0] ?? 0) + 0.7152 * (px[1] ?? 0) + 0.0722 * (px[2] ?? 0);
+
+  it('changes nothing when neutral', () => {
+    const disk = (g: Draw) => g.circle(540, 540, 150, { fill: rgb(0.9, 0.4, 0.1, 0.8) });
+    const plain = render((g) => g.fx({}, disk));
+    const neutral = render((g) =>
+      g.fx(
+        { adjust: { brightness: 1, contrast: 1, saturation: 1, tint: { color: BLUE, amount: 0 } } },
+        disk,
+      ),
+    );
+    expect(maxDiff(pixels(plain), pixels(neutral))).toBe(0);
+    // The backend's pass itself is lossless too, anti-aliased edges included.
+    const layer = new OffscreenCanvas(270, 270);
+    const ctx = layer.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('no 2d context');
+    ctx.fillStyle = 'rgba(230, 102, 26, 0.8)';
+    ctx.arc(135, 135, 60, 0, Math.PI * 2);
+    ctx.fill();
+    const before = ctx.getImageData(0, 0, 270, 270).data;
+    const out = effects.adjust(layer, {
+      brightness: 1,
+      contrast: 1,
+      saturation: 1,
+      tint: [0, 0, 1],
+      tintAmount: 0,
+    });
+    const check = new OffscreenCanvas(270, 270).getContext('2d', { willReadFrequently: true });
+    if (!check) throw new Error('no 2d context');
+    check.drawImage(out.source, out.x, out.y, out.width, out.height, 0, 0, 270, 270);
+    expect(maxDiff(before, check.getImageData(0, 0, 270, 270).data)).toBeLessThanOrEqual(1);
+  });
+
+  it('turns color grey at saturation 0, keeping alpha', () => {
+    const f = render((g) => g.fx({ adjust: { saturation: 0 } }, square(RED)));
+    // Rec. 709 luma of pure red: 0.2126 → 54.
+    const px = at(f, 540, 540);
+    expect(near(px, rgb(0.2126, 0.2126, 0.2126))).toBe(true);
+    expect(at(f, 420, 540)[3]).toBe(0);
+  });
+
+  it('raises luminance with brightness above 1', () => {
+    const color = rgb(0.4, 0.3, 0.6);
+    const plain = at(
+      render((g) => g.fx({}, square(color))),
+      540,
+      540,
+    );
+    const bright = at(
+      render((g) => g.fx({ adjust: { brightness: 1.5 } }, square(color))),
+      540,
+      540,
+    );
+    expect(luma(bright)).toBeGreaterThan(luma(plain) * 1.4);
+    expect(near(bright, rgb(0.6, 0.45, 0.9))).toBe(true);
+  });
+
+  it('works on straight color: partly transparent stays right, empty stays empty', () => {
+    // Contrast 0 makes every color mid grey. On premultiplied color it would turn the
+    // half-transparent red white, and the empty surroundings a (light-adding) grey.
+    const f = render((g) => {
+      g.fill(BLACK);
+      g.fx({ adjust: { contrast: 0 } }, square(rgb(1, 0, 0, 0.5)));
+    });
+    // Mid grey at 50% over black.
+    expect(near(at(f, 540, 540), rgb(0.25, 0.25, 0.25))).toBe(true);
+    expect(near(at(f, 300, 300), BLACK)).toBe(true);
+  });
+
+  it('tints toward a color while keeping lightness', () => {
+    const f = render((g) =>
+      g.fx({ adjust: { tint: { color: BLUE, amount: 1 } } }, square(rgb(0.5, 0.5, 0.5))),
+    );
+    const px = at(f, 540, 540);
+    expect(Math.abs(luma(px) - 127.5)).toBeLessThanOrEqual(3);
+    expect(px[2]).toBeGreaterThan((px[0] ?? 0) + 100);
+  });
+
+  it('adjusts after blurring', () => {
+    const f = render((g) => g.fx({ blur: 3, adjust: { saturation: 0 } }, square(RED)));
+    const edge = at(f, 425, 540);
+    expect(edge[3]).toBeGreaterThan(20);
+    expect(Math.abs((edge[0] ?? 0) - (edge[1] ?? 0))).toBeLessThanOrEqual(3);
   });
 });
 
