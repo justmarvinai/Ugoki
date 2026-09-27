@@ -209,6 +209,12 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Why**: CI's WebKit (Linux, GStreamer) accepts everything and writes files, but encodes each VideoFrame built from a buffer with the pixels of a later frame — a ~48-byte keyframe, ~25-byte "nothing changed" deltas. Frames made from canvases are fine there, so its MP4 and opaque WebM work; Mediabunny's alpha mode builds color and alpha frames from buffers, so transparent WebM came out without its alpha (a lower third decoded with 2% of its coverage). The Phase 1 spike passed by accident: its clip started on a still frame. A declared configuration says nothing about the output; a tiny round trip does, in milliseconds. It runs in its own worker because it starts codecs and Mediabunny's helper workers — work that must not compete with previews starting up (CI's Firefox once lost the Lab's tab while the render worker ran it at startup).
 **Consequences**: That WebKit build offers MP4 and opaque WebM, not transparent WebM (PNG sequences keep transparency there); real Safari is decided by the same probe on the device, shown in the Lab's *This device* panel and checked in the QA matrix. Encoders that fail only at large sizes still get through (export errors carry their stage and a fallback).
 
+### ADR-035 — Drafts start with the first edit; links carry designs, not files
+**Status**: Accepted · 2026-09-27 (Phase 2)
+**Decision**: The editor saves a draft only once the design has been edited — undo and redo count, loading doesn't — 500 ms after edits settle, and puts `?draft=<id>` in the address bar. The user's files are stored by hash when added and reopened with the draft. Share links carry the design without the user's files (flagged `i`), are decoded with a 256 KB inflate cap, and leave the address bar once opened.
+**Why**: Browsing templates shouldn't fill the device with untouched drafts; a reload must never lose work; a link must never smuggle someone's logo to a stranger (nothing leaves the device unless the user sends it — and a link is only text), and a link in the address bar would stop matching the design at its first edit.
+**Consequences**: A recipient sees placeholders where the sender used their own images, with a notice. Files of deleted drafts stay in IndexedDB until asset garbage collection lands.
+
 ---
 
 ## Phase 1 spike results (2026-09-26)

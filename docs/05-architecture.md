@@ -190,19 +190,20 @@ Dexie schema v1:
 
 | Table | Key | Fields | Notes |
 |---|---|---|---|
-| `projects` | `id` (nanoid) | `templateId`, `templateVersion`, `state`, `name`, `createdAt`, `updatedAt`, `thumbnail` (WebP Blob, 320 px) | Index on `updatedAt` for "Recent" |
-| `assets` | `hash` (SHA-256 of bytes) | `blob`, `mime`, `width`, `height`, `createdAt` | Deduplicated; unreferenced assets garbage-collected on startup |
+| `projects` | `id` (12 random base64url characters) | `templateId`, `templateVersion`, `state`, `name`, `createdAt`, `updatedAt`, `thumbnail` (PNG Blob, 180 px short side, from the render worker) | Index on `updatedAt` for "Continue where you left off" |
+| `assets` | `hash` (SHA-256 of bytes) | `blob`, `name`, `mime`, `createdAt` | Deduplicated; stored when the user adds a file; unreferenced assets are garbage-collected later (not yet) |
 | `prefs` | `key` | `value` | Last format, dismissed hints, gallery personalization text |
 
-- Autosave debounced 500 ms. After the first saved draft, request persistent storage (`navigator.storage.persist()`); show usage via `navigator.storage.estimate()`.
+- A draft is created by the **first edit** (opening a template leaves nothing behind) and then autosaved 500 ms after edits settle; the URL gains `?draft=<id>` (replaced in history), so a reload reopens it with its files. `src/features/drafts` (`useAutosave`, `openDraft`, the draft list), `src/lib/db.ts`.
+- After the first saved draft, request persistent storage (`navigator.storage.persist()`); a full quota is reported in the top bar ("browser storage is full").
 - Uploaded images/logos are stored **only** here, never uploaded.
 - Schema changes go through Dexie versioning + tested migrations.
 
 ## 8. Share links
 
-- Payload `{ v: 1, t: templateId, tv: templateVersion, s: projectState }` minus asset references → JSON → `deflate-raw` (fflate) → base64url → `/editor/<id>#d=<payload>`.
-- The hash never reaches a server. Typical size < 2 KB; warn above 8 KB.
-- On open: decode → validate against the template's control schema (Zod) → run template migrations → drop unknown keys → replace missing assets with defaults and show a notice.
+- Payload `{ v: 1, t: templateId, tv: templateVersion, s: projectState, i?: 1 }` → JSON → `deflate-raw` (fflate) → base64url → `/editor/<id>#d=<payload>` (`src/lib/share.ts`). The user's own files are left out of `s` (the template's defaults stand in) and `i` says so.
+- The hash never reaches a server. Typical size < 1 KB; the Share popover warns above 8 KB.
+- On open: base64url → inflate (capped at 256 KB, so a crafted link can't balloon) → the envelope's shape is checked with Zod → the render worker sanitizes the state against the template's control schema, runs migrations and drops unknown keys (ADR-018). A link for another template opens that template's editor; the notice says the design came from a link (and that images stand in). The hash is then cleared: the design is this device's, and its first edit makes a draft.
 
 ---
 

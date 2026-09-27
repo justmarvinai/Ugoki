@@ -82,8 +82,8 @@
 - [x] Inspector generated from the control schema (Content · Style · Motion · Layout), Looks, Shuffle, hover previews
 - [x] Palettes incl. Brand Light/Dark/Bold with contrast guard; pairing picker; background; finish
 - [x] Transport (sections, Dot playhead, loop, duration handle, cut marker); keyboard shortcuts
-- [ ] Project store + history (undo/redo with coalescing); Dexie autosave & drafts; share links
-- [ ] Image/logo import (raster + sanitized SVG → vector paths), focal points, logo color modes
+- [x] Project store + history (undo/redo with coalescing); Dexie autosave & drafts; share links
+- [x] Image/logo import (raster + sanitized SVG → vector paths), logo color modes — *focal-point UI and drop/paste import move to Phase 3 with the first photo templates (the engine already crops around a focal point)*
 
 **Export**
 - [x] Export worker pipeline; capability probing; Web Lock + Wake Lock
