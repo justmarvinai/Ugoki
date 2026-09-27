@@ -440,12 +440,19 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
               <StageLoading />
             )}
             {notice && (
-              <p
+              <div
                 role="status"
-                className="border-line border-t px-4 py-2 text-center text-[13px] text-fg-2"
+                className="flex items-center justify-center gap-3 border-line border-t px-4 py-2 text-[13px] text-fg-2"
               >
-                {notice}
-              </p>
+                <span>{notice}</span>
+                <button
+                  type="button"
+                  className="shrink-0 text-fg-3 underline decoration-line-strong underline-offset-2 hover:text-fg"
+                  onClick={() => setNotice(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
             )}
             {design && descriptor && (
               <FormatStrip
