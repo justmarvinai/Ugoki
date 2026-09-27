@@ -7,35 +7,31 @@
  */
 
 import { type ReactNode, useId, useState } from 'react';
-import { Button, IconButton } from '@/components/button';
+import { Button } from '@/components/button';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Slider } from '@/components/slider';
 import { Switch } from '@/components/switch';
-import { DownloadIcon, ShuffleIcon } from '@/design/icons';
+import { DownloadIcon } from '@/design/icons';
 import {
-  type AssetRef,
   type Backdrop,
-  BRAND_VARIANTS,
-  type BrandVariant,
   type Capabilities,
   type Control,
   type DesignState,
   ENERGY_IDS,
   type EnergyId,
   type FormatId,
-  type ImageControl,
   PAIRINGS,
-  type PaletteRef,
-  PLACEHOLDER_NAMES,
-  PLACEHOLDERS,
   type QualityMode,
-  resolvePalette,
   type TemplateDescriptor,
   type TimelineWarning,
-  toCss,
 } from '@/engine/host';
 import { cn } from '@/lib/cn';
-import { ACCEPTED_FILES, type ImportedFile } from '../assets/import-file';
+import type { ImportedFile } from '../assets/import-file';
+import { BackdropPicker } from '../inspector/backdrop-picker';
+import { ControlField } from '../inspector/control-field';
+import { Field, Group } from '../inspector/field';
+import { LookSwatches } from '../inspector/looks';
+import { PalettePicker } from '../inspector/palette-picker';
 import { maxLengthText, STRESS_PRESETS } from './presets';
 
 export type Focus = 'all' | FormatId;
@@ -69,23 +65,6 @@ const ENERGY_LABELS: Record<EnergyId, string> = {
   punchy: 'Punchy',
 };
 
-const sameRef = (a: PaletteRef, b: PaletteRef) => JSON.stringify(a) === JSON.stringify(b);
-
-function randomBrandColor(): string {
-  // Vivid-ish random colors: random hue, high saturation, mid lightness (HSL → hex).
-  const h = Math.random() * 360;
-  const s = 0.55 + Math.random() * 0.4;
-  const l = 0.35 + Math.random() * 0.3;
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-    return Math.round(c * 255)
-      .toString(16)
-      .padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
 export function Inspector(props: InspectorProps) {
   const { descriptor, state, onChange, warnings } = props;
   const set = (patch: Partial<DesignState>) => onChange({ ...state, ...patch });
@@ -101,41 +80,7 @@ export function Inspector(props: InspectorProps) {
   return (
     <div className="flex flex-col">
       <Group title="Look">
-        <fieldset className="grid grid-cols-3 gap-2">
-          <legend className="sr-only">Looks</legend>
-          {descriptor.looks.map((look) => {
-            const palette = resolvePalette(look.palette);
-            const active = sameRef(state.palette, look.palette) && state.pairing === look.pairing;
-            return (
-              <button
-                key={look.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() =>
-                  onChange({
-                    ...state,
-                    palette: look.palette,
-                    pairing: descriptor.pairings.includes(look.pairing)
-                      ? look.pairing
-                      : state.pairing,
-                    props: look.values ? { ...state.props, ...look.values } : state.props,
-                  })
-                }
-                className={cn(
-                  'flex h-16 flex-col justify-end rounded-md p-2 text-left text-[12px] font-[550] ring-1 ring-line transition-[box-shadow,transform] duration-(--duration-micro) ease-swift active:scale-[0.97]',
-                  active && 'ring-2 ring-fg',
-                )}
-                style={{ background: toCss(palette.roles.bg), color: toCss(palette.roles.fg) }}
-              >
-                <span
-                  className="mb-auto h-0.5 w-4 rounded-full"
-                  style={{ background: toCss(palette.roles.accent) }}
-                />
-                {look.name}
-              </button>
-            );
-          })}
-        </fieldset>
+        <LookSwatches descriptor={descriptor} design={state} onChange={onChange} />
       </Group>
 
       <Group title="Palette">
@@ -320,380 +265,6 @@ export function Inspector(props: InspectorProps) {
       <Group title="State">
         <StateEditor state={state} onApply={props.onApplyJson} />
       </Group>
-    </div>
-  );
-}
-
-function Group({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3 border-line border-b px-5 py-5">
-      <h2 className="text-[13px] font-[650] text-fg">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  label,
-  value,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  value?: string;
-  htmlFor?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between text-[12px]">
-        <label htmlFor={htmlFor} className="text-fg-2">
-          {label}
-        </label>
-        {value && <span className="font-mono text-fg-3 tabular-nums">{value}</span>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function ControlField({
-  name,
-  control,
-  value,
-  onChange,
-  onAddFile,
-}: {
-  name: string;
-  control: Control;
-  value: unknown;
-  onChange: (key: string, value: unknown) => void;
-  onAddFile: (file: File) => Promise<ImportedFile>;
-}) {
-  const id = useId();
-  switch (control.kind) {
-    case 'text': {
-      const text = typeof value === 'string' ? value : control.default;
-      const count = [...text].length;
-      const near = count >= control.maxLength * 0.8;
-      const common = {
-        id,
-        value: text,
-        maxLength: control.maxLength,
-        placeholder: control.placeholder ?? (control.optional ? 'Optional' : undefined),
-        onChange: (event: { target: { value: string } }) => onChange(name, event.target.value),
-        className:
-          'w-full resize-none rounded-md border border-line bg-bg-3 px-3 py-2 text-[14px] leading-snug text-fg placeholder:text-fg-3 transition-colors duration-(--duration-micro) hover:border-line-strong focus:border-line-strong focus-visible:outline-2 focus-visible:outline-focus',
-      };
-      return (
-        <Field
-          label={control.label}
-          htmlFor={id}
-          value={near ? `${count}/${control.maxLength}` : undefined}
-        >
-          {control.multiline ? (
-            <textarea rows={Math.min(control.maxLines ?? 3, 4)} {...common} />
-          ) : (
-            <input type="text" {...common} />
-          )}
-        </Field>
-      );
-    }
-    case 'choice':
-      if (control.display === 'select') {
-        return (
-          <Field label={control.label} htmlFor={id}>
-            <select
-              id={id}
-              value={typeof value === 'string' ? value : control.default}
-              onChange={(event) => onChange(name, event.target.value)}
-              className="h-8 w-full rounded-md border border-line bg-bg-3 px-2 text-[13px] font-[550] text-fg"
-            >
-              {control.options.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        );
-      }
-      return (
-        <Field label={control.label}>
-          <SegmentedControl
-            label={control.label}
-            value={typeof value === 'string' ? value : control.default}
-            options={control.options.map((option) => ({
-              value: option.value,
-              label: option.label,
-            }))}
-            onValueChange={(next) => onChange(name, next)}
-            className="w-full"
-          />
-        </Field>
-      );
-    case 'toggle':
-      return (
-        <Switch
-          label={control.label}
-          checked={typeof value === 'boolean' ? value : control.default}
-          onCheckedChange={(next) => onChange(name, next)}
-        />
-      );
-    case 'image':
-      return (
-        <ImageField
-          name={name}
-          control={control}
-          value={value}
-          onChange={onChange}
-          onAddFile={onAddFile}
-        />
-      );
-    case 'number': {
-      const number = typeof value === 'number' ? value : control.default;
-      const unit = control.unit ?? '';
-      return (
-        <Field label={control.label} value={`${number}${unit}`}>
-          <Slider
-            label={control.label}
-            value={number}
-            min={control.min}
-            max={control.max}
-            step={control.step}
-            format={(v) => `${v}${unit}`}
-            onValueChange={(next) => onChange(name, next)}
-          />
-        </Field>
-      );
-    }
-  }
-}
-
-function FileButton({ label, onFile }: { label: string; onFile: (file: File) => void }) {
-  const id = useId();
-  return (
-    <label
-      htmlFor={id}
-      className="inline-flex h-8 cursor-pointer items-center rounded-full border border-line-strong px-3 text-[13px] font-[550] text-fg transition-colors duration-(--duration-micro) ease-swift hover:bg-bg-3 has-focus-visible:outline-2 has-focus-visible:outline-focus"
-    >
-      {label}
-      <input
-        id={id}
-        type="file"
-        accept={ACCEPTED_FILES}
-        className="sr-only"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file) onFile(file);
-        }}
-      />
-    </label>
-  );
-}
-
-/** A logo/image slot: the built-in placeholders, or a file from this device. */
-function ImageField({
-  name,
-  control,
-  value,
-  onChange,
-  onAddFile,
-}: {
-  name: string;
-  control: ImageControl;
-  value: unknown;
-  onChange: (key: string, value: unknown) => void;
-  onAddFile: (file: File) => Promise<ImportedFile>;
-}) {
-  const [status, setStatus] = useState<string | null>(null);
-  const ref = (value === undefined ? control.default : value) as AssetRef | null;
-  const add = async (file: File) => {
-    setStatus('Reading…');
-    try {
-      const imported = await onAddFile(file);
-      onChange(name, { kind: 'user', hash: imported.hash, name: imported.name });
-      setStatus(imported.notes.length > 0 ? imported.notes.join(' ') : null);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
-    }
-  };
-  return (
-    <Field label={control.label}>
-      <div className="flex flex-wrap gap-1.5">
-        {PLACEHOLDERS[control.accept].map((id) => (
-          <Button
-            key={id}
-            size="sm"
-            variant={ref?.kind === 'placeholder' && ref.id === id ? 'primary' : 'secondary'}
-            aria-pressed={ref?.kind === 'placeholder' && ref.id === id}
-            onClick={() => onChange(name, { kind: 'placeholder', id })}
-          >
-            {PLACEHOLDER_NAMES[id] ?? id}
-          </Button>
-        ))}
-        <FileButton label="Your file…" onFile={(file) => void add(file)} />
-        {control.optional && (
-          <Button size="sm" variant="ghost" onClick={() => onChange(name, null)}>
-            None
-          </Button>
-        )}
-      </div>
-      {ref?.kind === 'user' && (
-        <p className="truncate text-[12px] text-fg-2">{ref.name ?? 'Your file'}</p>
-      )}
-      {status && (
-        <p role="status" className="text-[12px] leading-snug text-fg-3">
-          {status}
-        </p>
-      )}
-    </Field>
-  );
-}
-
-/** What shows behind a transparent design (preview only — never exported unless baked). */
-function BackdropPicker({
-  value,
-  onChange,
-  transition,
-  onAddFile,
-}: {
-  value: Backdrop;
-  onChange: (backdrop: Backdrop) => void;
-  transition: boolean;
-  onAddFile: (file: File) => Promise<ImportedFile>;
-}) {
-  const [status, setStatus] = useState<string | null>(null);
-  type Kind = 'none' | 'footage' | 'scenes';
-  const options: { value: Kind; label: string }[] = [
-    { value: 'none', label: 'None' },
-    { value: 'footage', label: 'Footage' },
-    ...(transition ? [{ value: 'scenes' as const, label: 'A → B' }] : []),
-  ];
-  const current: Kind = value.kind === 'footage' || value.kind === 'scenes' ? value.kind : 'none';
-  return (
-    <Field label="Backdrop">
-      <SegmentedControl
-        label="Backdrop"
-        size="sm"
-        value={value.kind === 'image' ? ('' as Kind) : current}
-        options={options}
-        onValueChange={(kind) => onChange({ kind })}
-        className="w-full"
-      />
-      <div className="flex items-center gap-2">
-        <FileButton
-          label="Preview on my footage…"
-          onFile={(file) => {
-            setStatus('Reading…');
-            onAddFile(file).then(
-              (imported) => {
-                if (imported.asset.kind !== 'raster') {
-                  setStatus('Use a still frame (PNG, JPG or WebP).');
-                  return;
-                }
-                onChange({ kind: 'image', hash: imported.hash });
-                setStatus(null);
-              },
-              (error: unknown) => setStatus(error instanceof Error ? error.message : String(error)),
-            );
-          }}
-        />
-      </div>
-      {status && (
-        <p role="status" className="text-[12px] leading-snug text-fg-3">
-          {status}
-        </p>
-      )}
-    </Field>
-  );
-}
-
-function PalettePicker({
-  palettes,
-  value,
-  onChange,
-}: {
-  palettes: readonly PaletteRef[];
-  value: PaletteRef;
-  onChange: (palette: PaletteRef) => void;
-}) {
-  const [brand, setBrand] = useState(value.kind === 'brand' ? value.color : '#5A2BE8');
-  const variant: BrandVariant = value.kind === 'brand' ? value.variant : 'bold';
-  const colorId = useId();
-  const applyBrand = (color: string, next: BrandVariant) => {
-    setBrand(color);
-    onChange({ kind: 'brand', color, variant: next });
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <fieldset className="grid grid-cols-5 gap-2">
-        <legend className="sr-only">Palettes</legend>
-        {palettes.map((ref) => {
-          const palette = resolvePalette(ref);
-          const active = sameRef(ref, value);
-          return (
-            <button
-              key={JSON.stringify(ref)}
-              type="button"
-              aria-pressed={active}
-              aria-label={palette.name}
-              title={palette.name}
-              onClick={() => onChange(ref)}
-              className={cn(
-                'flex h-10 overflow-hidden rounded-md ring-1 ring-line transition-transform duration-(--duration-micro) ease-swift active:scale-[0.95]',
-                active && 'ring-2 ring-fg',
-              )}
-            >
-              {(['bg', 'fg', 'accent', 'muted'] as const).map((role) => (
-                <span
-                  key={role}
-                  className={role === 'bg' ? 'flex-[2]' : 'flex-1'}
-                  style={{ background: toCss(palette.roles[role]) }}
-                />
-              ))}
-            </button>
-          );
-        })}
-      </fieldset>
-      <div className="flex items-center gap-2">
-        <label htmlFor={colorId} className="sr-only">
-          Brand color
-        </label>
-        <input
-          id={colorId}
-          type="color"
-          value={brand}
-          onChange={(event) => applyBrand(event.target.value, variant)}
-          className="h-8 w-10 shrink-0 cursor-pointer rounded-sm border border-line bg-transparent"
-        />
-        <SegmentedControl
-          label="Brand palette"
-          size="sm"
-          value={value.kind === 'brand' ? value.variant : ('none' as const)}
-          options={[
-            ...BRAND_VARIANTS.map((v) => ({
-              value: v,
-              label: v[0]?.toUpperCase() + v.slice(1),
-            })),
-          ]}
-          onValueChange={(next) => applyBrand(brand, next as BrandVariant)}
-          className="flex-1"
-        />
-        <IconButton
-          label="Random brand color"
-          onClick={() => applyBrand(randomBrandColor(), variant)}
-        >
-          <ShuffleIcon size={18} />
-        </IconButton>
-      </div>
-      {value.kind === 'brand' && (
-        <p className="font-mono text-[11px] text-fg-3 uppercase tabular-nums">
-          Brand {value.variant} · {value.color}
-        </p>
-      )}
     </div>
   );
 }

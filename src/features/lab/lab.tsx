@@ -27,11 +27,11 @@ import { createPlayhead } from '@/stores/playhead';
 import { TEMPLATES } from '@/templates/registry';
 import { createRenderEndpoint } from '@/workers';
 import { importFile } from '../assets/import-file';
+import { STEP, Transport } from '../transport/transport';
 import { ExportPanel } from './export-panel';
 import { type Focus, Inspector } from './inspector';
 import { LabView } from './lab-view';
 import { createStats } from './stores';
-import { STEP, Transport } from './transport';
 
 declare global {
   interface Window {
@@ -471,6 +471,7 @@ export function Lab() {
                 onPause={pause}
                 onSeek={seek}
                 onLoop={setLoop}
+                frames
               />
             </div>
           </main>
