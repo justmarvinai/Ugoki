@@ -32,13 +32,26 @@ export function parseFigure(text: string): Figure | null {
   return { prefix, value, decimals: fraction.length, grouping, suffix };
 }
 
+const formats = new Map<string, Intl.NumberFormat>();
+
+/** A cached English number format (count-ups format a figure on every frame). */
+function numberFormat(decimals: number, grouping: boolean): Intl.NumberFormat {
+  const key = `${decimals}:${grouping}`;
+  let format = formats.get(key);
+  if (!format) {
+    format = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+      useGrouping: grouping,
+    });
+    formats.set(key, format);
+  }
+  return format;
+}
+
 /** The figure written with `value` in place of its number, in the figure's own format. */
 export function formatFigure(figure: Figure, value = figure.value): string {
-  const number = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: figure.decimals,
-    maximumFractionDigits: figure.decimals,
-    useGrouping: figure.grouping,
-  }).format(Math.max(0, value));
+  const number = numberFormat(figure.decimals, figure.grouping).format(Math.max(0, value));
   return `${figure.prefix}${number}${figure.suffix}`;
 }
 
