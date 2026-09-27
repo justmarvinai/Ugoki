@@ -74,6 +74,8 @@ export const CHECK_SIZE = 128;
 export const CHECK_FRAMES = 4;
 /** A broken encoder may never answer; the check gives up after this long (ms). */
 const CHECK_TIMEOUT = 3000;
+/** How long a check that gave up gets to close its codecs before its answer goes out (ms). */
+const RELEASE_GRACE = 2000;
 
 /** Draws the bar of motion-check frame `i`: white, stepping right 32 px a frame. */
 export function drawCheckBar(ctx: OffscreenCanvasRenderingContext2D, i: number): void {
@@ -83,28 +85,31 @@ export function drawCheckBar(ctx: OffscreenCanvasRenderingContext2D, i: number):
 
 /**
  * `check`'s answer, or false if it fails or takes longer than `ms`. Its signal aborts once the
- * answer is in, so a check that timed out releases its codecs rather than leaving them busy in
- * a worker that is about to be ended.
+ * answer is in. A check that gave up is waited for (briefly) while it closes its codecs, so
+ * none are still busy if the worker is ended right after the answer.
  */
 export async function answerWithin(
   ms: number,
   check: (signal: AbortSignal) => Promise<boolean>,
 ): Promise<boolean> {
   const abort = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      check(abort.signal),
-      new Promise<boolean>((resolve) => {
-        timer = setTimeout(() => resolve(false), ms);
-      }),
-    ]);
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-    abort.abort();
-  }
+  const answer = check(abort.signal).catch(() => false);
+  const after = (wait: number) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const done = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), wait);
+    });
+    return { done, cancel: () => clearTimeout(timer) };
+  };
+  const deadline = after(ms);
+  const result = await Promise.race([answer, deadline.done]);
+  deadline.cancel();
+  abort.abort();
+  if (result !== null) return result;
+  const grace = after(RELEASE_GRACE);
+  await Promise.race([answer, grace.done]);
+  grace.cancel();
+  return false;
 }
 
 /** Closes `codec` when `signal` aborts; the returned function closes it now (and stops listening). */

@@ -25,8 +25,8 @@ import {
 /**
  * What exports can rely on here, from round trips (ADR-034): H.264 and VP9 only if moving
  * frames come back as encoded, transparent WebM only if its alpha does. Runs in an export
- * worker when the export options are first shown, never while previews start. Every encoder
- * and decoder is closed by the time it answers.
+ * worker when the export options are first shown, never while previews start. It answers once
+ * its encoders and decoders are closed (a check that gave up gets two seconds to close them).
  */
 export async function verifyEncoders(declared?: EncoderSupport): Promise<EncoderSupport> {
   const claimed = declared ?? (await declaredEncoders());
@@ -71,8 +71,9 @@ async function roundTrip(signal: AbortSignal): Promise<boolean> {
   });
   output.addVideoTrack(source, { frameRate: FPS });
   // Cancelling releases the encoders and Mediabunny's splitting worker.
-  const cancel = () => void output.cancel().catch(() => undefined);
-  signal.addEventListener('abort', cancel);
+  const cancel = () => output.cancel().catch(() => undefined);
+  const onAbort = () => void cancel();
+  signal.addEventListener('abort', onAbort);
   try {
     await output.start();
     for (let i = 0; i < CHECK_FRAMES; i++) {
@@ -82,13 +83,13 @@ async function roundTrip(signal: AbortSignal): Promise<boolean> {
     }
     await output.finalize();
   } catch {
-    cancel();
+    await cancel();
     return false;
   } finally {
-    signal.removeEventListener('abort', cancel);
+    signal.removeEventListener('abort', onAbort);
   }
   const buffer = output.target.buffer;
-  if (!buffer) return false;
+  if (!buffer || signal.aborted) return false;
 
   // Read back as players do: each packet's color, and its alpha from the side data. (Plain
   // decoders on this thread: Mediabunny's sinks would merge the two in a pool of workers.)
