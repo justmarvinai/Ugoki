@@ -46,7 +46,7 @@ test('every engine has a video encoder that passes the check', async () => {
     CODECS.map(async (codec) => [codec, await encodesMotion(codec)]),
   );
   console.info(`encodes motion: ${JSON.stringify(Object.fromEntries(results))}`);
-  // What transparent WebM needs besides: VP9 from frames built from buffers (CI's WebKit: no).
+  // What transparent WebM needs besides: VP9 from frames built from buffers.
   const buffers = [];
   for (const source of ['BGRX', 'I420'] as const) {
     buffers.push(`${source} ${await encodesMotion('vp09.00.10.08', source)}`);

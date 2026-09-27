@@ -6,9 +6,10 @@
  * alpha mode — a bar moving across a clear background — must come back with each frame's
  * color and alpha, read out of the decoded frames the way Mediabunny's alpha reader does.
  *
- * CI's WebKit (Linux, GStreamer) accepts all of it, but encodes frames built from buffers with
- * the pixels of a later frame; its transparent files decode without their alpha. (Frames made
- * from canvases are fine there, so MP4 and opaque WebM still work.)
+ * CI's WebKit (Linux, GStreamer) accepts all of it, but at times encodes frames built from
+ * buffers with the pixels of a later frame, and its transparent WebM has never come back with
+ * its alpha when the decoded frames are copied out. (Frames made from canvases are fine there,
+ * so MP4 and opaque WebM still work.)
  */
 
 import type { EncodedPacket } from 'mediabunny';
