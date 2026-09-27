@@ -20,7 +20,10 @@ beforeAll(async () => {
   await page.viewport(1100, 1000);
 });
 
-for (const entry of TEMPLATES.filter((e) => !OWN_FILE.has(e.id))) {
+const entries = TEMPLATES.filter((entry) => !OWN_FILE.has(entry.id));
+if (entries.length === 0) test.skip('every template has its own golden file', () => {});
+
+for (const entry of entries) {
   const template = await loadTemplate(entry.id);
   const base = initialState(template);
   const formats = template.formats as readonly FormatId[];

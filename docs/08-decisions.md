@@ -215,6 +215,18 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Why**: Browsing templates shouldn't fill the device with untouched drafts; a reload must never lose work; a link must never smuggle someone's logo to a stranger (nothing leaves the device unless the user sends it — and a link is only text), and a link in the address bar would stop matching the design at its first edit.
 **Consequences**: A recipient sees placeholders where the sender used their own images, with a notice. Files of deleted drafts stay in IndexedDB until asset garbage collection lands.
 
+### ADR-036 — Every pairing's fonts are built; google/fonts pinned to a commit
+**Status**: Accepted · 2026-09-27 (Phase 3)
+**Decision**: `scripts/fonts.py` builds all families the eleven pairings use — Anton, Archivo, Big Shoulders, Bricolage Grotesque, DM Serif Display (+ Italic), Fraunces (+ Italic, `SOFT` fixed at 100 as the `soft` pairing specifies), Hubot Sans, Instrument Sans, JetBrains Mono, Syne and Unbounded, next to Mona Sans, Inter and Instrument Serif. Google Fonts sources come from `google/fonts` at commit `23e54b5` instead of `main`. Hubot Sans declares the Reserved Font Name "Hubot", so the modified build is named "Ugoki Tech"; DM Serif Display's reserved "Source" appears only in credit records, which the build now verifies for every source with a reserved name.
+**Why**: Phase 3's templates default to the `poster`, `technical`, `sport` and `wide` pairings and recommend the rest; building them all at once is one reproducible script run. A pinned commit keeps byte-for-byte rebuilds even when upstream moves (SHA-256 checks already made that fail loudly; now it can't happen).
+**Consequences**: ≈ 1.3 MB more fonts in `public/`, each fetched only when a design uses its pairing. Anybody (a *Stretch* alternative, in no pairing) waits for the template that needs it.
+
+### ADR-037 — Templates are judged on contact sheets and one shared check
+**Status**: Accepted · 2026-09-27 (Phase 3, after the owner's pace decision E6)
+**Decision**: Templates are built against contact sheets (`pnpm sheet <id> [mode…]`, a Vitest browser project outside CI that writes PNG grids to `.sheets/`). Automated checks are shared: `tests/templates/catalog.browser.test.ts` runs every registered template through the automatable parts of the quality bar, and `tests/golden/catalog.test.ts` keeps poster and entrance frames. Only reference templates keep test files of their own.
+**Why**: Per-template test files cost as much as the templates and mostly repeated each other; the checks that matter are the same for every template, and design quality is judged by looking, which a sheet makes fast. The owner asked for faster phases without watching CI (E6).
+**Consequences**: A new template is covered as soon as it is registered. The shared check relies on templates registering editable text regions (`g.editable`), which the editor needs anyway; behavior specific to one template (e.g. an exit option) is only tested where it earns a test of its own.
+
 ---
 
 ## Phase 1 spike results (2026-09-26)
