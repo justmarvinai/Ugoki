@@ -4,7 +4,7 @@ import { type AnyTemplate, defineTemplate } from '../template/define';
 import type { DesignState } from '../template/state';
 import { RenderClient } from './client';
 import { createInlineEndpoint } from './inline';
-import type { WorkerMessage } from './protocol';
+import type { FrameInfo, WorkerMessage } from './protocol';
 
 const probe = defineTemplate({
   id: 'probe',
@@ -180,6 +180,38 @@ describe('RenderRuntime', () => {
     const paused = next('frame');
     client.pause('a');
     expect((await paused).playing).toBe(false);
+    client.dispose();
+  });
+
+  it('tells frames from before the latest transport command apart', async () => {
+    const { client, next, canvas } = setup();
+    client.attach('a', canvas, { width: 100, height: 100, dpr: 1 });
+    client.load('a', 'probe');
+    await next('built');
+    const frameAt = (t: number) =>
+      new Promise<FrameInfo>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`no frame at ${t}`)), 5000);
+        const unsubscribe = client.subscribe((m) => {
+          if (m.type === 'frame' && m.t === t) {
+            clearTimeout(timer);
+            unsubscribe();
+            resolve(m);
+          }
+        });
+      });
+
+    const one = frameAt(1);
+    client.seek('a', 1);
+    const early = await one;
+    expect(client.isCurrent(early)).toBe(true);
+    // A frame that arrives after the next seek (it was in flight) must not move a playhead back.
+    const two = frameAt(2);
+    client.seek('a', 2);
+    expect(client.isCurrent(early)).toBe(false);
+    const late = await two;
+    expect(client.isCurrent(late)).toBe(true);
+    client.pause('a');
+    expect(client.isCurrent(late)).toBe(false);
     client.dispose();
   });
 

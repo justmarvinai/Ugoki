@@ -74,6 +74,8 @@ type View = {
   qualityMode: QualityMode;
   /** Seconds. */
   t: number;
+  /** Sequence number of the latest transport command (echoed with frames). */
+  seq: number;
   /** Clock time (ms) at which t was 0 during playback. */
   anchor: number;
   lastFrameAt: number;
@@ -138,13 +140,14 @@ export class RenderRuntime {
         break;
       }
       case 'play':
-        this.forEach(message.views, (view) => this.play(view));
-        break;
       case 'pause':
-        this.forEach(message.views, (view) => this.pause(view));
-        break;
       case 'seek':
-        this.forEach(message.views, (view) => this.seek(view, message.t, message.scrub ?? false));
+        this.forEach(message.views, (view) => {
+          view.seq = message.seq;
+          if (message.type === 'play') this.play(view);
+          else if (message.type === 'pause') this.pause(view);
+          else this.seek(view, message.t, message.scrub ?? false);
+        });
         break;
       case 'setLoop':
         this.forEach(message.views, (view) => {
@@ -234,6 +237,7 @@ export class RenderRuntime {
       scrubTimer: null,
       qualityMode: 'adaptive',
       t: 0,
+      seq: 0,
       anchor: 0,
       lastFrameAt: 0,
       lastRegionsAt: 0,
@@ -519,6 +523,7 @@ export class RenderRuntime {
       view: view.id,
       t: view.t,
       playing: view.playing,
+      seq: view.seq,
       cost,
       quality,
     });

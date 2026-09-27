@@ -5,6 +5,7 @@
 
 import type { DesignState } from '../template/state';
 import type {
+  FrameInfo,
   HostMessage,
   QualityMode,
   TransferableGraphic,
@@ -32,7 +33,10 @@ const list = (views: Views): readonly ViewId[] => (typeof views === 'string' ? [
 export class RenderClient {
   private readonly listeners = new Set<(message: WorkerMessage) => void>();
   private readonly snapshots = new Map<number, Pending>();
+  /** Sequence number of the latest transport command sent to each view. */
+  private readonly transport = new Map<ViewId, number>();
   private nextRequest = 1;
+  private nextSeq = 1;
   private disposed = false;
 
   constructor(private readonly endpoint: RenderEndpoint) {
@@ -62,15 +66,24 @@ export class RenderClient {
   }
 
   play(views: Views): void {
-    this.send({ type: 'play', views: list(views) });
+    this.send({ type: 'play', views: list(views), seq: this.sequence(views) });
   }
 
   pause(views: Views): void {
-    this.send({ type: 'pause', views: list(views) });
+    this.send({ type: 'pause', views: list(views), seq: this.sequence(views) });
   }
 
   seek(views: Views, t: number, scrub = false): void {
-    this.send({ type: 'seek', views: list(views), t, scrub });
+    this.send({ type: 'seek', views: list(views), t, scrub, seq: this.sequence(views) });
+  }
+
+  /**
+   * Whether a frame reflects the latest transport command sent to its view. Frames already in
+   * flight when the page seeks, plays or pauses show an older time; a playhead that follows
+   * frames should skip them.
+   */
+  isCurrent(frame: FrameInfo): boolean {
+    return frame.seq >= (this.transport.get(frame.view) ?? 0);
   }
 
   setLoop(views: Views, loop: boolean): void {
@@ -118,6 +131,12 @@ export class RenderClient {
     for (const pending of this.snapshots.values()) pending.reject(new Error('Renderer disposed'));
     this.snapshots.clear();
     this.listeners.clear();
+  }
+
+  private sequence(views: Views): number {
+    const seq = this.nextSeq++;
+    for (const view of list(views)) this.transport.set(view, seq);
+    return seq;
   }
 
   private send(message: HostMessage, transfer: Transferable[] = []): void {

@@ -176,7 +176,10 @@ export function Lab() {
         break;
       case 'frame':
         stats.record(message);
-        if (message.view === primary) playhead.set({ t: message.t, playing: message.playing });
+        // Frames rendered before the latest seek/play/pause would pull the playhead back.
+        if (message.view === primary && client?.isCurrent(message)) {
+          playhead.set({ t: message.t, playing: message.playing });
+        }
         break;
       case 'capabilities':
         setCapabilities(message.capabilities);

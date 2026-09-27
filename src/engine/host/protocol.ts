@@ -42,10 +42,14 @@ export type HostMessage =
   | { type: 'load'; view: ViewId; templateId: string; state?: unknown; look?: number }
   /** Replaces the view's design state (sanitized in the worker). */
   | { type: 'setState'; view: ViewId; state: DesignState }
-  | { type: 'play'; views: readonly ViewId[] }
-  | { type: 'pause'; views: readonly ViewId[] }
+  /**
+   * Transport commands carry the client's sequence number (`seq`); frames echo the latest one
+   * applied to their view, so the page can ignore frames rendered before its last command.
+   */
+  | { type: 'play'; views: readonly ViewId[]; seq: number }
+  | { type: 'pause'; views: readonly ViewId[]; seq: number }
   /** `scrub` renders at the adaptive scale until 120 ms of stillness. */
-  | { type: 'seek'; views: readonly ViewId[]; t: number; scrub?: boolean }
+  | { type: 'seek'; views: readonly ViewId[]; t: number; scrub?: boolean; seq: number }
   | { type: 'setLoop'; views: readonly ViewId[]; loop: boolean }
   | { type: 'setQuality'; views: readonly ViewId[]; mode: QualityMode }
   /** Renders a still at `shortSide` resolution (PNG). */
@@ -60,6 +64,8 @@ export type FrameInfo = {
   view: ViewId;
   t: number;
   playing: boolean;
+  /** The latest transport command applied to the view when it rendered this frame. */
+  seq: number;
   /** Milliseconds spent in `render` (recording). */
   cost: number;
   /** Render scale relative to full quality (1, 0.75, 0.5). */
