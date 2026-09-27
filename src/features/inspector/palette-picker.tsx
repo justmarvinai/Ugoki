@@ -12,7 +12,9 @@ import { ShuffleIcon } from '@/design/icons';
 import {
   BRAND_VARIANTS,
   type BrandVariant,
+  contrastRatio,
   type PaletteRef,
+  parseHex,
   resolvePalette,
   toCss,
 } from '@/engine/host';
@@ -129,6 +131,43 @@ export function PalettePicker({
           Brand {value.variant} · {value.color}
         </p>
       )}
+      {value.kind === 'brand' && <ContrastGuard value={value} onChange={onChange} />}
     </div>
+  );
+}
+
+/** Accents need 3:1 against the background (foundations §5). */
+const ACCENT_MINIMUM = 3;
+
+/**
+ * Brand Light and Dark keep the brand color as the accent, nudged until it reads against the
+ * background — unless the user asks for the exact color, which may then be hard to see.
+ */
+function ContrastGuard({
+  value,
+  onChange,
+}: {
+  value: Extract<PaletteRef, { kind: 'brand' }>;
+  onChange: (palette: PaletteRef) => void;
+}) {
+  if (value.variant === 'bold') return null;
+  const ratio = contrastRatio(parseHex(value.color), resolvePalette(value).roles.bg);
+  if (ratio >= ACCENT_MINIMUM) return null;
+  const action =
+    'font-[550] text-fg underline decoration-line-strong underline-offset-2 hover:decoration-fg';
+  return value.exact ? (
+    <p role="status" className="text-[12px] leading-snug text-warning">
+      Your exact color has {ratio.toFixed(1)}:1 contrast here, so accents may be hard to see.{' '}
+      <button type="button" className={action} onClick={() => onChange({ ...value, exact: false })}>
+        Fix contrast
+      </button>
+    </p>
+  ) : (
+    <p className="text-[12px] leading-snug text-fg-3">
+      Adjusted to read against the background (your color has {ratio.toFixed(1)}:1).{' '}
+      <button type="button" className={action} onClick={() => onChange({ ...value, exact: true })}>
+        Use exact color
+      </button>
+    </p>
   );
 }
