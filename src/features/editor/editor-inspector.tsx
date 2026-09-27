@@ -49,6 +49,8 @@ type EditorInspectorProps = {
   project: ProjectStore;
   ui: UiStore;
   warnings: readonly TimelineWarning[];
+  /** The design's current length in seconds (what an Auto duration resolved to). */
+  length: number | null;
   onAddFile: AddFile;
   /** Files dropped on the stage or pasted, for the image fields. */
   inbox: FileInbox;
@@ -109,7 +111,12 @@ export function EditorInspector(props: EditorInspectorProps) {
     ...new Set(regions.filter((r) => r.kind === 'movable').map((r) => r.target)),
   ].sort();
   const { min, max } = descriptor.duration;
-  const duration = typeof design.duration === 'number' ? design.duration : min;
+  const canAuto = descriptor.duration.default === 'auto';
+  const auto = design.duration === 'auto';
+  const duration =
+    typeof design.duration === 'number'
+      ? design.duration
+      : Math.min(max, Math.max(min, props.length ?? min));
 
   return (
     <div ref={column} className="flex flex-col">
@@ -217,7 +224,21 @@ export function EditorInspector(props: EditorInspectorProps) {
             className="w-full"
           />
         </Field>
-        <Field label="Duration" value={`${duration.toFixed(1)} s`}>
+        <Field label="Duration" value={`${auto ? 'Auto · ' : ''}${duration.toFixed(1)} s`}>
+          {canAuto && (
+            <SegmentedControl
+              label="Duration mode"
+              value={auto ? 'auto' : 'fixed'}
+              options={[
+                { value: 'auto', label: 'Auto' },
+                { value: 'fixed', label: 'Fixed' },
+              ]}
+              onValueChange={(mode) =>
+                change({ duration: mode === 'auto' ? 'auto' : Math.round(duration * 10) / 10 })
+              }
+              className="w-full"
+            />
+          )}
           <Slider
             label="Duration"
             value={duration}

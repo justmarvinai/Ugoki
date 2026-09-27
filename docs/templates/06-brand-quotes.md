@@ -20,20 +20,26 @@ Category slug: `brand-quotes` · Conventions: [`00-foundations.md`](00-foundatio
 - `0.00–0.50` Quote mark drops in (`pop`, rotate −8° → 0).
 - `0.35–…` Words reveal at reading pace (opacity + y 0.8u, `glide`, ≈ 0.05 s/word).
 - After the key phrase's words appear, the highlight sweeps behind them (`snap`, 0.35 s) left→right, **line by line** following the real line breaks.
-- `+0.40` Attribution: a short rule draws, name slides in, role fades in.
-- `hold` Gentle drift.
+- `+0.40` Attribution: a short rule draws, name slides in, role fades in (it waits for the highlight to finish, so the two never compete).
+- `hold` Gentle drift (the mark drifts a little further than the text).
 - Out (0.6 s): fade + blur.
+
+Long quotes compress the word stagger so the cascade never takes more than 1.5 s.
 
 **Controls**
 - Content: Quote (≤ 220 chars; `*highlight*`) · Name · Role · Portrait (optional)
 - Style: Highlight (Marker · Italic · Color) · Alignment (Left · Center)
-- Motion: Duration (Auto · Fixed)
+- Motion: Duration (Auto · Fixed) — the global Duration control; Auto = entrance + reading time of the quote and name + exit.
+
+Highlight styles: *Marker* sweeps an `accent` block behind each line of the phrase, and the phrase switches to whichever of `bg`/`fg` contrasts more with it; *Color* sweeps the phrase to `accent`; *Italic* sets the phrase in the pairing's italic (an oblique slant where the pairing has none) and sweeps it to `accent`.
 
 **Defaults.** `*Good motion is invisible.* You only notice it when it's missing.` — `Noa Lindqvist`, `Motion Director`
 
-**Looks.** Paper · Ink · Blush
+**Looks.** Paper (Marker) · Ink (Italic) · Blush (`soft`, Color, centered)
 
 **The expensive detail.** Hanging punctuation — the opening quote mark hangs outside the text block so the text edge stays optically straight — and a multi-line highlight that follows actual line breaks.
+
+**Format notes.** Left-aligned quotes hang the mark in a gutter beside the column in 1:1, 4:5 and 16:9; in 9:16 the mark sits above the column (its ball overhanging the text edge slightly) so the text keeps the full width. Centered quotes carry the mark above. Short quotes grow (up to 1.8×; the mark 1.4×). The mark is the display face's own “ in the serif pairings (`editorial`, `classic`, `soft`); other pairings get a drawn serif mark, since only the pairing's fonts are loaded.
 
 **Engine needs.** Emphasis markup · per-line highlight rects · hanging punctuation · auto duration from length.
 
@@ -51,18 +57,22 @@ Category slug: `brand-quotes` · Conventions: [`00-foundations.md`](00-foundatio
 
 **Choreography**
 - `0.00–0.60` Stars pop in sequence (stagger 0.07 s, scale 0 → 1.15 → 1, `pop`); fractional ratings fill the last star through a mask.
-- `0.20–0.90` Rating counts 0.0 → 4.9, landing on the same frame the last star settles.
-- `0.80–1.80` Quote lines rise through masks.
-- `1.60–2.20` Reviewer row slides in; the verified check draws.
+- `0.20–0.90` Rating counts 0.0 → 4.9, landing on the same frame the last star settles: the counting value itself drives the fill across the row, and the star holding the last fraction settles with a small pop as the number lands.
+- `0.72–1.55` Quote lines rise through masks.
+- `1.30–2.10` Reviewer row slides in; the verified check draws.
 - `hold` Subtle drift. Out (0.5 s): fade/slide.
+
+(The quote and reviewer arrive a little earlier than first planned, so the default 6 s holds the quote for its full reading time.)
 
 **Controls**
 - Content: Rating (0–5, step 0.1) · Rating label · Quote · Name · Role/Company · Avatar · Verified (on/off)
 - Style: Layout (Centered · Left) · Card (on/off)
 
+The quote is set in typographic quotation marks (marks the user typed are replaced); in the Left layout the opening mark hangs outside the column. Without an avatar photo, the avatar shows the name's initials on `fg`. The card is `surface` with a soft layered shadow.
+
 **Defaults.** `4.9` · `from 2,300+ reviews` · `Honestly the fastest way we've ever made a launch video.` · `Sam Rivera` · `Head of Marketing, Halden`
 
-**Looks.** Paper · Ink · Mint (card)
+**Looks.** Paper · Ink · Mint (card, Left layout)
 
 **The expensive detail.** Precise fractional star fill (4.9 → 90% of the fifth star) synchronized with the count-up.
 
@@ -110,21 +120,23 @@ Category slug: `brand-quotes` · Conventions: [`00-foundations.md`](00-foundatio
 |---|---|---|---|---|---|
 | `numbers` | 16:9 · 1:1 · 4:5 · 9:16 | 6 s (4–12) | in · hold · out | optional | `grotesk` · Ink |
 
-**Art direction.** A headline plus 2–4 big stats in a grid (2×2) or row, each a big tabular number with a label; hairline dividers; optional mini-visual per stat (bar or ring).
+**Art direction.** A headline plus 2–4 big stats in a grid (2×2) or row, each a big tabular number with a label; hairline dividers; optional mini-visual per stat: a ring (donut) for percentages, before/after bars for multipliers (`×`), a small trend line for everything else — above the number in multi-column grids, beside it in a single column.
 
 **Choreography**
 - `0.00–0.70` Headline rises.
 - `0.40–0.90` Dividers draw (`snap`, staggered).
-- `0.60–2.20` Each number counts from 0 (fast, then decelerating — `glide` applied to the value), formatted live (`12M+`, `98%`, `3.2×`), stagger 0.2 s; labels fade up.
+- `0.60–2.20` Each number counts from 0 (fast, then decelerating — `glide` applied to the value), formatted live (`12M+`, `98%`, `3.2×`), stagger 0.2 s; labels fade up. *Punchy*: each number lands with a small kick.
 - `hold` Subtle drift; mini-visuals complete. Out (0.5 s).
 
 **Controls**
-- Content: Headline · Stats (2–4: value, prefix, suffix, decimals, label)
+- Content: Headline · Stat 1–4 (3 and 4 optional). Each stat is one line written as people write it — the number, then its label (`12M+ views`, `€48.2k raised`, `+12.4% retention`): prefix, suffix, decimals and grouping all come from the written number, so a count-up keeps its format. Text that doesn't start with a number shows its first word, uncounted.
 - Style: Layout (Auto · Row · Grid) · Mini visuals (on/off)
+
+Layouts: *Row* runs along the frame's long side — across in 16:9 and 1:1, a single column in 4:5 and 9:16; *Grid* is two columns. *Auto*: 16:9 a row; 1:1 a 2×2 grid for four stats (a row otherwise); 4:5 a grid for four, a column for three, a row for two; 9:16 a column.
 
 **Defaults.** `2026 in numbers` · `12M+` views · `98%` happy clients · `140` countries · `3.2×` faster launches
 
-**Looks.** Ink · Paper · Cobalt
+**Looks.** Ink · Paper · Cobalt (`technical`)
 
 **The expensive detail.** Number boxes reserve their final width (tabular figures + max width), so the layout never shifts while counting.
 

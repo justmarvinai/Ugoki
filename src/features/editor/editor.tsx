@@ -567,6 +567,7 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
                 project={project}
                 ui={ui}
                 warnings={timeline?.warnings ?? []}
+                length={timeline?.duration ?? null}
                 onAddFile={addFile}
                 inbox={inbox}
                 onReset={reset}
