@@ -124,6 +124,28 @@ function closeOnAbort(codec: VideoEncoder | VideoDecoder, signal: AbortSignal): 
   };
 }
 
+/** Where the bars' centers are (x), on the middle row. */
+const barCenter = (i: number) => 20 + i * 32;
+
+/**
+ * How decoded frames are read: drawn onto a canvas (as players and Mediabunny's plain sinks
+ * do), or copied out with `VideoFrame.copyTo` (as Mediabunny's alpha reader does).
+ */
+export type FrameReading = 'drawn' | 'copied';
+
+/** The first sample (luma, or the first color channel) at each bar's center, copied out. */
+async function copiedSamples(frame: VideoFrame): Promise<number[]> {
+  const samples: number[] = [];
+  for (let i = 0; i < CHECK_FRAMES; i++) {
+    // Two by two, so the rectangle stays aligned to subsampled chroma.
+    const rect = { x: barCenter(i), y: CHECK_SIZE / 2, width: 2, height: 2 };
+    const pixels = new Uint8Array(frame.allocationSize({ rect }));
+    await frame.copyTo(pixels, { rect });
+    samples.push(pixels[0] ?? 0);
+  }
+  return samples;
+}
+
 /**
  * Decodes the motion check's frames: whether each shows its own bar — lit there (x 8 + 32i …
  * 32 + 32i), dark where the others were. A frame encoded with another's pixels fails. The
@@ -133,22 +155,39 @@ export async function decodesEachBar(
   config: VideoDecoderConfig,
   chunks: readonly EncodedVideoChunk[],
   signal: AbortSignal,
+  reading: FrameReading = 'drawn',
 ): Promise<boolean> {
   const canvas = new OffscreenCanvas(CHECK_SIZE, CHECK_SIZE);
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx || signal.aborted || chunks.length !== CHECK_FRAMES) return false;
   let decoded = 0;
   let correct = true;
+  const judge = (index: number, samples: readonly number[]) => {
+    for (let i = 0; i < CHECK_FRAMES; i++) {
+      if ((samples[i] ?? 0) > 160 !== (i === index)) correct = false;
+    }
+  };
+  const copies: Promise<void>[] = [];
   const decoder = new VideoDecoder({
     output: (frame) => {
+      const index = decoded++;
+      if (reading === 'copied') {
+        const copy = copiedSamples(frame).then(
+          (samples) => judge(index, samples),
+          () => {
+            correct = false;
+          },
+        );
+        copies.push(copy.finally(() => frame.close()));
+        return;
+      }
       ctx.drawImage(frame, 0, 0, CHECK_SIZE, CHECK_SIZE);
       frame.close();
       const luma = (x: number) => ctx.getImageData(x, CHECK_SIZE / 2, 1, 1).data[0] ?? 0;
-      for (let i = 0; i < CHECK_FRAMES; i++) {
-        const lit = luma(20 + i * 32) > 160;
-        if (lit !== (i === decoded)) correct = false;
-      }
-      decoded++;
+      judge(
+        index,
+        Array.from({ length: CHECK_FRAMES }, (_, i) => luma(barCenter(i))),
+      );
     },
     error: () => undefined,
   });
@@ -157,10 +196,37 @@ export async function decodesEachBar(
     decoder.configure(config);
     for (const chunk of chunks) decoder.decode(chunk);
     await decoder.flush();
+    await Promise.all(copies);
     return correct && decoded === CHECK_FRAMES;
   } finally {
     close();
   }
+}
+
+/**
+ * Where the motion check's frames come from: a canvas (as exports draw them), or a buffer in
+ * the formats Mediabunny's alpha mode builds — BGRX for color, I420 for the alpha plane.
+ */
+export type FrameSource = 'canvas' | 'BGRX' | 'I420';
+
+/** Motion-check frame `i` built from a buffer: a white bar on black. */
+function bufferFrame(i: number, format: 'BGRX' | 'I420', timestamp: number): VideoFrame {
+  const pixels = CHECK_SIZE * CHECK_SIZE;
+  const bar = (p: number) => {
+    const x = p % CHECK_SIZE;
+    const y = Math.floor(p / CHECK_SIZE);
+    return x >= 8 + i * 32 && x < 32 + i * 32 && y >= 16 && y < CHECK_SIZE - 16;
+  };
+  const init = { codedWidth: CHECK_SIZE, codedHeight: CHECK_SIZE, timestamp, duration: 33_333 };
+  if (format === 'BGRX') {
+    const data = new Uint8Array(pixels * 4);
+    for (let p = 0; p < pixels; p++) data.fill(bar(p) ? 255 : 0, p * 4, p * 4 + 4);
+    return new VideoFrame(data, { ...init, format });
+  }
+  // Luma, then both chroma planes at neutral.
+  const data = new Uint8Array(pixels * 1.5).fill(128);
+  for (let p = 0; p < pixels; p++) data[p] = bar(p) ? 255 : 0;
+  return new VideoFrame(data, { ...init, format });
 }
 
 /**
@@ -169,7 +235,7 @@ export async function decodesEachBar(
  * Saying yes to a configuration isn't enough — CI's WebKit (Linux, GStreamer) encodes each
  * frame made from a buffer with the pixels of a later one (see `transparentWebmWorks`).
  */
-export function encodesMotion(codec: string): Promise<boolean> {
+export function encodesMotion(codec: string, source: FrameSource = 'canvas'): Promise<boolean> {
   if (typeof VideoEncoder === 'undefined' || typeof VideoDecoder === 'undefined') {
     return Promise.resolve(false);
   }
@@ -196,10 +262,15 @@ export function encodesMotion(codec: string): Promise<boolean> {
         framerate: 30,
       });
       for (let i = 0; i < CHECK_FRAMES; i++) {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, CHECK_SIZE, CHECK_SIZE);
-        drawCheckBar(ctx, i);
-        const frame = new VideoFrame(canvas, { timestamp: i * 33_333, duration: 33_333 });
+        let frame: VideoFrame;
+        if (source === 'canvas') {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, CHECK_SIZE, CHECK_SIZE);
+          drawCheckBar(ctx, i);
+          frame = new VideoFrame(canvas, { timestamp: i * 33_333, duration: 33_333 });
+        } else {
+          frame = bufferFrame(i, source, i * 33_333);
+        }
         encoder.encode(frame, { keyFrame: i === 0 });
         frame.close();
       }

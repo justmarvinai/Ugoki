@@ -126,12 +126,22 @@ test('every template opens in the editor and exports', async ({ page }) => {
 });
 
 /** Opens an editor and waits until its design is built and on the stage. */
-async function openEditor(page: Page, path: string): Promise<void> {
-  await page.goto(path);
+/**
+ * Waits until the editor's design is built (the transport knows the duration) and painted.
+ * Leaving a page while its worker still fetches the text engine makes WebKit log the cancelled
+ * fetch as an error, so tests wait for this before navigating away.
+ */
+async function stageReady(page: Page): Promise<void> {
   await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('Looks', {
     timeout: 15_000,
   });
   await expect(page.locator('output[aria-label="Time"]')).not.toContainText('/ 00:00.00');
+  await expect.poll(() => stageCoverage(page), { timeout: 10_000 }).toBeGreaterThan(0.99);
+}
+
+async function openEditor(page: Page, path: string): Promise<void> {
+  await page.goto(path);
+  await stageReady(page);
 }
 
 test('a share link opens the same design elsewhere', async ({ page, context }) => {
@@ -164,16 +174,14 @@ test('drafts save as you edit and reopen', async ({ page }) => {
   // Autosave names the draft in the address bar, so a reload reopens it.
   await expect(page).toHaveURL(/\?draft=[\w-]+$/);
   await page.reload();
-  await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Mika Draft', {
-    timeout: 15_000,
-  });
+  await stageReady(page);
+  await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Mika Draft');
 
   await page.goto('/templates');
   const drafts = page.getByRole('region', { name: 'Continue where you left off' });
   await expect(drafts.getByRole('link', { name: /Line/ })).toBeVisible();
   await drafts.getByRole('link', { name: /Line/ }).first().click();
-  await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Mika Draft', {
-    timeout: 15_000,
-  });
+  await stageReady(page);
+  await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Mika Draft');
   expect(errors).toEqual([]);
 });

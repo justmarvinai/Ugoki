@@ -1,13 +1,14 @@
 /**
- * Whether transparent WebM works here, checked the way exports make it (docs/07-export.md §2):
- * Mediabunny's alpha mode — color and alpha split on the CPU into frames built from buffers,
- * two VP9 encoders, the alpha plane as side data — on frames of a bar moving across a clear
- * background. Each frame's color and alpha are then decoded on their own and must show that
- * frame's bar.
+ * Whether transparent WebM works here, checked the way exports make it (docs/07-export.md §2).
+ * Mediabunny's alpha mode splits color and alpha on the CPU into frames built from buffers
+ * (BGRX and I420) for two VP9 encoders, the alpha plane going in as side data. So frames built
+ * from those buffers must encode a moving bar faithfully, and a round trip through Mediabunny's
+ * alpha mode — a bar moving across a clear background — must come back with each frame's
+ * color and alpha, read out of the decoded frames the way Mediabunny's alpha reader does.
  *
- * CI's WebKit (Linux, GStreamer) accepts all of it, but encodes each frame built from a buffer
- * with the pixels of a later one; its transparent files decode without their alpha. (Frames
- * made from canvases are fine there, so MP4 and opaque WebM still work.)
+ * CI's WebKit (Linux, GStreamer) accepts all of it, but encodes frames built from buffers with
+ * the pixels of a later frame; its transparent files decode without their alpha. (Frames made
+ * from canvases are fine there, so MP4 and opaque WebM still work.)
  */
 
 import type { EncodedPacket } from 'mediabunny';
@@ -39,12 +40,18 @@ export async function verifyEncoders(declared?: EncoderSupport): Promise<Encoder
 }
 
 const FPS = 30;
+/** The motion check's VP9 (profile 0, level 1: its frames are small). */
+const VP9 = 'vp09.00.10.08';
 /** Mediabunny starts a worker and two encoders; a broken pipeline may never finish. */
 const TIMEOUT = 4000;
 
-export function transparentWebmWorks(): Promise<boolean> {
+export async function transparentWebmWorks(): Promise<boolean> {
   const codecs = typeof VideoEncoder !== 'undefined' && typeof VideoDecoder !== 'undefined';
-  if (!codecs || typeof OffscreenCanvas === 'undefined') return Promise.resolve(false);
+  if (!codecs || typeof OffscreenCanvas === 'undefined') return false;
+  // Frames built from buffers first: a round trip can pass by luck where they don't encode.
+  for (const source of ['BGRX', 'I420'] as const) {
+    if (!(await encodesMotion(VP9, source))) return false;
+  }
   return answerWithin(TIMEOUT, roundTrip);
 }
 
@@ -91,8 +98,9 @@ async function roundTrip(signal: AbortSignal): Promise<boolean> {
   const buffer = output.target.buffer;
   if (!buffer || signal.aborted) return false;
 
-  // Read back as players do: each packet's color, and its alpha from the side data. (Plain
-  // decoders on this thread: Mediabunny's sinks would merge the two in a pool of workers.)
+  // Read back each packet's color, and its alpha from the side data, copying the decoded frames
+  // out as Mediabunny's alpha reader does — with plain decoders on this thread: its reader would
+  // merge the two in a pool of workers.
   const input = new Input({ source: new BufferSource(buffer), formats: ALL_FORMATS });
   try {
     const track = await input.getPrimaryVideoTrack();
@@ -102,10 +110,10 @@ async function roundTrip(signal: AbortSignal): Promise<boolean> {
     for await (const packet of new EncodedPacketSink(track).packets()) packets.push(packet);
     if (!packets.every((packet) => packet.sideData.alpha)) return false;
     const color = packets.map((packet) => packet.toEncodedVideoChunk());
-    if (!(await decodesEachBar(config, color, signal))) return false;
+    if (!(await decodesEachBar(config, color, signal, 'copied'))) return false;
     // The alpha plane is coded as the luma of its own frames: opaque is white.
     const alpha = packets.map((packet) => packet.alphaToEncodedVideoChunk());
-    return await decodesEachBar(config, alpha, signal);
+    return await decodesEachBar(config, alpha, signal, 'copied');
   } finally {
     input.dispose();
   }
