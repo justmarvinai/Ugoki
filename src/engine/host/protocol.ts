@@ -7,6 +7,7 @@
 import type { VectorGraphic } from '../assets/types';
 import type { Rect } from '../core/math';
 import type { EditableRegion } from '../draw/types';
+import type { Backdrop } from '../runtime/backdrop';
 import type { Capabilities } from '../runtime/capabilities';
 import type { TemplateDescriptor } from '../template/describe';
 import type { DesignState } from '../template/state';
@@ -52,6 +53,8 @@ export type HostMessage =
   | { type: 'seek'; views: readonly ViewId[]; t: number; scrub?: boolean; seq: number }
   | { type: 'setLoop'; views: readonly ViewId[]; loop: boolean }
   | { type: 'setQuality'; views: readonly ViewId[]; mode: QualityMode }
+  /** What shows behind transparent designs in the preview (never in stills or exports). */
+  | { type: 'setBackdrop'; views: readonly ViewId[]; backdrop: Backdrop }
   /** Renders a still at `shortSide` resolution (PNG). */
   | { type: 'snapshot'; requestId: number; view: ViewId; t: number; shortSide: number }
   /** Asks what the rendering side can do; answered with `capabilities`. */
@@ -80,6 +83,8 @@ export type WorkerMessage =
       duration: number;
       sections: Readonly<Record<SectionName, Section>>;
       warnings: readonly TimelineWarning[];
+      /** Transitions: the frame of full coverage, in seconds (null for other structures). */
+      cut: number | null;
       /** Image controls whose file isn't available yet (drawn with their placeholder). */
       missingAssets: readonly string[];
       /** Build time in milliseconds. */

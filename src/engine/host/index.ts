@@ -9,6 +9,7 @@ export { PLACEHOLDER_NAMES, PLACEHOLDERS } from '../assets/placeholders';
 export { importSvg, type SvgImport, sanitizeSvg } from '../assets/svg';
 export type { AssetRef, Graphic, VectorGraphic } from '../assets/types';
 export { toCss } from '../core/color';
+export type { Backdrop } from '../runtime/backdrop';
 export type { Capabilities, EncoderSupport } from '../runtime/capabilities';
 export type { Control, ControlSchema, ImageControl } from '../template/controls';
 export type { TemplateDescriptor } from '../template/describe';

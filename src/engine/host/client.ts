@@ -3,6 +3,7 @@
  * only through this client; template code never loads on the main thread.
  */
 
+import type { Backdrop } from '../runtime/backdrop';
 import type { DesignState } from '../template/state';
 import type {
   FrameInfo,
@@ -92,6 +93,11 @@ export class RenderClient {
 
   setQuality(views: Views, mode: QualityMode): void {
     this.send({ type: 'setQuality', views: list(views), mode });
+  }
+
+  /** What shows behind transparent designs in these views (preview only). */
+  setBackdrop(views: Views, backdrop: Backdrop): void {
+    this.send({ type: 'setBackdrop', views: list(views), backdrop });
   }
 
   /** Renders a PNG still of `view` at time `t` and short-side resolution `shortSide`. */

@@ -215,6 +215,41 @@ describe('RenderRuntime', () => {
     client.dispose();
   });
 
+  it('shows a backdrop behind transparent designs, never in stills', async () => {
+    const { client, next } = setup();
+    const canvas = new OffscreenCanvas(1, 1);
+    client.attach('a', canvas, { width: 160, height: 160, dpr: 1 });
+    const loaded = next('loaded');
+    client.load('a', 'probe', { state: { transparent: true } });
+    const { state } = await loaded;
+    await next('frame');
+    const pixel = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('no 2d context');
+      return [...ctx.getImageData(2, 2, 1, 1).data];
+    };
+    // Transparent: the corner shows nothing.
+    expect(pixel()[3]).toBe(0);
+    for (const backdrop of [{ kind: 'footage' }, { kind: 'scenes' }] as const) {
+      const shown = next('frame');
+      client.setBackdrop('a', backdrop);
+      await shown;
+      expect(pixel()[3]).toBe(255);
+    }
+    // The design itself stays transparent: a still of the same view has no backdrop.
+    const bitmap = await createImageBitmap(await client.snapshot('a', 1, 160));
+    const probe = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d');
+    if (!probe) throw new Error('no 2d context');
+    probe.drawImage(bitmap, 0, 0);
+    expect(probe.getImageData(2, 2, 1, 1).data[3]).toBe(0);
+    // An opaque design shows its own background, not the backdrop.
+    const opaque = next('frame');
+    client.setState('a', { ...state, transparent: false });
+    await opaque;
+    expect(pixel()).toEqual([245, 244, 240, 255]);
+    client.dispose();
+  });
+
   it('answers snapshots requested before the scene is built', async () => {
     const { client, canvas } = setup();
     client.attach('a', canvas, { width: 100, height: 100, dpr: 1 });

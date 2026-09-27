@@ -9,6 +9,7 @@
 
 import type { Graphic } from '../assets/types';
 import { type Compositor, createCompositor } from '../compositor';
+import { type Backdrop, BackdropPainter, NO_BACKDROP, sanitizeBackdrop } from '../runtime/backdrop';
 import { probeCapabilities } from '../runtime/capabilities';
 import { FrameRenderer } from '../runtime/frame';
 import { AdaptiveQuality } from '../runtime/quality';
@@ -72,6 +73,9 @@ type View = {
   scrubbing: boolean;
   scrubTimer: ReturnType<typeof setTimeout> | null;
   qualityMode: QualityMode;
+  backdrop: Backdrop;
+  /** The design, rendered apart when a backdrop goes underneath it. */
+  layer: OffscreenCanvas | null;
   /** Seconds. */
   t: number;
   /** Sequence number of the latest transport command (echoed with frames). */
@@ -103,6 +107,7 @@ export class RenderRuntime {
   private readonly templates = new Map<string, Promise<AnyTemplate>>();
   /** Users' files by content hash, shared by all views. */
   private readonly assets = new Map<string, Graphic>();
+  private readonly backdrops = new BackdropPainter();
   private readonly loadingFonts = new Set<string>();
   private text: TextEngineHandle | null = null;
   private compositorInstance: Compositor | null = null;
@@ -160,6 +165,14 @@ export class RenderRuntime {
           this.invalidate(view);
         });
         break;
+      case 'setBackdrop': {
+        const backdrop = sanitizeBackdrop(message.backdrop);
+        this.forEach(message.views, (view) => {
+          view.backdrop = backdrop;
+          this.invalidate(view);
+        });
+        break;
+      }
       case 'snapshot':
         this.snapshot(message.requestId, message.view, message.t, message.shortSide);
         break;
@@ -195,6 +208,7 @@ export class RenderRuntime {
     );
     // Rebuild views that drew a placeholder because this file wasn't here yet.
     for (const view of this.views.values()) {
+      if (view.backdrop.kind === 'image' && view.backdrop.hash === hash) this.invalidate(view);
       const built = view.built;
       if (!built || !view.template || built.missingAssets.length === 0) continue;
       if (userAssets(view.template, built.state).includes(hash)) {
@@ -236,6 +250,8 @@ export class RenderRuntime {
       scrubbing: false,
       scrubTimer: null,
       qualityMode: 'adaptive',
+      backdrop: NO_BACKDROP,
+      layer: null,
       t: 0,
       seq: 0,
       anchor: 0,
@@ -352,6 +368,7 @@ export class RenderRuntime {
         duration: built.timeline.duration,
         sections: built.timeline.sections,
         warnings: built.timeline.warnings,
+        cut: built.timeline.cut,
         missingAssets: built.missingAssets,
         cost: now() - started,
       });
@@ -494,9 +511,11 @@ export class RenderRuntime {
     const quality = adaptive ? view.quality.scale : 1;
     const scale = this.fitCanvas(view, built, quality);
     const started = now();
+    const backdrop = built.state.transparent ? view.backdrop : NO_BACKDROP;
+    const target = backdrop.kind === 'none' ? view.ctx : this.layerContext(view);
     let regions: ReturnType<FrameRenderer['render']>;
     try {
-      regions = view.frames.render(built, view.ctx, {
+      regions = view.frames.render(built, target, {
         t: view.t,
         scale,
         // Motion blur on paused frames only: playback stays at one render per frame.
@@ -515,6 +534,14 @@ export class RenderRuntime {
       return;
     }
     const cost = now() - started;
+    if (target !== view.ctx) {
+      this.backdrops.draw(view.ctx, backdrop, {
+        t: view.t,
+        cut: built.timeline.cut,
+        image: backdrop.kind === 'image' ? this.assets.get(backdrop.hash) : undefined,
+      });
+      view.ctx.drawImage(target.canvas, 0, 0);
+    }
     if (view.playing) view.quality.record(cost, time - view.lastFrameAt, time);
     view.lastFrameAt = time;
     view.dirty = false;
@@ -531,6 +558,20 @@ export class RenderRuntime {
       view.lastRegionsAt = time;
       this.post({ type: 'regions', view: view.id, regions });
     }
+  }
+
+  /** The view's offscreen layer for rendering under a backdrop, sized like its canvas. */
+  private layerContext(view: View): OffscreenCanvasRenderingContext2D {
+    const { width, height } = view.canvas;
+    if (!view.layer) {
+      view.layer = new OffscreenCanvas(width, height);
+    } else if (view.layer.width !== width || view.layer.height !== height) {
+      view.layer.width = width;
+      view.layer.height = height;
+    }
+    const ctx = view.layer.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D is unavailable');
+    return ctx;
   }
 
   /** Sizes the backing store for the view's CSS size × DPR × quality; returns the scale. */
