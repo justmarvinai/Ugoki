@@ -95,6 +95,27 @@ describe.each(backends)('frame rendering (%s)', (_, make) => {
     expect(Math.abs(total(blurred) - total(sharp))).toBeLessThan(255 * 1.5);
   });
 
+  it('gives fast motion more sub-frames, within the budget', () => {
+    const compositor = make();
+    const renderer = new FrameRenderer(compositor);
+    const canvas = new OffscreenCanvas(270, 270);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no 2d context');
+    const request = { scale: SCALE, samples: 2, maxSamples: 12, frameDuration: 1 / 30 };
+    // Punchy at 30 fps: the bar travels ~17 design units (~4 px here) while the shutter is open.
+    renderer.render(scene(), ctx, { ...request, t: 0.5, maxStep: 0.5 });
+    const fine = renderer.samples;
+    renderer.render(scene(), ctx, { ...request, t: 0.5, maxStep: 2 });
+    const coarse = renderer.samples;
+    expect(fine).toBeGreaterThan(coarse);
+    expect(fine).toBeLessThanOrEqual(12);
+    expect(coarse).toBeGreaterThanOrEqual(2);
+    renderer.render(scene(), ctx, { ...request, t: 2, maxStep: 0.5 });
+    expect(renderer.samples).toBe(1);
+    renderer.render(scene(), ctx, { ...request, t: 0.5, maxStep: 0.5, maxSamples: undefined });
+    expect(renderer.samples).toBe(2);
+  });
+
   it('renders static frames once, identical to a single sample', () => {
     const compositor = make();
     expect(renderFrame(compositor, 2, 8)).toEqual(renderFrame(compositor, 2, 1));

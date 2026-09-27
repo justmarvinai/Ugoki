@@ -11,12 +11,18 @@ importers:
       '@base-ui/react':
         specifier: 1.8.0
         version: 1.8.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       harfbuzzjs:
         specifier: 1.6.2
         version: 1.6.2
       mediabunny:
         specifier: 1.60.0
         version: 1.60.0
+      modern-gif:
+        specifier: 2.1.0
+        version: 2.1.0
       motion:
         specifier: 13.4.4
         version: 13.4.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -1061,6 +1067,12 @@ packages:
   mediabunny@1.60.0:
     resolution: {integrity: sha512-CRQ/2D+qUF9w2IyjbjTxxSLEG+PeWeD4whb43UpUBpeNomWb/ffn+ngKgqJSPZ+bmO66MX2yBJQITZ6ijfRjug==}
 
+  modern-gif@2.1.0:
+    resolution: {integrity: sha512-9ZGD5b4jNUge0fvFP1bd9Hsqz5CSZI1al3EhCJ+WFkZgmn5NO1yvVwXJA/LTqro85l2Gt0+S0dDFgVYhYtLLWg==}
+
+  modern-palette@2.0.0:
+    resolution: {integrity: sha512-wKZcom2QzK6sS6h5RLYHEkd3V3maQLzgkI+ekDCimlk7dfXa63aekZcy+7KS+8JEqIDeY/yV1CAvA7l+7u6QHA==}
+
   motion-dom@13.4.4:
     resolution: {integrity: sha512-z2qN3RUABSci4G7cr5aHTFhqPNCWJsEMMfRlzxqtANQsSCIbVJmHvMV288m5x7doEQBTYbRTWbKdztmquCn4Sw==}
 
@@ -2041,6 +2053,12 @@ snapshots:
     dependencies:
       '@types/dom-mediacapture-transform': 0.1.12
       '@types/dom-webcodecs': 0.1.13
+
+  modern-gif@2.1.0:
+    dependencies:
+      modern-palette: 2.0.0
+
+  modern-palette@2.0.0: {}
 
   motion-dom@13.4.4:
     dependencies:

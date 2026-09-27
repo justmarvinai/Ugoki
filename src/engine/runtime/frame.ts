@@ -18,6 +18,13 @@ export type FrameRequest = {
   scale: number;
   /** Motion-blur sub-frames (1 = sharp). Frames without motion always render once. */
   samples: number;
+  /**
+   * Adaptive motion blur: fast motion gets more sub-frames — up to `maxSamples` — until each
+   * sub-frame moves at most `maxStep` output pixels, so fast edges smear smoothly instead of in
+   * visible steps. Without it, moving frames use exactly `samples`.
+   */
+  maxSamples?: number;
+  maxStep?: number;
   /** Seconds per frame (1 / fps): the shutter stays open for `shutter° / 360` of it. */
   frameDuration: number;
   collectRegions?: boolean;
@@ -45,16 +52,61 @@ function surface(width: number, height: number, readback = false): Surface {
   return { canvas, ctx };
 }
 
-/** Short side of the low-resolution probes that detect frames without motion. */
-const PROBE_SIZE = 48;
+/** Short side of the low-resolution probes that measure motion across the shutter. */
+const PROBE_SIZE = 160;
+/** A probe pixel changed at all (motion, however slow). */
+const CHANGED = 2;
+/** A probe pixel changed a lot: something passed over it (fades stay below this). */
+const SWEPT = 24;
+
+/**
+ * How far things move across the shutter, in probe pixels, from two renders at its edges: a
+ * moving edge sweeps a band of pixels as wide as its travel along its direction of motion (and
+ * as long as the edge across it), so the shorter of the longest row and column runs of swept
+ * pixels approximates the displacement. 0 when nothing changed; at least ½ when anything did.
+ */
+export function displacement(a: Uint8ClampedArray, b: Uint8ClampedArray, w: number, h: number) {
+  const diff = new Uint8Array(w * h);
+  let changed = false;
+  for (let i = 0, p = 0; p < diff.length; i += 4, p++) {
+    let d = 0;
+    for (let c = 0; c < 4; c++) d = Math.max(d, Math.abs((a[i + c] ?? 0) - (b[i + c] ?? 0)));
+    if (d > CHANGED) changed = true;
+    diff[p] = d > SWEPT ? 1 : 0;
+  }
+  if (!changed) return 0;
+  let rows = 0;
+  for (let y = 0; y < h; y++) {
+    let run = 0;
+    for (let x = 0; x < w; x++) {
+      run = diff[y * w + x] ? run + 1 : 0;
+      if (run > rows) rows = run;
+    }
+  }
+  let columns = 0;
+  for (let x = 0; x < w; x++) {
+    let run = 0;
+    for (let y = 0; y < h; y++) {
+      run = diff[y * w + x] ? run + 1 : 0;
+      if (run > columns) columns = run;
+    }
+  }
+  return Math.max(0.5, Math.min(rows, columns));
+}
 
 export class FrameRenderer {
   private readonly drawer = new CanvasDraw();
   private readonly probeDrawer = new CanvasDraw();
   private scratch: Surface | null = null;
   private probes: [Surface, Surface] | null = null;
+  private used = 1;
 
   constructor(private readonly compositor: Compositor) {}
+
+  /** Sub-frames the last frame used (diagnostics: the Lab, tests). */
+  get samples(): number {
+    return this.used;
+  }
 
   /** Renders a frame of `built` into `ctx` (which covers the whole output). */
   render(built: BuiltScene, ctx: Canvas2D, request: FrameRequest): EditableRegion[] {
@@ -65,7 +117,8 @@ export class FrameRenderer {
     const shutter = (shutterAngle / 360) * request.frameDuration;
     const effects = this.compositor.effects;
     let samples = Math.max(1, Math.round(request.samples));
-    if (samples > 1 && (shutter <= 0 || this.isStatic(built, request.t, shutter))) samples = 1;
+    if (samples > 1) samples = this.adapt(built, request, shutter, samples);
+    this.used = samples;
 
     if (samples === 1) {
       const regions = renderScene(built, this.drawer, {
@@ -102,25 +155,37 @@ export class FrameRenderer {
     return regions;
   }
 
-  /** Nothing moves across the shutter (compared on tiny renders): one sample is exact. */
-  private isStatic(built: BuiltScene, t: number, shutter: number): boolean {
+  /**
+   * Sub-frames for this frame: 1 when nothing moves across the shutter (one render is exact),
+   * `samples` for motion, more for fast motion when the request allows it.
+   */
+  private adapt(built: BuiltScene, request: FrameRequest, shutter: number, samples: number) {
+    if (shutter <= 0) return 1;
     const { frame } = built;
-    const scale = PROBE_SIZE / Math.min(frame.width, frame.height);
-    const w = Math.max(1, Math.round(frame.width * scale));
-    const h = Math.max(1, Math.round(frame.height * scale));
+    const probeScale = PROBE_SIZE / Math.min(frame.width, frame.height);
+    const w = Math.max(1, Math.round(frame.width * probeScale));
+    const h = Math.max(1, Math.round(frame.height * probeScale));
     if (!this.probes || this.probes[0].canvas.width !== w || this.probes[0].canvas.height !== h) {
       this.probes = [surface(w, h, true), surface(w, h, true)];
     }
     const [a, b] = this.probes;
     const effects = this.compositor.effects;
+    const { t } = request;
+    const scale = probeScale;
     renderScene(built, this.probeDrawer, { ctx: a.ctx, scale, t: t - shutter / 2, effects });
     renderScene(built, this.probeDrawer, { ctx: b.ctx, scale, t: t + shutter / 2, effects });
-    const da = a.ctx.getImageData(0, 0, w, h).data;
-    const db = b.ctx.getImageData(0, 0, w, h).data;
-    for (let i = 0; i < da.length; i++) {
-      if (Math.abs((da[i] ?? 0) - (db[i] ?? 0)) > 2) return false;
-    }
-    return true;
+    const moved = displacement(
+      a.ctx.getImageData(0, 0, w, h).data,
+      b.ctx.getImageData(0, 0, w, h).data,
+      w,
+      h,
+    );
+    if (moved === 0) return 1;
+    const { maxSamples, maxStep } = request;
+    if (maxSamples === undefined || maxStep === undefined || maxSamples <= samples) return samples;
+    // Probe pixels → output pixels travelled while the shutter is open.
+    const travel = (moved / probeScale) * request.scale;
+    return Math.min(maxSamples, Math.max(samples, Math.ceil(travel / maxStep)));
   }
 
   private scratchSurface(width: number, height: number): Surface {

@@ -7,6 +7,7 @@
  * never shows a half-built state; a failing build keeps the last good scene on screen.
  */
 
+import { graphicFromTransfer } from '../assets/transfer';
 import type { Graphic } from '../assets/types';
 import { type Compositor, createCompositor } from '../compositor';
 import { type Backdrop, BackdropPainter, NO_BACKDROP, sanitizeBackdrop } from '../runtime/backdrop';
@@ -21,6 +22,7 @@ import { pairingFonts } from '../template/pairings';
 import { type DesignState, initialState, sanitizeState } from '../template/state';
 import { createTextEngine, type TextEngineHandle } from '../text/engine';
 import { createFetchLoader, type FontBytesLoader } from '../text/font-source';
+import { createFallbackMeasure } from '../text/measure';
 import type {
   HostMessage,
   QualityMode,
@@ -48,6 +50,9 @@ const SCRUB_SETTLE = 120;
 const REGIONS_INTERVAL = 100;
 /** Motion-blur sub-frames of a paused preview frame (playback renders one). */
 const PREVIEW_SAMPLES = 8;
+/** Fast motion in paused previews gets more sub-frames, each at most this many pixels apart. */
+const PREVIEW_MAX_SAMPLES = 24;
+const PREVIEW_STEP = 4;
 /** Previews show motion blur as a 30 fps export would. */
 const PREVIEW_FRAME = 1 / 30;
 
@@ -196,16 +201,7 @@ export class RenderRuntime {
   private setAsset(hash: string, asset: TransferableGraphic): void {
     const previous = this.assets.get(hash);
     if (previous?.kind === 'raster') (previous.image.source as ImageBitmap).close?.();
-    this.assets.set(
-      hash,
-      asset.kind === 'vector'
-        ? asset.graphic
-        : {
-            kind: 'raster',
-            image: { source: asset.bitmap, width: asset.bitmap.width, height: asset.bitmap.height },
-            ink: asset.ink,
-          },
-    );
+    this.assets.set(hash, graphicFromTransfer(asset));
     // Rebuild views that drew a placeholder because this file wasn't here yet.
     for (const view of this.views.values()) {
       if (view.backdrop.kind === 'image' && view.backdrop.hash === hash) this.invalidate(view);
@@ -520,6 +516,8 @@ export class RenderRuntime {
         scale,
         // Motion blur on paused frames only: playback stays at one render per frame.
         samples: view.playing || view.scrubbing ? 1 : PREVIEW_SAMPLES,
+        maxSamples: PREVIEW_MAX_SAMPLES,
+        maxStep: PREVIEW_STEP,
         frameDuration: PREVIEW_FRAME,
         collectRegions: view.interactive,
       });
@@ -640,15 +638,4 @@ export class RenderRuntime {
   private post(message: WorkerMessage): void {
     if (!this.disposed) this.options.post(message);
   }
-}
-
-/** Measures fallback-font text with a scratch canvas (the layout needs advances for emoji/CJK). */
-function createFallbackMeasure() {
-  let ctx: OffscreenCanvasRenderingContext2D | null | undefined;
-  return (text: string, font: string, size: number): number => {
-    ctx ??= new OffscreenCanvas(1, 1).getContext('2d');
-    if (!ctx) return [...text].length * size * 0.6;
-    ctx.font = `${size}px ${font}`;
-    return ctx.measureText(text).width;
-  };
 }
