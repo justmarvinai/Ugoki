@@ -105,21 +105,23 @@
 **Engine additions**: sequence builder & auto duration · odometer digits & number formatting · UI Kit v1 (card, input, button, toast, charts) · cursor & typing helpers · procedural placeholders (Objects, Scenes, Artworks, Screens, avatars, fictional logos) · compositor color adjust (from Phase 2) · image focal-point UI and drop/paste import (from Phase 2).
 
 **Reference templates 5–7 first**
-- [ ] Punch · Deal · Click
+- [x] Punch · Deal · Click
 
 **Remaining wave-1 templates**
-- [ ] Focus · Decode
-- [ ] Broadcast · Capsule
-- [ ] Listicle · Countdown
-- [ ] Sale
-- [ ] Columns · Stack
-- [ ] Quote · Review · Numbers
-- [ ] Cinematic · Episode
-- [ ] Iris · Blinds
-- [ ] Bounce
-- [ ] Dashboard
+- [x] Focus · Decode
+- [x] Broadcast · Capsule
+- [x] Listicle · Countdown
+- [x] Sale
+- [x] Columns · Stack
+- [x] Quote · Review · Numbers
+- [x] Cinematic · Episode
+- [x] Iris · Blinds
+- [x] Bounce
+- [x] Dashboard
 
 **Exit**: 25 templates pass the quality bar ([`docs/templates/00-foundations.md`](docs/templates/00-foundations.md) §9) and golden frames.
+
+*Status*: done — 2026-09-27. 25 templates in the editor; every one passes the shared checks (`tests/templates/catalog.browser.test.ts`: clean edit points per format × Look, editable text inside title-safe with stress text, energies, min/max duration, transparency, loops, coverage at the cut, determinism), has golden frames, and opens, paints and exports a still in the production build (e2e). All eleven font pairings are built (ADR-036); templates are judged on contact sheets (ADR-037). *Screens* (UI Kit renders as image placeholders) move to Phase 5 with Float and Scroll, the templates that use them. Render cost was measured only in the software-rendered test browser (Focus and Cinematic are the heaviest there); the check on the reference desktop happens with the owner's review.
 
 ---
 
@@ -138,7 +140,7 @@
 
 ## Phase 5 — Template wave 2 → `0.5.0`
 
-**Engine additions**: 3D planes (perspective, depth sort, depth blur) · variable-axis text + width solver · SVG vector effects (trim-draw) · Delaunay shards · noise paths & droplets · beat grid · split-flap renderer · backdrop blur for UI panels.
+**Engine additions**: 3D planes (perspective, depth sort, depth blur) · variable-axis text + width solver · SVG vector effects (trim-draw) · Delaunay shards · noise paths & droplets · beat grid · split-flap renderer · backdrop blur for UI panels · *Screens* placeholders (UI Kit renders, from Phase 3) · Anybody font for *Stretch*.
 
 - [ ] Stretch · Echo
 - [ ] Editorial · Signal

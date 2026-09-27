@@ -227,6 +227,12 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Why**: Per-template test files cost as much as the templates and mostly repeated each other; the checks that matter are the same for every template, and design quality is judged by looking, which a sheet makes fast. The owner asked for faster phases without watching CI (E6).
 **Consequences**: A new template is covered as soon as it is registered. The shared check relies on templates registering editable text regions (`g.editable`), which the editor needs anyway; behavior specific to one template (e.g. an exit option) is only tested where it earns a test of its own.
 
+### ADR-038 — Placeholder imagery is painted in each worker; templates declare extra fonts
+**Status**: Accepted · 2026-09-27 (Phase 3)
+**Decision**: The procedural placeholders (scenes, artworks, product objects, portraits) are painted with Canvas 2D into an OffscreenCanvas by whichever thread first asks for one — the render worker, the export worker, or the editor for small thumbnails (`proceduralPreview`, which keeps only the small copy) — seeded, without `filter` or `fillText`, in ≲ 50 ms each. Templates that set text in fonts outside their pairing declare them (`fonts: [UI_FONT]` for the UI Kit's Inter); preview, export and tests load `designFonts(template, state)`.
+**Why**: Zero bandwidth and no stock imagery (non-negotiable 5), identical pixels wherever the same browser paints them (preview = export), and no full-size canvases held on the main thread. A template's font needs are part of its design: before this, Click and Dashboard would have fallen back to the pairing's text font in the app while tests (which load every pairing) showed Inter.
+**Consequences**: The first use of a placeholder in a worker costs one paint; images may differ slightly between browser engines (as fonts rasterize differently), never between preview and export in one browser. Golden frames are Chromium's.
+
 ---
 
 ## Phase 1 spike results (2026-09-26)
