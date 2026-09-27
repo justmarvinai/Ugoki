@@ -8,6 +8,7 @@
  */
 
 import {
+  CLEAN_END,
   c,
   type Draw,
   defineTemplate,
@@ -109,7 +110,12 @@ export default defineTemplate({
       pairing: 'grotesk',
     },
   ],
-  timing: ({ props }) => ({ in: 0.85, out: 0.5, readable: `${props.name} ${props.title}` }),
+  timing: ({ props }) => ({
+    in: 0.85,
+    out: 0.5,
+    tail: CLEAN_END,
+    readable: `${props.name} ${props.title}`,
+  }),
   build: (ctx) => {
     const { frame, props, pairing, palette, energy, text } = ctx;
     const { u } = frame;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FORMAT_IDS } from '@/engine/template/formats';
 import { applyLook, type DesignState, initialState } from '@/engine/template/state';
 import { ENERGY_IDS } from '@/engine/timeline/energy';
+import { CLEAN_END } from '@/engine/timeline/timeline';
 import { loadTemplate } from '@/templates/registry';
 import { build, type Frame, fingerprint, render } from '../support/render';
 
@@ -63,7 +64,7 @@ describe('Layers', () => {
               }
             }
             expect(empty(render(built, 0, 0.08))).toBe(true);
-            expect(empty(render(built, built.timeline.duration, 0.08))).toBe(true);
+            expect(empty(render(built, built.timeline.duration - CLEAN_END, 0.08))).toBe(true);
           }
         }
       }

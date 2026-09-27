@@ -61,6 +61,19 @@ describe('transition timelines', () => {
     }
   });
 
+  it('ends the motion early with a tail, keeping the cut', () => {
+    const tl = createTimeline({
+      structure: 'transition',
+      spec: { in: 0, out: 0, tail: 0.05 },
+      energy: ENERGIES.balanced,
+      duration: 1.2,
+      bounds: { min: 0.6, max: 2.4 },
+    });
+    expect(tl.cut).toBeCloseTo(0.6);
+    expect(tl.sections.out).toEqual({ start: 0.6, end: 1.15 });
+    expect(tl.sections.tail).toEqual({ start: 1.15, end: 1.2 });
+  });
+
   it('clamps the duration and says so', () => {
     const tl = make(5);
     expect(tl.duration).toBe(2.4);

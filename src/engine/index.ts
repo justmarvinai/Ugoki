@@ -114,6 +114,7 @@ export type {
 export type { EnergyId, EnergyProfile } from './timeline/energy';
 export {
   beatLength,
+  CLEAN_END,
   readingTime,
   type SectionName,
   type Sequence,

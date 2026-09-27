@@ -10,6 +10,7 @@
 
 import {
   adjustLightness,
+  CLEAN_END,
   type Color,
   c,
   defineTemplate,
@@ -157,7 +158,7 @@ export default defineTemplate({
       pairing: 'grotesk',
     },
   ],
-  timing: () => ({ in: 0, out: 0, cut: 0.5 }),
+  timing: () => ({ in: 0, out: 0, cut: 0.5, tail: CLEAN_END }),
   build: (ctx) => {
     const { frame, props, palette, energy, timeline } = ctx;
     const { width, height, u } = frame;
@@ -212,7 +213,8 @@ export default defineTemplate({
     // --- timing: everything compresses around the cut with Speed ---------------------------
     const speed = props.speed;
     const inSpan = cut / speed;
-    const outSpan = (duration - cut) / speed;
+    // The panels are gone by the end of `out` (a tail keeps the last frame clean).
+    const outSpan = (timeline.sections.out.end - cut) / speed;
     const spread = n > 1 ? n - 1 : 1;
     const gap = (0.07 * energy.stagger) / speed;
     // Gaps never take more than half of a phase, however short the transition.

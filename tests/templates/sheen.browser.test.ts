@@ -5,6 +5,7 @@ import { buildScene } from '@/engine/runtime/scene';
 import { FORMAT_IDS } from '@/engine/template/formats';
 import { applyLook, type DesignState, initialState } from '@/engine/template/state';
 import { ENERGY_IDS } from '@/engine/timeline/energy';
+import { CLEAN_END } from '@/engine/timeline/timeline';
 import { loadTemplate } from '@/templates/registry';
 import {
   build,
@@ -69,7 +70,7 @@ describe('Sheen', () => {
       for (const duration of [3, 8]) {
         const built = await build(sheen, at({ energy, duration }, { out: true }));
         expect(inkedPixels(render(built, 0))).toBe(0);
-        expect(inkedPixels(render(built, built.timeline.duration))).toBe(0);
+        expect(inkedPixels(render(built, built.timeline.duration - CLEAN_END))).toBe(0);
         const hold = render(built, built.timeline.sections.hold.start + 0.05);
         expect(inkedPixels(hold)).toBeGreaterThan(hold.width * hold.height * 0.005);
       }

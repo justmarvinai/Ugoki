@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FORMAT_IDS } from '@/engine/template/formats';
 import { applyLook, type DesignState, initialState } from '@/engine/template/state';
 import { ENERGY_IDS } from '@/engine/timeline/energy';
+import { CLEAN_END } from '@/engine/timeline/timeline';
 import { loadTemplate } from '@/templates/registry';
 import { build, fingerprint, inkedPixels, inkOutside, render } from '../support/render';
 
@@ -47,7 +48,8 @@ describe('Line', () => {
         const built = await build(line, applyLook(line, at({ format }), look));
         const { duration, sections } = built.timeline;
         expect(inkedPixels(render(built, 0))).toBe(0);
-        expect(inkedPixels(render(built, duration))).toBe(0);
+        // The last exported frame (1/fps before the end) is clean at every frame rate.
+        expect(inkedPixels(render(built, duration - CLEAN_END))).toBe(0);
         const hold = render(built, line.poster);
         expect(inkedPixels(hold)).toBeGreaterThan(hold.width * hold.height * 0.002);
         // Overlays that wobble look amateur: the hold doesn't move at all.
@@ -63,7 +65,7 @@ describe('Line', () => {
         const built = await build(line, at({ energy, duration }));
         const { sections } = built.timeline;
         expect(inkedPixels(render(built, 0))).toBe(0);
-        expect(inkedPixels(render(built, built.timeline.duration))).toBe(0);
+        expect(inkedPixels(render(built, built.timeline.duration - CLEAN_END))).toBe(0);
         const settled = render(built, sections.hold.start);
         expect(inkedPixels(settled)).toBeGreaterThan(settled.width * settled.height * 0.002);
       }

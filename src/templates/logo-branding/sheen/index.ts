@@ -8,6 +8,7 @@
  */
 
 import {
+  CLEAN_END,
   type Color,
   c,
   type Draw,
@@ -111,7 +112,8 @@ export default defineTemplate({
     },
     { id: 'paper', name: 'Paper', palette: { kind: 'library', id: 'paper' }, pairing: 'grotesk' },
   ],
-  timing: ({ props }) => ({ in: 2.4, out: props.out ? 0.6 : 0 }),
+  // Without Out, the last frame is the finished logo; with it, the exit ends a touch early.
+  timing: ({ props }) => ({ in: 2.4, out: props.out ? 0.6 : 0, tail: props.out ? CLEAN_END : 0 }),
   build: (ctx) => {
     const { frame, props, pairing, palette, energy, text, timeline } = ctx;
     const { u } = frame;

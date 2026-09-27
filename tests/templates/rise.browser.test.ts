@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FORMAT_IDS, type FormatId } from '@/engine/template/formats';
 import { applyLook, type DesignState, initialState } from '@/engine/template/state';
 import { ENERGY_IDS } from '@/engine/timeline/energy';
+import { CLEAN_END } from '@/engine/timeline/timeline';
 import { loadTemplate } from '@/templates/registry';
 import { build, fingerprint, inkedPixels, inkOutside, render } from '../support/render';
 
@@ -50,6 +51,7 @@ describe('Rise', () => {
         const { duration, sections } = built.timeline;
         expect(inkedPixels(render(built, 0))).toBe(0);
         expect(inkedPixels(render(built, sections.tail.start + 0.01))).toBe(0);
+        expect(inkedPixels(render(built, duration - CLEAN_END))).toBe(0);
         expect(inkedPixels(render(built, duration))).toBe(0);
         // The entrance has finished by the start of the hold: its frame equals a later one
         // except for the breath, so compare against the hold's first frame instead.
