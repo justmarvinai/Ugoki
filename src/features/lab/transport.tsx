@@ -2,7 +2,8 @@
 
 /**
  * Lab transport: play/pause, frame stepping, loop, timecode and a scrubber showing the
- * timeline's sections (lead · in · hold · out · tail). The Dot is the playhead.
+ * timeline's sections (lead · in · hold · out · tail) and a transition's cut point. The Dot is
+ * the playhead.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -18,6 +19,8 @@ type TransportProps = {
   playhead: PlayheadStore;
   duration: number;
   sections: Readonly<Record<SectionName, Section>> | null;
+  /** Transitions: the frame of full coverage (seconds). */
+  cut: number | null;
   loop: boolean;
   onPlay: () => void;
   onPause: () => void;
@@ -44,6 +47,7 @@ export function Transport({
   playhead,
   duration,
   sections,
+  cut,
   loop,
   onPlay,
   onPause,
@@ -80,6 +84,7 @@ export function Transport({
       <output aria-label="Time" className="shrink-0 font-mono text-[13px] text-fg-2 tabular-nums">
         <span className="text-fg">{timecode(t)}</span> / {timecode(duration)}
         <span className="ml-3 text-fg-3">f{Math.round(t / STEP)}</span>
+        {cut !== null && <span className="ml-3 text-fg-3">cut f{Math.round(cut / STEP)}</span>}
       </output>
 
       <div className="order-last w-full min-w-0 md:order-none md:flex-1">
@@ -113,6 +118,13 @@ export function Transport({
                     />
                   ) : null;
                 })}
+                {cut !== null && (
+                  <span
+                    title={`Cut point · ${timecode(cut)}`}
+                    className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-fg"
+                    style={{ left: `${(cut / duration) * 100}%` }}
+                  />
+                )}
               </span>
             )
           }

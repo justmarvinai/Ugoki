@@ -168,3 +168,37 @@ test('PNG stills download with the ugoki- prefix', async ({ page }) => {
   // A 1920 × 1080 frame with a headline (a blank frame compresses to a few KB).
   expect(size).toBeGreaterThan(15_000);
 });
+
+test('the Lab previews overlays over a backdrop and takes a logo from this device', async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  await open(page, '/lab');
+  await page.waitForFunction(() => Boolean(window.__ugokiLab));
+  const template = page.getByLabel('Template');
+
+  // Line is transparent: previewed over moving footage, which covers the whole view.
+  await template.selectOption('line');
+  await expect(
+    page.getByRole('group', { name: 'Looks' }).getByRole('button', { name: 'Ink' }),
+  ).toBeVisible();
+  await expectDisplayed(page, 'Landscape preview');
+
+  // Layers: the cut point is marked, and A → B covers the view.
+  await template.selectOption('layers');
+  await expect(page.locator('output[aria-label="Time"]')).toContainText('cut f18');
+  await expectDisplayed(page, 'Landscape preview');
+
+  // Sheen: a logo from this device replaces the placeholder.
+  await template.selectOption('sheen');
+  await page.getByLabel('Your file…').setInputFiles({
+    name: 'mark.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60"><circle cx="30" cy="30" r="28" fill="#e11"/><rect x="66" y="4" width="50" height="52" fill="currentColor"/></svg>',
+    ),
+  });
+  await expect(page.getByText('mark.svg', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nova' })).toHaveAttribute('aria-pressed', 'false');
+  expect(errors).toEqual([]);
+});

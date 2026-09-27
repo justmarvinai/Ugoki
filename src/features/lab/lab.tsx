@@ -10,6 +10,7 @@ import { MotionConfig } from 'motion/react';
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Wordmark } from '@/components/wordmark';
 import {
+  type Backdrop,
   type Capabilities,
   type DesignState,
   FORMATS,
@@ -24,6 +25,7 @@ import {
 } from '@/engine/host';
 import { TEMPLATES } from '@/templates/registry';
 import { createRenderEndpoint } from '@/workers';
+import { importFile } from '../assets/import-file';
 import { type Focus, Inspector } from './inspector';
 import { LabView } from './lab-view';
 import { createPlayhead, createStats } from './stores';
@@ -45,7 +47,14 @@ type Timeline = {
   duration: number;
   sections: Readonly<Record<SectionName, Section>>;
   warnings: readonly TimelineWarning[];
+  cut: number | null;
 };
+
+/** Transitions preview A → B; overlays (transparent by default) preview over footage. */
+function defaultBackdrop(template: TemplateDescriptor): Backdrop {
+  if (template.structure === 'transition') return { kind: 'scenes' };
+  return template.alpha === 'default' ? { kind: 'footage' } : { kind: 'none' };
+}
 
 type Arrangement = { rows: FormatId[][]; height: number } | { stack: true; width: number };
 
@@ -110,6 +119,7 @@ export function Lab() {
   const [guides, setGuides] = useState(false);
   const [quality, setQuality] = useState<QualityMode>('adaptive');
   const [loop, setLoop] = useState(true);
+  const [backdrop, setBackdrop] = useState<Backdrop>({ kind: 'none' });
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [playhead] = useState(createPlayhead);
   const [stats] = useState(createStats);
@@ -158,6 +168,8 @@ export function Lab() {
       case 'loaded':
         if (message.view === PROBE) {
           client?.detach(PROBE);
+          if (descriptor?.id !== message.template.id)
+            setBackdrop(defaultBackdrop(message.template));
           setDescriptor(message.template);
           setState(message.state);
           setFocus((current) =>
@@ -171,6 +183,7 @@ export function Lab() {
             duration: message.duration,
             sections: message.sections,
             warnings: message.warnings,
+            cut: message.cut,
           });
         }
         break;
@@ -242,6 +255,17 @@ export function Lab() {
   useEffect(() => {
     if (client && views.length > 0) client.setQuality(views, quality);
   }, [client, views, quality]);
+
+  useEffect(() => {
+    if (client && views.length > 0) client.setBackdrop(views, backdrop);
+  }, [client, views, backdrop]);
+
+  /** Reads a user's file on this device and hands it to the worker. */
+  const addFile = async (file: File) => {
+    const imported = await importFile(file);
+    client?.setAsset(imported.hash, imported.asset);
+    return imported;
+  };
 
   // Stage size → view layout. Measured before the first paint, so views never mount at 0 × 0
   // (their canvases would be handed to the worker at a zero size and resized afterwards).
@@ -386,7 +410,7 @@ export function Lab() {
                         client={client}
                         format={item.format}
                         height={item.height}
-                        transparent={state?.transparent ?? false}
+                        transparent={(state?.transparent ?? false) && backdrop.kind === 'none'}
                         guides={guides}
                         stats={stats}
                       />
@@ -419,6 +443,7 @@ export function Lab() {
                 playhead={playhead}
                 duration={duration}
                 sections={timeline?.sections ?? null}
+                cut={timeline?.cut ?? null}
                 loop={loop}
                 onPlay={play}
                 onPause={pause}
@@ -445,6 +470,9 @@ export function Lab() {
                 onApplyJson={applyJson}
                 capabilities={capabilities}
                 inline={inline}
+                backdrop={backdrop}
+                onBackdrop={setBackdrop}
+                onAddFile={addFile}
               />
             ) : (
               <p className="px-5 py-5 text-[13px] text-fg-3" aria-live="polite">

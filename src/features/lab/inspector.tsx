@@ -2,7 +2,8 @@
 
 /**
  * Lab inspector: Looks, palettes (incl. brand colors), pairings, energy, duration, the
- * template's own controls, stress text, preview options, stills and the raw state.
+ * template's own controls (logos and images included), stress text, preview options with the
+ * backdrop, stills and the raw state.
  */
 
 import { type ReactNode, useId, useState } from 'react';
@@ -12,6 +13,8 @@ import { Slider } from '@/components/slider';
 import { Switch } from '@/components/switch';
 import { DownloadIcon, ShuffleIcon } from '@/design/icons';
 import {
+  type AssetRef,
+  type Backdrop,
   BRAND_VARIANTS,
   type BrandVariant,
   type Capabilities,
@@ -20,8 +23,11 @@ import {
   ENERGY_IDS,
   type EnergyId,
   type FormatId,
+  type ImageControl,
   PAIRINGS,
   type PaletteRef,
+  PLACEHOLDER_NAMES,
+  PLACEHOLDERS,
   type QualityMode,
   resolvePalette,
   type TemplateDescriptor,
@@ -29,6 +35,7 @@ import {
   toCss,
 } from '@/engine/host';
 import { cn } from '@/lib/cn';
+import { ACCEPTED_FILES, type ImportedFile } from '../assets/import-file';
 import { maxLengthText, STRESS_PRESETS } from './presets';
 
 export type Focus = 'all' | FormatId;
@@ -49,6 +56,10 @@ type InspectorProps = {
   capabilities: Capabilities | null;
   /** Rendering on the main thread (`?worker=0`). */
   inline: boolean;
+  backdrop: Backdrop;
+  onBackdrop: (backdrop: Backdrop) => void;
+  /** Reads a user's file on this device and hands it to the renderer. */
+  onAddFile: (file: File) => Promise<ImportedFile>;
 };
 
 const ENERGY_LABELS: Record<EnergyId, string> = {
@@ -185,6 +196,7 @@ export function Inspector(props: InspectorProps) {
             control={control}
             value={state.props[key]}
             onChange={setProp}
+            onAddFile={props.onAddFile}
           />
         ))}
       </Group>
@@ -197,6 +209,7 @@ export function Inspector(props: InspectorProps) {
             control={control}
             value={state.props[key]}
             onChange={setProp}
+            onAddFile={props.onAddFile}
           />
         ))}
         {primary && (
@@ -230,6 +243,22 @@ export function Inspector(props: InspectorProps) {
               control={control}
               value={state.props[key]}
               onChange={setProp}
+              onAddFile={props.onAddFile}
+            />
+          ))}
+        </Group>
+      )}
+
+      {byGroup('layout').length > 0 && (
+        <Group title="Layout">
+          {byGroup('layout').map(([key, control]) => (
+            <ControlField
+              key={key}
+              name={key}
+              control={control}
+              value={state.props[key]}
+              onChange={setProp}
+              onAddFile={props.onAddFile}
             />
           ))}
         </Group>
@@ -252,6 +281,14 @@ export function Inspector(props: InspectorProps) {
             label="Transparent background"
             checked={state.transparent}
             onCheckedChange={(transparent) => set({ transparent })}
+          />
+        )}
+        {state.transparent && (
+          <BackdropPicker
+            value={props.backdrop}
+            onChange={props.onBackdrop}
+            transition={descriptor.structure === 'transition'}
+            onAddFile={props.onAddFile}
           />
         )}
         <Switch label="Safe areas (G)" checked={props.guides} onCheckedChange={props.onGuides} />
@@ -322,11 +359,13 @@ function ControlField({
   control,
   value,
   onChange,
+  onAddFile,
 }: {
   name: string;
   control: Control;
   value: unknown;
   onChange: (key: string, value: unknown) => void;
+  onAddFile: (file: File) => Promise<ImportedFile>;
 }) {
   const id = useId();
   switch (control.kind) {
@@ -358,6 +397,24 @@ function ControlField({
       );
     }
     case 'choice':
+      if (control.display === 'select') {
+        return (
+          <Field label={control.label} htmlFor={id}>
+            <select
+              id={id}
+              value={typeof value === 'string' ? value : control.default}
+              onChange={(event) => onChange(name, event.target.value)}
+              className="h-8 w-full rounded-md border border-line bg-bg-3 px-2 text-[13px] font-[550] text-fg"
+            >
+              {control.options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        );
+      }
       return (
         <Field label={control.label}>
           <SegmentedControl
@@ -380,6 +437,16 @@ function ControlField({
           onCheckedChange={(next) => onChange(name, next)}
         />
       );
+    case 'image':
+      return (
+        <ImageField
+          name={name}
+          control={control}
+          value={value}
+          onChange={onChange}
+          onAddFile={onAddFile}
+        />
+      );
     case 'number': {
       const number = typeof value === 'number' ? value : control.default;
       const unit = control.unit ?? '';
@@ -398,6 +465,146 @@ function ControlField({
       );
     }
   }
+}
+
+function FileButton({ label, onFile }: { label: string; onFile: (file: File) => void }) {
+  const id = useId();
+  return (
+    <label
+      htmlFor={id}
+      className="inline-flex h-8 cursor-pointer items-center rounded-full border border-line-strong px-3 text-[13px] font-[550] text-fg transition-colors duration-(--duration-micro) ease-swift hover:bg-bg-3 has-focus-visible:outline-2 has-focus-visible:outline-focus"
+    >
+      {label}
+      <input
+        id={id}
+        type="file"
+        accept={ACCEPTED_FILES}
+        className="sr-only"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) onFile(file);
+        }}
+      />
+    </label>
+  );
+}
+
+/** A logo/image slot: the built-in placeholders, or a file from this device. */
+function ImageField({
+  name,
+  control,
+  value,
+  onChange,
+  onAddFile,
+}: {
+  name: string;
+  control: ImageControl;
+  value: unknown;
+  onChange: (key: string, value: unknown) => void;
+  onAddFile: (file: File) => Promise<ImportedFile>;
+}) {
+  const [status, setStatus] = useState<string | null>(null);
+  const ref = (value === undefined ? control.default : value) as AssetRef | null;
+  const add = async (file: File) => {
+    setStatus('Reading…');
+    try {
+      const imported = await onAddFile(file);
+      onChange(name, { kind: 'user', hash: imported.hash, name: imported.name });
+      setStatus(imported.notes.length > 0 ? imported.notes.join(' ') : null);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+  return (
+    <Field label={control.label}>
+      <div className="flex flex-wrap gap-1.5">
+        {PLACEHOLDERS[control.accept].map((id) => (
+          <Button
+            key={id}
+            size="sm"
+            variant={ref?.kind === 'placeholder' && ref.id === id ? 'primary' : 'secondary'}
+            aria-pressed={ref?.kind === 'placeholder' && ref.id === id}
+            onClick={() => onChange(name, { kind: 'placeholder', id })}
+          >
+            {PLACEHOLDER_NAMES[id] ?? id}
+          </Button>
+        ))}
+        <FileButton label="Your file…" onFile={(file) => void add(file)} />
+        {control.optional && (
+          <Button size="sm" variant="ghost" onClick={() => onChange(name, null)}>
+            None
+          </Button>
+        )}
+      </div>
+      {ref?.kind === 'user' && (
+        <p className="truncate text-[12px] text-fg-2">{ref.name ?? 'Your file'}</p>
+      )}
+      {status && (
+        <p role="status" className="text-[12px] leading-snug text-fg-3">
+          {status}
+        </p>
+      )}
+    </Field>
+  );
+}
+
+/** What shows behind a transparent design (preview only — never exported unless baked). */
+function BackdropPicker({
+  value,
+  onChange,
+  transition,
+  onAddFile,
+}: {
+  value: Backdrop;
+  onChange: (backdrop: Backdrop) => void;
+  transition: boolean;
+  onAddFile: (file: File) => Promise<ImportedFile>;
+}) {
+  const [status, setStatus] = useState<string | null>(null);
+  type Kind = 'none' | 'footage' | 'scenes';
+  const options: { value: Kind; label: string }[] = [
+    { value: 'none', label: 'None' },
+    { value: 'footage', label: 'Footage' },
+    ...(transition ? [{ value: 'scenes' as const, label: 'A → B' }] : []),
+  ];
+  const current: Kind = value.kind === 'footage' || value.kind === 'scenes' ? value.kind : 'none';
+  return (
+    <Field label="Backdrop">
+      <SegmentedControl
+        label="Backdrop"
+        size="sm"
+        value={value.kind === 'image' ? ('' as Kind) : current}
+        options={options}
+        onValueChange={(kind) => onChange({ kind })}
+        className="w-full"
+      />
+      <div className="flex items-center gap-2">
+        <FileButton
+          label="Preview on my footage…"
+          onFile={(file) => {
+            setStatus('Reading…');
+            onAddFile(file).then(
+              (imported) => {
+                if (imported.asset.kind !== 'raster') {
+                  setStatus('Use a still frame (PNG, JPG or WebP).');
+                  return;
+                }
+                onChange({ kind: 'image', hash: imported.hash });
+                setStatus(null);
+              },
+              (error: unknown) => setStatus(error instanceof Error ? error.message : String(error)),
+            );
+          }}
+        />
+      </div>
+      {status && (
+        <p role="status" className="text-[12px] leading-snug text-fg-3">
+          {status}
+        </p>
+      )}
+    </Field>
+  );
 }
 
 function PalettePicker({
