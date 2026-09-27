@@ -9,7 +9,7 @@ export type EncoderSupport = {
   avc: boolean;
   /** VP9 @ 1080p (WebM). */
   vp9: boolean;
-  /** VP9 keeping the alpha channel (transparent WebM). */
+  /** Transparent WebM: VP9 with the alpha plane as side data, round-tripped (not just declared). */
   vp9Alpha: boolean;
   /** AV1 @ 1080p. */
   av1: boolean;
@@ -84,15 +84,14 @@ function drawCheckFrame(ctx: OffscreenCanvasRenderingContext2D, i: number): void
 
 /**
  * Whether `codec` encodes motion: frames of a moving bar go through the encoder and back
- * through the decoder, and the last frame must show the bar where it was drawn last. Saying
- * yes to a configuration isn't enough — CI's WebKit (Linux, GStreamer) accepts VP9 but emits
- * empty delta frames, so its files show the first frame throughout.
+ * through the decoder, and every decoded frame must show the bar where that frame drew it.
+ * Saying yes to a configuration isn't enough — CI's WebKit (Linux, GStreamer) encodes each
+ * frame made from a buffer with the pixels of a later one (see `transparentWebmWorks`).
  */
 export async function encodesMotion(codec: string): Promise<boolean> {
   if (typeof VideoEncoder === 'undefined' || typeof VideoDecoder === 'undefined') return false;
   let encoder: VideoEncoder | null = null;
   let decoder: VideoDecoder | null = null;
-  let last: VideoFrame | null = null;
   const check = async () => {
     const canvas = new OffscreenCanvas(CHECK_SIZE, CHECK_SIZE);
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -121,22 +120,26 @@ export async function encodesMotion(codec: string): Promise<boolean> {
     }
     await encoder.flush();
     if (!config || chunks.length !== CHECK_FRAMES) return false;
+    // Frame i's bar spans x 8 + 32i … 32 + 32i: lit there, dark where the others were.
+    let decoded = 0;
+    let correct = true;
     decoder = new VideoDecoder({
       output: (frame) => {
-        last?.close();
-        last = frame;
+        ctx.drawImage(frame, 0, 0, CHECK_SIZE, CHECK_SIZE);
+        frame.close();
+        const luma = (x: number) => ctx.getImageData(x, CHECK_SIZE / 2, 1, 1).data[0] ?? 0;
+        for (let i = 0; i < CHECK_FRAMES; i++) {
+          const lit = luma(20 + i * 32) > 160;
+          if (lit !== (i === decoded)) correct = false;
+        }
+        decoded++;
       },
       error: () => undefined,
     });
     decoder.configure(config);
     for (const chunk of chunks) decoder.decode(chunk);
     await decoder.flush();
-    const frame = last as VideoFrame | null;
-    if (!frame) return false;
-    ctx.drawImage(frame, 0, 0, CHECK_SIZE, CHECK_SIZE);
-    const luma = (x: number) => ctx.getImageData(x, CHECK_SIZE / 2, 1, 1).data[0] ?? 0;
-    // The last bar spans x 104…128; the first spanned 8…32.
-    return luma(116) > 160 && luma(20) < 96;
+    return correct && decoded === CHECK_FRAMES;
   };
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -155,7 +158,6 @@ export async function encodesMotion(codec: string): Promise<boolean> {
     };
     close(encoder);
     close(decoder);
-    (last as VideoFrame | null)?.close();
   }
 }
 
@@ -169,14 +171,14 @@ async function probeEncoders(): Promise<EncoderSupport> {
     return { avc: false, vp9: false, vp9Alpha: false, av1: false };
   }
   const base = { width: 1920, height: 1080, bitrate: 8_000_000, framerate: 30 };
-  const [avc, vp9, vp9Alpha, av1] = await Promise.all([
+  const [avc, vp9, av1] = await Promise.all([
     works({ ...base, codec: 'avc1.640028' }),
     works({ ...base, codec: 'vp09.00.40.08' }),
-    supported({ ...base, codec: 'vp09.00.40.08', alpha: 'keep' }),
     supported({ ...base, codec: 'av01.0.08M.08' }),
   ]);
-  // Native alpha encoding only matters where VP9 itself works.
-  return { avc, vp9, vp9Alpha: vp9 && vp9Alpha, av1 };
+  // Transparent WebM goes through Mediabunny's alpha mode: checked the way exports use it.
+  const vp9Alpha = vp9 && (await (await import('../export/probe')).transparentWebmWorks());
+  return { avc, vp9, vp9Alpha, av1 };
 }
 
 export async function probeCapabilities(): Promise<Capabilities> {

@@ -139,12 +139,14 @@ export function exportFileName(options: {
 export type FormatAvailability = { available: true } | { available: false; reason: string };
 
 /**
- * Whether this browser can make a format (from the worker's capability probe). The exact
- * configuration is checked again when an export starts.
+ * Whether this browser can make a format (from the worker's capability probe). `alpha`: the
+ * export keeps a transparent design's transparency. The exact configuration is checked again
+ * when an export starts.
  */
 export function formatAvailability(
   format: ExportFormat,
   encoders: EncoderSupport | null,
+  { alpha = false }: { alpha?: boolean } = {},
 ): FormatAvailability {
   if (format === 'mp4' && !encoders?.avc) {
     return {
@@ -158,6 +160,12 @@ export function formatAvailability(
     return {
       available: false,
       reason: 'Your browser can’t encode WebM. PNG sequences keep transparency everywhere.',
+    };
+  }
+  if (format === 'webm' && alpha && !encoders?.vp9Alpha) {
+    return {
+      available: false,
+      reason: 'Your browser can’t keep transparency in WebM. PNG sequences keep it everywhere.',
     };
   }
   return { available: true };

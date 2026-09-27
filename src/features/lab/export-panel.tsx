@@ -69,7 +69,8 @@ export function ExportPanel(props: ExportPanelProps) {
   const [quality, setQuality] = useState<ExportQuality>('high');
   const [bake, setBake] = useState(false);
   const { status, start, cancel, reset } = useExport(capabilities);
-  const available = formatAvailability(format, encoders);
+  const alpha = state.transparent && !(bake && props.backdrop.kind !== 'none');
+  const available = formatAvailability(format, encoders, { alpha: alpha && KEEPS_ALPHA[format] });
   const gif = format === 'gif';
   const resolutionId = useId();
   const fpsId = useId();

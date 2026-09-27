@@ -8,6 +8,7 @@ import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
 import { decodeFrames, decode as decodeGif } from 'modern-gif';
 import { describe, expect, it } from 'vitest';
 import { createCompositor } from '@/engine/compositor';
+import { transparentWebmWorks } from '@/engine/export/probe';
 import { type ExportEnvironment, type ExportJob, runExport } from '@/engine/export/run';
 import { type ExportSettings, exportSize, motionBudget } from '@/engine/export/settings';
 import { encodesMotion } from '@/engine/runtime/capabilities';
@@ -193,7 +194,7 @@ describe('exports', () => {
   });
 
   it('encodes transparent WebM (VP9 + alpha) for transparent designs', async (context) => {
-    if (!(await canEncode('vp09.00.10.08'))) context.skip();
+    if (!(await canEncode('vp09.00.10.08')) || !(await transparentWebmWorks())) context.skip();
     const exportSettings = settings({ format: 'webm', fps: 15 });
     const { result, state } = await exportOf('line', { duration: 3 }, exportSettings);
     expect(result.name).toBe('ugoki-line-320x180-15fps.webm');

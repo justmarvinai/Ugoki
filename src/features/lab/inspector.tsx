@@ -352,7 +352,7 @@ function DeviceReport({
     ['WebCodecs', capabilities.webCodecs],
     ['H.264 encode', capabilities.encoders.avc],
     ['VP9 encode', capabilities.encoders.vp9],
-    ['VP9 + alpha encode', capabilities.encoders.vp9Alpha],
+    ['Transparent WebM', capabilities.encoders.vp9Alpha],
     ['AV1 encode', capabilities.encoders.av1],
   ];
   return (

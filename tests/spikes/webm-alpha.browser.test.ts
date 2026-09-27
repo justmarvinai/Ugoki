@@ -17,18 +17,19 @@ import {
   WebMOutputFormat,
 } from 'mediabunny';
 import { expect, test } from 'vitest';
-import { encodesMotion } from '@/engine/runtime/capabilities';
+import { transparentWebmWorks } from '@/engine/export/probe';
 import { initialState } from '@/engine/template/state';
 import { loadTemplate } from '@/templates/registry';
 import { build, render } from '../support/render';
 
-// Encoders that accept VP9 but don't encode motion (CI's WebKit) are turned down by the probe,
-// as in the product: this round trip starts on a still frame, which such an encoder keeps.
+// Where transparent WebM doesn't round-trip, the product doesn't offer it (ADR-034): CI's
+// WebKit encodes frames built from buffers with a later frame's pixels, so this clip — which
+// starts on a still frame — once passed there by accident.
 const canEncodeVp9 = async () =>
   typeof VideoEncoder !== 'undefined' &&
   (await VideoEncoder.isConfigSupported({ codec: 'vp09.00.10.08', width: 480, height: 270 }))
     .supported === true &&
-  (await encodesMotion('vp09.00.10.08'));
+  (await transparentWebmWorks());
 
 test('transparent WebM round trip keeps the alpha channel', async (context) => {
   if (!(await canEncodeVp9())) context.skip();

@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { transparentWebmWorks } from '../export/probe';
 import { encodesMotion } from './capabilities';
 
 const CODECS = ['vp09.00.10.08', 'avc1.42001f'];
@@ -48,4 +49,12 @@ test('it catches an encoder that keeps encoding the first frame', async (context
   } finally {
     globalThis.VideoEncoder = Real;
   }
+});
+
+test('transparent WebM round-trips where it is known to work', async () => {
+  const works = await transparentWebmWorks();
+  console.info(`transparent WebM round trip: ${works}`);
+  // Chromium and Firefox keep the alpha plane (CI's WebKit doesn't: ADR-034). A check that
+  // failed everywhere would quietly turn transparent WebM off — and skip its tests.
+  if (/Chrome\/|Firefox\//.test(navigator.userAgent)) expect(works).toBe(true);
 });

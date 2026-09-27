@@ -101,6 +101,15 @@ describe('export settings', () => {
       reason: 'Your browser can’t encode MP4. WebM works here.',
     });
     expect(formatAvailability('webm', none).available).toBe(false);
+    // Transparent designs need transparent WebM to work, opaque ones only VP9.
+    expect(formatAvailability('webm', vp9Only)).toEqual({ available: true });
+    expect(formatAvailability('webm', vp9Only, { alpha: true })).toEqual({
+      available: false,
+      reason: 'Your browser can’t keep transparency in WebM. PNG sequences keep it everywhere.',
+    });
+    expect(formatAvailability('webm', { ...vp9Only, vp9Alpha: true }, { alpha: true })).toEqual({
+      available: true,
+    });
     for (const format of ['png-zip', 'gif', 'still'] as const) {
       expect(formatAvailability(format, null)).toEqual({ available: true });
     }
