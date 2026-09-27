@@ -87,4 +87,7 @@ test('an export worker verifies which video formats work here', async () => {
   // Every engine Ugoki supports makes some video; Chromium and Firefox keep transparency too.
   expect(encoders?.vp9 || encoders?.avc).toBe(true);
   if (/Chrome\/|Firefox\//.test(navigator.userAgent)) expect(encoders?.vp9Alpha).toBe(true);
+  // The worker is ended as soon as it answers, as pages do: again and again, the same answer
+  // (CI's Firefox once lost the page when codecs were still busy at that moment).
+  for (let round = 0; round < 3; round++) expect(await probeExport(worker())).toEqual(encoders);
 });
