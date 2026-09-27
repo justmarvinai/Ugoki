@@ -273,10 +273,16 @@ function Progress({
   useEffect(() => {
     const element = canvas.current;
     const frame = status.preview;
-    if (!element || !frame) return;
+    // The exporter closes a frame once a newer one arrives or the export ends — possibly
+    // before this runs; a closed ImageBitmap has no size and nothing to draw.
+    if (!element || !frame || frame.width === 0) return;
     element.width = frame.width;
     element.height = frame.height;
-    element.getContext('2d')?.drawImage(frame, 0, 0);
+    try {
+      element.getContext('2d')?.drawImage(frame, 0, 0);
+    } catch {
+      // Closed in between: the next frame (or the result) replaces it anyway.
+    }
   }, [status.preview]);
   return (
     <div className="flex flex-col gap-2">
