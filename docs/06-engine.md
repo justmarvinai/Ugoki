@@ -144,8 +144,10 @@ export default defineTemplate({
 | `text` | Text engine (§7): `layout`, `line`, `face`, `hasFont` |
 | `transparent` | The background will be left transparent (alpha export/preview) |
 | `seed`, `rng(key)` | Template seed (user seed mixed with the template id) and a seeded RNG stream per element key |
-| `assets` | Decoded images/logos/placeholders by control key (Phase 2) |
-| `ui` | UI Kit components (for UI templates, Phase 3) |
+| `graphic(key)` | The artwork of an image/logo control: the user's file, or the placeholder (§8) |
+| `focal(key)` | The focal point the user set for an image control (0..1, center by default) — pass it to `g.graphic(…, { fit: 'cover', focal })` |
+
+UI templates create the UI Kit themselves in `build` (`createUiKit`, §6).
 
 ### Render context
 
@@ -210,14 +212,26 @@ Gradients (linear, radial, conic) and patterns are paints. Colors are OKLCH-awar
 
 ---
 
+### UI Kit v1 (`src/engine/ui`, exported from `@/engine`)
+
+UI-motion templates build realistic, unbranded interfaces with the UI Kit. In `build`, a template creates it with `createUiKit({ text: ctx.text, palette: ctx.palette, mode: 'light' | 'dark', unit })`, where `unit` is how many design units one UI px is: the template picks it so its UI fills the composition. Everything is then specified in UI px, like a real design system.
+
+- **Theme** (`ui.theme`): Light/Dark neutral tokens (canvas, surface, raised, sunken, border, text, muted, subtle, gridline) with a hint of the accent's hue. `accent` is the palette color that holds ≥ 3:1 on the surface; `onAccent`, `accentInk` and `accentSoft` derive from it, plus contrast-checked success/danger tints. Radii are `UI_RADIUS`; shadows are `ELEVATIONS` 1–3.
+- **Shadows** (`BoxShadow`): Gaussian box shadows with CSS semantics, painted only outside the element as gradient slices built once — no blur, no layer, no Canvas `filter`.
+- **Components**, laid out once and drawn per frame from state values: `card`; `field` (label, typed states, placeholder, focus ring, caret, scrolls when long); `button` (hover, press, ripple, and a pill → circle → pill morph that keeps center and radius continuous, a spinner phased to close where the check starts, a check drawn on); `toast`, `avatar` (initials), `row`, `tooltip`. `ui.text()` shrinks to fit, then truncates with "…".
+- **Charts**: `lineChart` (Steffen monotone cubic — never overshoots the data — with an area and a `PathSampler` for draw heads and trim), `barChart` (grows from a shared baseline), `donut` (sweeps from 12 o'clock), `valueAxis`/`categoryAxis` (tabular labels, `niceTicks`).
+- **Cursor**: vector `drawCursor` (arrow or hand; crisp outline, soft shadow, press dip). `CursorPath` is a builder — `.move(to, { dur, bow, overshoot, correct })`, `.wait()`, `.until()`, `.click()` — with minimum-jerk timing by arc length, overshoot-and-correct and random access `at(t)`.
+- **Typing**: `typedText` / `typedFigure` (money formatted live: €2 → €25 → €250.00), `typingSchedule(keys, ctx.rng(key), { cps, fit })` (a seeded human rhythm), `typedCount`, and `caretOpacity` (solid while typing, blinks when idle).
+- UI text is set in Inter (`UI_FONT`): templates using the kit declare `fonts: [UI_FONT]`, so preview and export load it whatever the pairing (§7).
+
 ## 7. Text engine (HarfBuzz)
 
 Why not `fillText`? Safari lacks `fontStretch`/`fontKerning`, `letterSpacing` needs Safari 18.4+, and per-glyph animation with native text either breaks kerning or varies across browsers. HarfBuzz gives identical shaping everywhere, real OpenType features and continuous variable axes.
 
 **Pipeline**
-1. **Load**: the font registry fetches subsetted TTF bytes → `hb.Face` → `hb.Font` per variation instance. Metrics from `OS/2`/`hhea`: ascender, descender, cap height, x-height, line gap.
+1. **Load**: the font registry fetches subsetted TTF bytes → `hb.Face` → `hb.Font` per variation instance. Metrics from `OS/2`/`hhea`: ascender, descender, cap height, x-height, line gap. A design loads `designFonts(template, state)` — its pairing's fonts plus the template's own `fonts` (e.g. the UI Kit's Inter) — before its scene is built, in preview and export alike.
 2. **Segment**: `Intl.Segmenter` (graphemes, words); parse emphasis markup (`*word*`) into styled spans; apply case transforms.
-3. **Shape**: HarfBuzz with features (`kern`, `liga`, `calt`, optional `tnum`, `ss0x`) → glyph ids, clusters, advances, offsets.
+3. **Shape**: HarfBuzz with features (`kern`, `liga`, `calt`, optional `tnum`, `ss0x`) → glyph ids, clusters, advances, offsets. Odometers (`createOdometer`) center the font's default figures in slots as wide as the widest digit, so digits never shift while rolling; `figures: 'tabular'` opts into `tnum`, which in some fonts swaps in a slashed zero or footed one (Mona Sans).
 4. **Break lines**: word-boundary candidates; user newlines are hard breaks; **balanced** breaking (minimize the variance of line widths, avoid a single-word last line, prefer breaks after punctuation).
 5. **Fit**: binary-search font size within `[min, max]` to satisfy `maxWidth` and `maxLines`; report overflow to the inspector.
 6. **Layout result** (`text/types.ts`): `TextBlock { lines[{ glyphs[{ id, face, x, y, advance, size, text, index, word, line, emphasis, ink, fallback }], words, x, baseline, width, ink, mask }], size, width, height, ink, overflow, capHeight }`. Vertical metrics are optical: the block's top is the first line's cap height and `height` ends at the last baseline. Left/right-aligned lines get optical margins (ink, not side bearings, touches the edge). Line **masks** share one height for the whole block — the block's ink extremes (at least cap height) plus 8% of the size — so lines rise in unison and descenders never clip at rest.

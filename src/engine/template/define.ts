@@ -14,7 +14,7 @@ import type { Structure, Timeline, TimingSpec } from '../timeline/timeline';
 import type { CategoryId } from './categories';
 import type { ControlSchema, Props } from './controls';
 import type { FormatId, FrameSpec } from './formats';
-import type { Pairing, PairingId } from './pairings';
+import type { FontId, Pairing, PairingId } from './pairings';
 import type { Palette, PaletteRef } from './palettes';
 
 export type AlphaSupport = 'default' | 'optional' | 'none';
@@ -101,6 +101,8 @@ export type TemplateDefinition<S extends ControlSchema> = {
   shutter?: number;
   palettes: readonly PaletteRef[];
   pairings: readonly PairingId[];
+  /** Fonts the template sets text in besides its pairing's (e.g. the UI Kit's Inter). */
+  fonts?: readonly FontId[];
   controls: S;
   looks: readonly Look<S>[];
   timing(context: TimingContext<S>): TimingSpec;

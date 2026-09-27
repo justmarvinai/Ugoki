@@ -152,7 +152,7 @@ export type OdometerDrawOptions = {
 
 export interface Odometer {
   readonly style: TextStyle;
-  /** Advance of every digit (tabular figures). */
+  /** Width of every digit slot (the widest digit's advance). */
   readonly digitWidth: number;
   /** Distance between neighbouring digits on a wheel; the visible window is one pitch tall. */
   readonly pitch: number;
@@ -164,12 +164,22 @@ export interface Odometer {
 }
 
 /**
- * An odometer in a text style: digits are laid out once with tabular figures, so rolling never
- * shifts the layout. Rolling digits are clipped to a window from a little above cap height to a
- * little below the baseline — the next digit enters from below (counting up) or above.
+ * An odometer in a text style: every digit sits centered in a slot as wide as the widest digit,
+ * so rolling never shifts the layout. The digits are the font's default figures unless
+ * `figures: 'tabular'` asks for its tabular set — some fonts' tabular sets swap in a slashed zero
+ * or a footed one (Mona Sans does), which reads as code rather than a price. Rolling digits are
+ * clipped to a window from a little above cap height to a little below the baseline — the next
+ * digit enters from below (counting up) or above.
  */
-export function createOdometer(text: TextEngine, style: TextStyle): Odometer {
-  const tabular: TextStyle = { ...style, features: [...(style.features ?? []), 'tnum'] };
+export function createOdometer(
+  text: TextEngine,
+  style: TextStyle,
+  options: { figures?: 'default' | 'tabular' } = {},
+): Odometer {
+  const tabular: TextStyle =
+    options.figures === 'tabular'
+      ? { ...style, features: [...(style.features ?? []), 'tnum'] }
+      : style;
   const blocks = new Map<string, TextBlock>();
   const glyph = (char: string): TextBlock => {
     let block = blocks.get(char);

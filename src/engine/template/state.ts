@@ -8,7 +8,13 @@ import { type EnergyId, isEnergyId } from '../timeline/energy';
 import { type ControlSchema, defaultProps, resolveProps } from './controls';
 import type { AnyTemplate, Look } from './define';
 import { type FormatId, isFormatId } from './formats';
-import { isPairingAvailable, isPairingId, type PairingId } from './pairings';
+import {
+  type FontId,
+  isPairingAvailable,
+  isPairingId,
+  type PairingId,
+  pairingFonts,
+} from './pairings';
 import { type PaletteRef, sanitizePaletteRef } from './palettes';
 
 export const FINISHES = ['clean', 'grain', 'glow'] as const;
@@ -31,6 +37,11 @@ export type DesignState = {
 };
 
 /** Pairings of a template that can be offered (fonts built), in the template's order. */
+/** Every font a design needs: its pairing's, plus any the template sets text in itself. */
+export function designFonts(template: AnyTemplate, state: DesignState): FontId[] {
+  return [...new Set([...pairingFonts(state.pairing), ...(template.fonts ?? [])])];
+}
+
 export function availablePairings(template: AnyTemplate): PairingId[] {
   return template.pairings.filter(isPairingAvailable);
 }
