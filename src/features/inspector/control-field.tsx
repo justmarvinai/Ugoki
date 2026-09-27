@@ -2,27 +2,22 @@
 
 /**
  * Fields for a template's own controls (docs/06-engine.md §4): text, choices, toggles, numbers
- * and image slots (the built-in placeholders or a file from this device).
+ * and image slots (the built-in placeholders or a file from this device; see `image-field.tsx`).
  */
 
-import { useId, useState } from 'react';
-import { Button } from '@/components/button';
+import { useId } from 'react';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Slider } from '@/components/slider';
 import { Switch } from '@/components/switch';
-import {
-  type AssetRef,
-  type Control,
-  type ImageControl,
-  PLACEHOLDER_NAMES,
-  PLACEHOLDERS,
-} from '@/engine/host';
-import { ACCEPTED_FILES, type ImportedFile } from '../assets/import-file';
+import type { Control } from '@/engine/host';
+import type { ImportedFile } from '../assets/import-file';
+import type { FileInbox } from '../assets/inbox';
 import { Field } from './field';
+import { ImageField } from './image-field';
 
 /**
  * A control's new value. `continuous` marks edits that come in streams (typing, dragging a
- * slider), which undo as one step per pause.
+ * slider or a focal point), which undo as one step per pause.
  */
 export type ControlChange = (key: string, value: unknown, continuous?: boolean) => void;
 
@@ -37,12 +32,15 @@ export function ControlField({
   value,
   onChange,
   onAddFile,
+  inbox,
 }: {
   name: string;
   control: Control;
   value: unknown;
   onChange: ControlChange;
   onAddFile: AddFile;
+  /** Files dropped on the stage or pasted, for image fields (the editor). */
+  inbox?: FileInbox | undefined;
 }) {
   const id = useId();
   switch (control.kind) {
@@ -125,6 +123,7 @@ export function ControlField({
           value={value}
           onChange={onChange}
           onAddFile={onAddFile}
+          inbox={inbox}
         />
       );
     case 'number': {
@@ -145,86 +144,4 @@ export function ControlField({
       );
     }
   }
-}
-
-export function FileButton({ label, onFile }: { label: string; onFile: (file: File) => void }) {
-  const id = useId();
-  return (
-    <label
-      htmlFor={id}
-      className="inline-flex h-8 cursor-pointer items-center rounded-full border border-line-strong px-3 text-[13px] font-[550] text-fg transition-colors duration-(--duration-micro) ease-swift hover:bg-bg-3 has-focus-visible:outline-2 has-focus-visible:outline-focus"
-    >
-      {label}
-      <input
-        id={id}
-        type="file"
-        accept={ACCEPTED_FILES}
-        className="sr-only"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file) onFile(file);
-        }}
-      />
-    </label>
-  );
-}
-
-/** A logo/image slot: the built-in placeholders, or a file from this device. */
-function ImageField({
-  name,
-  control,
-  value,
-  onChange,
-  onAddFile,
-}: {
-  name: string;
-  control: ImageControl;
-  value: unknown;
-  onChange: ControlChange;
-  onAddFile: AddFile;
-}) {
-  const [status, setStatus] = useState<string | null>(null);
-  const ref = (value === undefined ? control.default : value) as AssetRef | null;
-  const add = async (file: File) => {
-    setStatus('Reading…');
-    try {
-      const imported = await onAddFile(file);
-      onChange(name, { kind: 'user', hash: imported.hash, name: imported.name });
-      setStatus(imported.notes.length > 0 ? imported.notes.join(' ') : null);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
-    }
-  };
-  return (
-    <Field label={control.label} control={name}>
-      <div className="flex flex-wrap gap-1.5">
-        {PLACEHOLDERS[control.accept].map((id) => (
-          <Button
-            key={id}
-            size="sm"
-            variant={ref?.kind === 'placeholder' && ref.id === id ? 'primary' : 'secondary'}
-            aria-pressed={ref?.kind === 'placeholder' && ref.id === id}
-            onClick={() => onChange(name, { kind: 'placeholder', id })}
-          >
-            {PLACEHOLDER_NAMES[id] ?? id}
-          </Button>
-        ))}
-        <FileButton label="Your file…" onFile={(file) => void add(file)} />
-        {control.optional && (
-          <Button size="sm" variant="ghost" onClick={() => onChange(name, null)}>
-            None
-          </Button>
-        )}
-      </div>
-      {ref?.kind === 'user' && (
-        <p className="truncate text-[12px] text-fg-2">{ref.name ?? 'Your file'}</p>
-      )}
-      {status && (
-        <p role="status" className="text-[12px] leading-snug text-fg-3">
-          {status}
-        </p>
-      )}
-    </Field>
-  );
 }

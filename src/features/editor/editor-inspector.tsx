@@ -25,6 +25,7 @@ import {
 import { cn } from '@/lib/cn';
 import type { ProjectStore } from '@/stores/project';
 import type { UiStore } from '@/stores/ui';
+import type { FileInbox } from '../assets/inbox';
 import { BackdropPicker } from '../inspector/backdrop-picker';
 import { type AddFile, type ControlChange, ControlField } from '../inspector/control-field';
 import { Field, Group } from '../inspector/field';
@@ -49,6 +50,8 @@ type EditorInspectorProps = {
   ui: UiStore;
   warnings: readonly TimelineWarning[];
   onAddFile: AddFile;
+  /** Files dropped on the stage or pasted, for the image fields. */
+  inbox: FileInbox;
   /** Starts the template over (its first Look), as one undoable step. */
   onReset: () => void;
 };
@@ -91,6 +94,7 @@ export function EditorInspector(props: EditorInspectorProps) {
         value={design.props[key]}
         onChange={setProp}
         onAddFile={props.onAddFile}
+        inbox={props.inbox}
       />
     ));
 

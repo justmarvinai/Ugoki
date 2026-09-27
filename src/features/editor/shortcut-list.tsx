@@ -14,6 +14,7 @@ export function ShortcutList() {
     [[m, 'Shift', 'Z'], 'Redo'],
     [[m, 'E'], 'Export'],
     [[m, 'S'], 'Saved on this device (it saves as you go)'],
+    [[m, 'V'], 'Paste an image into the image field'],
     [['1', '2', '3', '4'], '16:9 · 9:16 · 1:1 · 4:5'],
     [['G'], 'Safe-area guides'],
     [['L'], 'Loop'],

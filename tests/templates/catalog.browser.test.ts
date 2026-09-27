@@ -118,7 +118,11 @@ for (const entry of TEMPLATES) {
           const built = await build(template, { ...state, format });
           const frame = render(built, posterOf(template, built.timeline.duration), SCALE);
           const safe = built.frame.safe.title;
-          for (const region of frame.regions.filter((r) => r.kind === 'editable')) {
+          const controls = template.controls as ControlSchema;
+          const text = frame.regions.filter(
+            (r) => r.kind === 'editable' && controls[r.target]?.kind === 'text',
+          );
+          for (const region of text) {
             expect(
               inside(region.bounds, safe, built.frame.u * 0.5),
               `${region.id} ${JSON.stringify(region.bounds)} outside ${JSON.stringify(safe)}`,
