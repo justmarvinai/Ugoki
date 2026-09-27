@@ -77,11 +77,11 @@
 - [x] Motion-blur accumulation (sub-frames, shutter from Energy), finish (grain, soft glow)
 
 **Editor**
-- [ ] Stage with checkerboard, guides, preview backdrop (+ "Preview on my footage"), fit/100%
-- [ ] Editing overlay: select, drag, snap, scale movable groups; click-to-focus controls
-- [ ] Inspector generated from the control schema (Content · Style · Motion · Layout), Looks, Shuffle, hover previews
-- [ ] Palettes incl. Brand Light/Dark/Bold with contrast guard; pairing picker; background; finish
-- [ ] Transport (sections, Dot playhead, loop, duration handle, cut marker); keyboard shortcuts
+- [x] Stage with checkerboard, guides, preview backdrop (+ "Preview on my footage"), fit/100%
+- [x] Editing overlay: select, drag, snap, scale movable groups; click-to-focus controls
+- [x] Inspector generated from the control schema (Content · Style · Motion · Layout), Looks, Shuffle, hover previews
+- [x] Palettes incl. Brand Light/Dark/Bold with contrast guard; pairing picker; background; finish
+- [x] Transport (sections, Dot playhead, loop, duration handle, cut marker); keyboard shortcuts
 - [ ] Project store + history (undo/redo with coalescing); Dexie autosave & drafts; share links
 - [ ] Image/logo import (raster + sanitized SVG → vector paths), focal points, logo color modes
 

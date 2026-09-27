@@ -130,11 +130,11 @@ Dependencies are added with the feature that uses them: Phase 1 installs the fra
 │   │   └── <category>/<id>/index.ts (+ looks.ts, layout.ts as needed)
 │   ├── workers/                   # composition root: render.worker.ts, createRenderEndpoint()
 │   ├── features/                  # React feature modules
-│   │   └── lab/ assets/ (file import) · landing/ gallery/ editor/ inspector/ stage/ transport/ export/ drafts/ share/
+│   │   └── editor/ stage/ (+ overlay) inspector/ transport/ export/ gallery/ (chooser) assets/ (file import) lab/ · drafts/ share/ landing/ later
 │   ├── components/                # design-system primitives (Button, Slider, SegmentedControl, Switch…)
 │   ├── design/                    # motion tokens, icons (color/type tokens live in app/globals.css @theme)
 │   ├── fonts/                     # UI WOFF2 (Ugoki Sans, Ugoki Mono) for next/font/local
-│   ├── stores/                    # Zustand stores + history middleware (Phase 2)
+│   ├── stores/                    # Zustand stores: project (+ snapshot history), ui, playhead
 │   └── lib/                       # small utilities (cn, …); db, share codec later
 ├── tests/
 │   ├── support/                   # render harness + test worker

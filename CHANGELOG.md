@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ### Added
 
+- **The editor** (`/editor/<template>`): the design on a stage fitted to your screen (or at 100%), with safe-area guides and, for transparent designs, a checkerboard or a preview backdrop. Point at text on the stage to see it outlined, click to jump to its field, drag a group to move it — it snaps to the center lines and the title-safe edges — or pull its corner to scale it. The inspector offers Looks (with Shuffle), the template's content, palettes incl. brand colors with a contrast guard, font pairings, background, finish, energy, duration with readability fixes, and layout; pointing at a Look, palette or pairing previews it on the stage. Undo and redo cover every change (typing and slider drags undo as one step). The transport shows the timeline's sections and cut point, loops, and has a duration handle; keyboard shortcuts throughout (`?` lists them). Export opens a sheet with every format.
+- **Templates** (`/templates`): pick a template to start from.
 - **Line** — a lower third (*minimal accent bar*): name and title slide out of the bar as if from a slot, the bar runs from the name's cap height to the title's baseline; four formats, Ink · Paper · Brand Bold, nine anchors, three sizes, an optional soft shadow; transparent by default.
 - **Sheen** — a logo reveal (*light sweep*): the logo emerges from darkness and a specular band, masked to the logo's own shape, lights it on its way across, blooming on dark grounds; tagline tracking in; optional second sweep and exit; white, warm or accent light; original, mono or accent logo colors.
 - **Layers** — a transition (*stacked panel wipe*): 2–5 skewed panels sweep across in any of 8 directions with slightly different speeds, cover the whole frame around the cut point and leave in reverse order; Speed compresses it around the cut; colors from the palette's roles or brand tints.
@@ -20,6 +22,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ### Fixed
 
+- Video formats are offered only where they work: the first time export options are used, the browser's encoders are checked with a tiny moving round trip (and transparent WebM with its alpha), in a worker of its own. CI's WebKit, for one, writes transparent WebM without its transparency — PNG sequences keep it there.
 - The Lab's playhead no longer jumps back when frames rendered for an earlier seek arrive late (e.g. End, then Shift+← twice gave 4.00 s instead of 3.00 s).
 - GPU blur and bloom were slightly too strong or too weak on odd-sized layers (the downsample pyramid skipped part of its averaging).
 - The last frame of an export is clean: exits now finish 1/15 s before the end.
