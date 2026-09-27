@@ -30,12 +30,15 @@ import { createProjectStore } from '@/stores/project';
 import { createUiStore } from '@/stores/ui';
 import type { TemplateEntry } from '@/templates/registry';
 import { importFile } from '../assets/import-file';
+import { keepFile, useAutosave } from '../drafts/drafts';
 import { ExportPanel } from '../export/export-panel';
+import { ShareButton } from '../share/share-button';
 import { Stage } from '../stage/stage';
 import { STEP, Transport } from '../transport/transport';
 import { EditorInspector } from './editor-inspector';
 import { ShortcutList } from './shortcut-list';
 import { StageOverlay } from './stage-overlay';
+import { type StartingDesign, startingDesign } from './starting-design';
 import { FormatStrip, TopBar } from './top-bar';
 import { useRenderClient } from './use-render-client';
 import { useShortcuts } from './use-shortcuts';
@@ -78,6 +81,8 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
   const [notice, setNotice] = useState<string | null>(null);
   /** The next probe answer resets the design (an undoable change) instead of loading it. */
   const resetting = useRef(false);
+  /** How the design was opened (a link, a draft or the template), for the probe's answer. */
+  const opening = useRef<StartingDesign | null>(null);
 
   const design = useStore(project, (s) => s.design);
   const canUndo = useStore(project, (s) => s.canUndo);
@@ -117,8 +122,21 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
           project.getState().change(message.state);
           break;
         }
-        setDescriptor(message.template);
-        project.getState().load(message.state, { name: entry.name });
+        {
+          const start = opening.current;
+          setDescriptor(message.template);
+          project.getState().load(message.state, {
+            name: start?.name ?? entry.name,
+            draftId: start?.draftId ?? null,
+          });
+          const newer =
+            start?.linkVersion !== undefined && start.linkVersion > message.template.version;
+          const notes = [
+            start?.notice,
+            newer ? 'It was made with a newer Ugoki, so some settings may have been reset.' : null,
+          ].filter(Boolean);
+          if (notes.length > 0) setNotice(notes.join(' '));
+        }
         ui.getState().setBackdrop(defaultBackdrop(message.template));
         // Open on the template's poster frame, not its empty first frame.
         playhead.set({ t: message.template.poster, playing: false });
@@ -156,15 +174,35 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
     }
   });
 
-  // Load the template through the probe view.
+  // Load the design — from a link, a draft or the template — through the probe view.
   useEffect(() => {
     if (!client) return;
     const unsubscribe = client.subscribe((message) => onMessage(message));
     client.probe();
-    client.attach(PROBE, new OffscreenCanvas(1, 1), { width: 1, height: 1, dpr: 1 });
-    client.load(PROBE, entry.id);
-    return unsubscribe;
-  }, [client, entry.id]);
+    let cancelled = false;
+    void startingDesign(entry).then(async (start) => {
+      if (cancelled) return;
+      if (start.redirect) {
+        window.location.replace(start.redirect);
+        return;
+      }
+      opening.current = start;
+      // A draft's files first, so the design never renders with placeholders in their place.
+      for (const [hash, file] of start.files) {
+        const imported = await importFile(file).catch(() => null);
+        if (!imported || cancelled) continue;
+        files.current.set(hash, file);
+        client.setAsset(hash, imported.asset);
+      }
+      if (cancelled) return;
+      client.attach(PROBE, new OffscreenCanvas(1, 1), { width: 1, height: 1, dpr: 1 });
+      client.load(PROBE, entry.id, start.state === undefined ? {} : { state: start.state });
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [client, entry]);
 
   // The stage shows the design, or what's being pointed at.
   useEffect(() => {
@@ -195,8 +233,16 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
     const imported = await importFile(file);
     files.current.set(imported.hash, file);
     client?.setAsset(imported.hash, imported.asset);
+    // Kept with the drafts, so the design reopens with it.
+    void keepFile(imported.hash, file);
     return imported;
   };
+
+  const { status: saveStatus, flush } = useAutosave({
+    project,
+    thumbnail: () =>
+      client && descriptor ? client.snapshot(STAGE, descriptor.poster, 180) : Promise.resolve(null),
+  });
 
   /** The files a design and its backdrop use, decoded again for the export worker. */
   const exportAssets = async (current: DesignState) => {
@@ -256,7 +302,7 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
           undo: () => project.getState().undo(),
           redo: () => project.getState().redo(),
           exportNow: () => ui.getState().openSheet('export'),
-          save: () => flash('Saved on this device'),
+          save: () => void flush().then(() => flash('Saved on this device')),
           format: (format) => project.getState().change({ format }),
           formats: descriptor.formats,
           toggleGuides: () => ui.getState().toggleGuides(),
@@ -314,7 +360,14 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
           canRedo={canRedo}
           onUndo={() => project.getState().undo()}
           onRedo={() => project.getState().redo()}
-          onShare={() => ui.getState().openSheet('share')}
+          share={
+            <ShareButton
+              design={() => project.getState().design}
+              disabled={!design}
+              className="ml-1 hidden sm:inline-flex"
+            />
+          }
+          saveStatus={saveStatus}
           onExport={() => ui.getState().openSheet('export')}
           ready={Boolean(design)}
         />

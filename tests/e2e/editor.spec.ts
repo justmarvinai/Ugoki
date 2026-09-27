@@ -97,7 +97,58 @@ test('every template opens in the editor', async ({ page }) => {
     await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('Looks', {
       timeout: 15_000,
     });
-    await expect(page.locator('main [role="img"] canvas')).toBeAttached();
+    // Built (the transport knows the duration) and painted — also, leaving a page while its
+    // worker still fetches the text engine makes WebKit log the cancelled fetch as an error.
+    await expect(page.locator('output[aria-label="Time"]')).not.toContainText('/ 00:00.00');
+    await expect.poll(() => stageCoverage(page), { timeout: 10_000 }).toBeGreaterThan(0.99);
   }
+  expect(errors).toEqual([]);
+});
+
+/** Opens an editor and waits until its design is built and on the stage. */
+async function openEditor(page: Page, path: string): Promise<void> {
+  await page.goto(path);
+  await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('Looks', {
+    timeout: 15_000,
+  });
+  await expect(page.locator('output[aria-label="Time"]')).not.toContainText('/ 00:00.00');
+}
+
+test('a share link opens the same design elsewhere', async ({ page, context }) => {
+  const errors = watchErrors(page);
+  await openEditor(page, '/editor/rise');
+  await page.getByRole('textbox', { name: 'Eyebrow' }).fill('Shared, not uploaded');
+  await page.getByRole('button', { name: 'Share' }).click();
+  const link = await page.getByRole('textbox', { name: 'Share link' }).inputValue();
+  expect(link).toMatch(/\/editor\/rise#d=[A-Za-z0-9_-]+$/);
+
+  const other = await context.newPage();
+  const otherErrors = watchErrors(other);
+  await openEditor(other, link.replace(/^https?:\/\/[^/]+/, ''));
+  await expect(other.getByRole('textbox', { name: 'Eyebrow' })).toHaveValue('Shared, not uploaded');
+  await expect(other.getByText('Opened from a link.')).toBeVisible();
+  // The design is now this device's: the link doesn't stay in the address bar.
+  expect(new URL(other.url()).hash).toBe('');
+  expect([...errors, ...otherErrors]).toEqual([]);
+});
+
+test('drafts save as you edit and reopen', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openEditor(page, '/editor/line');
+  await page.getByRole('textbox', { name: 'Name' }).fill('Mika Draft');
+  // Autosave names the draft in the address bar, so a reload reopens it.
+  await expect(page).toHaveURL(/\?draft=[\w-]+$/, { timeout: 5000 });
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Mika Draft', {
+    timeout: 15_000,
+  });
+
+  await page.goto('/templates');
+  const drafts = page.getByRole('region', { name: 'Continue where you left off' });
+  await expect(drafts.getByRole('link', { name: /Line/ })).toBeVisible();
+  await drafts.getByRole('link', { name: /Line/ }).first().click();
+  await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Mika Draft', {
+    timeout: 15_000,
+  });
   expect(errors).toEqual([]);
 });

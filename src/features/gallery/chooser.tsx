@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Wordmark } from '@/components/wordmark';
 import { categoryName } from '@/engine/host';
 import { TEMPLATES } from '@/templates/registry';
+import { DraftList } from '../drafts/draft-list';
 
 /**
  * The template chooser: every template with its category, tagline and formats, each opening
@@ -16,6 +17,7 @@ export function TemplateChooser() {
         </Link>
       </header>
       <main className="mx-auto max-w-[2560px] px-4 py-10 md:px-6 md:py-14">
+        <DraftList />
         <h1 className="text-[32px] font-[700] leading-tight tracking-[-0.02em] md:text-[44px]">
           Templates
         </h1>

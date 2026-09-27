@@ -6,10 +6,12 @@
  */
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Button, IconButton } from '@/components/button';
 import { SegmentedControl } from '@/components/segmented-control';
-import { ArrowLeftIcon, LinkIcon, RedoIcon, UndoIcon } from '@/design/icons';
+import { ArrowLeftIcon, RedoIcon, UndoIcon } from '@/design/icons';
 import { FORMATS, type FormatId } from '@/engine/host';
+import type { SaveStatus } from '../drafts/drafts';
 
 type TopBarProps = {
   name: string;
@@ -21,7 +23,9 @@ type TopBarProps = {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onShare: () => void;
+  /** The Share button (with its popover). */
+  share: ReactNode;
+  saveStatus: SaveStatus;
   onExport: () => void;
   /** Nothing to share or export until the design has loaded. */
   ready: boolean;
@@ -44,6 +48,7 @@ export function TopBar(props: TopBarProps) {
       <div className="flex min-w-0 items-baseline gap-2">
         <h1 className="truncate text-[15px] font-[650] text-fg">{props.name}</h1>
         <span className="hidden truncate text-[13px] text-fg-3 lg:inline">{props.category}</span>
+        <SaveIndicator status={props.saveStatus} />
       </div>
 
       <div className="mx-auto hidden md:block">
@@ -65,15 +70,7 @@ export function TopBar(props: TopBarProps) {
         <IconButton label={`Redo (${key}Shift+Z)`} disabled={!props.canRedo} onClick={props.onRedo}>
           <RedoIcon size={18} />
         </IconButton>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-1 hidden sm:inline-flex"
-          disabled={!props.ready}
-          onClick={props.onShare}
-        >
-          <LinkIcon size={16} /> Share
-        </Button>
+        {props.share}
         <Button
           variant="primary"
           size="sm"
@@ -109,5 +106,22 @@ export function FormatStrip({
         onValueChange={onFormat}
       />
     </div>
+  );
+}
+
+/** Autosave, quietly: "Saving…", "Saved on this device", or why it couldn't. */
+function SaveIndicator({ status }: { status: SaveStatus }) {
+  if (status.phase === 'idle') return null;
+  if (status.phase === 'error') {
+    return (
+      <span role="alert" className="truncate text-[12px] text-warning">
+        {status.message}
+      </span>
+    );
+  }
+  return (
+    <span role="status" className="hidden truncate text-[12px] text-fg-3 xl:inline">
+      {status.phase === 'saving' ? 'Saving…' : 'Saved on this device'}
+    </span>
   );
 }

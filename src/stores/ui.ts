@@ -8,7 +8,7 @@
 import { createStore } from 'zustand/vanilla';
 import type { Backdrop, DesignState, EditableRegion } from '@/engine/host';
 
-export type Sheet = 'export' | 'share' | 'shortcuts';
+export type Sheet = 'export' | 'shortcuts';
 
 export type UiState = {
   /** The selected movable group (drag, scale, `R` to reset). */
