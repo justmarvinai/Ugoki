@@ -284,9 +284,9 @@ Responsibilities:
 ## 10. Player & adaptive quality
 
 - States: stopped · playing · scrubbing · paused. Loop on by default in the editor.
-- **Playing**: 1 motion-blur sample (2 on fast machines); the render scale steps 1 → 0.75 → 0.5 (× DPR, capped at 2160p) to hold ~60 fps (`runtime/quality.ts`). Signals: the recording cost of `render` (budget 8 ms per frame shared by all views) and the achieved frame interval (> 22 ms = struggling), which also catches rasterization falling behind. Drops need 12 samples and 500 ms since the last change; stepping back up needs sustained headroom (interval < 18 ms, projected cost < 60% of budget) and a cooldown that doubles after every drop (2 s → 16 s).
+- **Playing**: 1 motion-blur sample (2 on fast machines); the render scale steps 1 → 0.75 → 0.5 (× DPR, capped at 2160p) to hold ~60 fps (`runtime/quality.ts`). Signals: the recording cost of `render` (budget 8 ms per frame shared by the views that play) and the achieved frame interval (> 22 ms = struggling), which also catches rasterization falling behind. Drops need 12 samples and 500 ms since the last change; stepping back up needs sustained headroom (interval < 18 ms, projected cost < 60% of budget) and a cooldown that doubles after every drop (2 s → 16 s).
 - **Paused/scrubbing**: a full-quality frame (full DPR, preview motion-blur samples) is rendered after 120 ms of stillness — what you see when paused is exactly what will export.
-- Gallery scheduler: a per-frame time budget (e.g. 6 ms) shared round-robin across visible tiles; off-screen tiles stop; tile render scale ≤ 1.5 × CSS size.
+- **Gallery tiles** are views attached with `role: 'tile'`: their paused frames (posters) render with one sample, and they report no regions. `setVisible(views, false)` keeps tiles out of sight from building or rendering until they return; `setFrameRate(views, fps)` caps ambient playback. Each worker frame, playing views render first (sharing the 8 ms recording budget among the views that play), then builds and paused renders — stages before tiles — until a 10 ms idle budget is spent (at least one each); the rest continue next frame, so a burst (the gallery switching format) spreads over frames instead of stalling playback.
 
 ---
 

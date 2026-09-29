@@ -27,6 +27,7 @@ import type {
   QualityMode,
   TransferableGraphic,
   ViewId,
+  ViewRole,
   ViewSize,
   WorkerMessage,
 } from './protocol';
@@ -54,12 +55,20 @@ const PREVIEW_MAX_SAMPLES = 24;
 const PREVIEW_STEP = 4;
 /** Previews show motion blur as a 30 fps export would. */
 const PREVIEW_FRAME = 1 / 30;
+/**
+ * Time a frame may spend on work that can wait — builds and paused renders (posters) — before
+ * the rest moves to the next frame (ms). Playing views render every frame regardless.
+ */
+const IDLE_BUDGET = 10;
+/** Recording budget per frame shared by the views that play (ms). */
+const PLAY_BUDGET = 8;
 
 type View = {
   readonly id: ViewId;
   readonly canvas: OffscreenCanvas;
   readonly ctx: OffscreenCanvasRenderingContext2D;
   readonly interactive: boolean;
+  readonly role: ViewRole;
   readonly frames: FrameRenderer;
   readonly quality: AdaptiveQuality;
   size: ViewSize;
@@ -90,6 +99,10 @@ type View = {
   lastRegionsAt: number;
   dirty: boolean;
   lastError: string | null;
+  /** Out of sight: neither builds nor renders until visible again. */
+  visible: boolean;
+  /** Shortest time between playback frames (ms); from `setFrameRate`. */
+  minInterval: number;
 };
 
 const now = () => performance.now();
@@ -125,7 +138,13 @@ export class RenderRuntime {
     if (this.disposed) return;
     switch (message.type) {
       case 'attach':
-        this.attach(message.view, message.canvas, message.size, message.interactive ?? false);
+        this.attach(
+          message.view,
+          message.canvas,
+          message.size,
+          message.interactive ?? false,
+          message.role ?? 'stage',
+        );
         break;
       case 'detach':
         this.detach(message.view);
@@ -167,6 +186,21 @@ export class RenderRuntime {
         this.forEach(message.views, (view) => {
           view.qualityMode = message.mode;
           this.invalidate(view);
+        });
+        break;
+      case 'setVisible':
+        this.forEach(message.views, (view) => {
+          if (view.visible === message.visible) return;
+          view.visible = message.visible;
+          if (view.visible) this.invalidate(view);
+        });
+        this.updateBudgets();
+        break;
+      case 'setFrameRate':
+        this.forEach(message.views, (view) => {
+          const fps = message.fps;
+          // A little slack, so a 30 fps cap on a 60 Hz display takes every other frame.
+          view.minInterval = fps && fps > 0 ? Math.max(0, 1000 / fps - 4) : 0;
         });
         break;
       case 'setBackdrop': {
@@ -219,7 +253,13 @@ export class RenderRuntime {
 
   // --- views ------------------------------------------------------------------------------
 
-  private attach(id: ViewId, canvas: OffscreenCanvas, size: ViewSize, interactive: boolean): void {
+  private attach(
+    id: ViewId,
+    canvas: OffscreenCanvas,
+    size: ViewSize,
+    interactive: boolean,
+    role: ViewRole,
+  ): void {
     this.detach(id);
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -231,6 +271,7 @@ export class RenderRuntime {
       canvas,
       ctx,
       interactive,
+      role,
       frames: new FrameRenderer(this.compositor()),
       quality: new AdaptiveQuality(),
       size,
@@ -254,6 +295,8 @@ export class RenderRuntime {
       lastRegionsAt: 0,
       dirty: true,
       lastError: null,
+      visible: true,
+      minInterval: 0,
     });
     this.updateBudgets();
   }
@@ -280,9 +323,11 @@ export class RenderRuntime {
     }
   }
 
-  /** Views share the frame budget (~8 ms of recording per frame in total). */
+  /** Playing views share the frame budget (~8 ms of recording per frame in total). */
   private updateBudgets(): void {
-    const budget = 8 / Math.max(1, this.views.size);
+    let playing = 0;
+    for (const view of this.views.values()) if (view.playing && view.visible) playing++;
+    const budget = PLAY_BUDGET / Math.max(1, playing);
     for (const view of this.views.values()) view.quality.setBudget(budget);
   }
 
@@ -330,11 +375,17 @@ export class RenderRuntime {
     this.requestFrame();
   }
 
-  /** Builds pending states whose fonts are ready; starts loading the rest. */
-  private buildPending(): void {
-    for (const view of this.views.values()) {
+  /**
+   * Builds pending states whose fonts are ready — visible views only, stages first, within the
+   * idle budget (at least one build per frame) — and starts loading fonts for the rest. Returns
+   * whether builds are left for a later frame.
+   */
+  private buildPending(started: number): boolean {
+    let built = 0;
+    for (const view of this.byPriority()) {
       const state = view.pending;
-      if (!state || !view.template) continue;
+      if (!state || !view.template || !view.visible) continue;
+      if (built > 0 && now() - started > IDLE_BUDGET) return true;
       const text = this.text;
       if (!text) {
         this.loadText();
@@ -347,7 +398,15 @@ export class RenderRuntime {
       }
       view.pending = null;
       this.build(view, view.template, state, text);
+      built++;
     }
+    return false;
+  }
+
+  /** Views in the order work is done for them: stages, then playing tiles, then the rest. */
+  private byPriority(): View[] {
+    const rank = (view: View) => (view.role === 'stage' ? 0 : view.playing ? 1 : 2);
+    return [...this.views.values()].sort((a, b) => rank(a) - rank(b));
   }
 
   private build(view: View, template: AnyTemplate, state: DesignState, text: TextEngineHandle) {
@@ -424,6 +483,7 @@ export class RenderRuntime {
     view.playing = true;
     view.anchor = now() - view.t * 1000;
     view.lastFrameAt = now();
+    this.updateBudgets();
     this.requestFrame();
   }
 
@@ -431,6 +491,7 @@ export class RenderRuntime {
     if (!view.playing) return;
     view.playing = false;
     view.quality.pause();
+    this.updateBudgets();
     this.invalidate(view);
   }
 
@@ -463,21 +524,31 @@ export class RenderRuntime {
     requestFrame(this.tick);
   }
 
+  /**
+   * One frame of work. Playing views render every frame (at their frame-rate cap); builds and
+   * paused renders (posters) share an idle budget, so a burst of them — a gallery changing
+   * format — spreads over frames instead of stalling playback. Views out of sight wait.
+   */
   private readonly tick = (): void => {
     this.frameRequested = false;
     if (this.disposed) return;
     const time = now();
-    this.buildPending();
-    let again = false;
-    for (const view of this.views.values()) {
-      if (!view.built) continue;
+    let again = this.buildPending(time);
+    let idleRenders = 0;
+    for (const view of this.byPriority()) {
+      if (!view.built || !view.visible) continue;
       if (view.playing) {
         again = true;
-        if (time - view.lastFrameAt < MIN_FRAME_INTERVAL) continue;
+        if (time - view.lastFrameAt < Math.max(MIN_FRAME_INTERVAL, view.minInterval)) continue;
         this.advance(view, time);
         this.render(view, time);
       } else if (view.dirty) {
+        if (idleRenders > 0 && view.role === 'tile' && now() - time > IDLE_BUDGET) {
+          again = true;
+          continue;
+        }
         this.render(view, time);
+        idleRenders++;
       }
     }
     if (again) this.requestFrame();
@@ -494,6 +565,7 @@ export class RenderRuntime {
         t = duration;
         view.playing = false;
         view.quality.pause();
+        this.updateBudgets();
       }
     }
     view.t = Math.max(0, t);
@@ -513,8 +585,9 @@ export class RenderRuntime {
       regions = view.frames.render(built, target, {
         t: view.t,
         scale,
-        // Motion blur on paused frames only: playback stays at one render per frame.
-        samples: view.playing || view.scrubbing ? 1 : PREVIEW_SAMPLES,
+        // Motion blur on paused stage frames only: playback stays at one render per frame, and
+        // tiles (many, small) keep their posters cheap.
+        samples: view.playing || view.scrubbing || view.role === 'tile' ? 1 : PREVIEW_SAMPLES,
         maxSamples: PREVIEW_MAX_SAMPLES,
         maxStep: PREVIEW_STEP,
         frameDuration: PREVIEW_FRAME,
