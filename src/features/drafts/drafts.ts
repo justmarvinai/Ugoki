@@ -161,12 +161,19 @@ export async function openDraft(
   const database = db();
   const draft = await database?.projects.get(id).catch(() => undefined);
   if (!database || !draft) return null;
+  return { draft, files: await draftFiles(draft) };
+}
+
+/** The user's files a draft uses that are still on this device, by hash. */
+export async function draftFiles(draft: DraftRecord): Promise<Map<string, File>> {
+  const database = db();
   const files = new Map<string, File>();
+  if (!database) return files;
   for (const hash of assetHashes(draft.state)) {
     const asset = await database.assets.get(hash).catch(() => undefined);
     if (asset) files.set(hash, new File([asset.bytes], asset.name, { type: asset.mime }));
   }
-  return { draft, files };
+  return files;
 }
 
 /** Recent drafts, newest first. */

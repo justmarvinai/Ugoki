@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-29 — Gallery
+
+Every template, alive: the gallery shows each one as a live render you can personalize before you open it.
+
+### Added
+
+- **Gallery** (`/templates` and a page per category): every template is a live tile rendered on your device — posters at rest, playing on hover or focus, and the ones nearest your pointer playing quietly on their own (on phones, the one in the middle of the screen; none if you prefer reduced motion).
+- **Type a headline to preview it everywhere**: your words appear in every template as you type, and open with you in the editor.
+- **Format switch** (16:9 · 9:16 · 1:1 · 4:5): the whole gallery re-lays out live — every template in the format you need.
+- **Categories and search**: ten categories with their own pages; search by name, category, tag or use case (press `/`).
+- **Look dots**: point at a dot under a tile to preview that Look; click to open it.
+- **Continue where you left off**: your drafts as live tiles (duplicate or delete them), and a *Recent* popover in the header.
+- **Tile → editor morph**: opening a template grows its tile into the editor stage (where the browser supports view transitions).
+- Keyboard: arrow keys move across the grid, Enter opens a template.
+
 ## [0.3.0] — 2026-09-27 — Template wave 1
 
 Twenty-one new templates — 25 in all, every one in four formats, three Looks, three energies and your brand colors — plus built-in imagery that makes them look finished before you add anything, and better image handling in the editor.

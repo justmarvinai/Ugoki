@@ -88,6 +88,16 @@ Reduced motion: hero shows a static frame with a play button; the reel becomes a
 
 **Open a template**: the tile morphs into the editor stage (View Transition). Keyboard: arrow keys move focus across the grid, `Enter` opens.
 
+*Phase 4 build* (what shipped, and where it differs):
+- **Pages**: the gallery is the `/templates` layout, so header, nav, tiles, render worker, personalization and search stay put while moving between `/templates` and the ten prerendered category pages; each page contributes only its H1 and intro (and metadata).
+- **Search** sits at the end of the sticky category nav (on phones, a search button opens it over the tabs) — the header keeps just its four items. It filters the current page's templates; on a category page, an empty result links to the matches in all templates. The empty message uses typographic quotes, and its three suggestions are buttons.
+- **Grid**: minimum tile widths 360 (16:9) · 220 (9:16) · 280 (1:1) · 250 px (4:5) — six columns of 16:9 and ten of 9:16 at 2560 px, one column on phones in every format.
+- **Look dots** are a pointer-only aid (hidden from assistive technology; the editor has the Looks): pointing at one previews it on the tile, and clicking then opens the editor in that Look (`?look=`).
+- **Playback**: idle tiles show the poster; hover and keyboard focus play from the start; up to eight tiles nearest the pointer (or the viewport center) play at 30 fps, fewer when the worker reports costlier frames (none if a poster costs over 12 ms); phones play only the tile nearest the center; reduced motion plays on hover/focus only. Ambient previews loop the whole template, lead-in included.
+- **Personalization and format** carry into the editor as `?headline=`, `?format=` (and `?look=`), which the editor applies — sanitized by the worker — and then removes from the address bar. They persist for the tab in `sessionStorage` (read synchronously, so tiles start with the text) rather than the `prefs` table. Templates without a primary text (logos, transitions) keep their own words.
+- **Continue where you left off** shows on *All* only (not on category pages or during a search): up to four drafts as live tiles in their own formats, with Duplicate and Delete in a menu. *Recent* lists up to eight drafts with their stored stills.
+- **Morph**: opening a tile hands the editor a still of the design at its poster frame, which fills the stage frame until the editor's worker paints — no blank stage in between; going back, the stage morphs into the tile. The gallery's worker stays warm for two minutes after leaving, so tiles repaint at once on return.
+
 ---
 
 ## 6. Editor (`/editor/[templateId]`)

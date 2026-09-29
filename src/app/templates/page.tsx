@@ -1,15 +1,13 @@
 import type { Metadata } from 'next';
-import { TemplateChooser } from '@/features/gallery/chooser';
+import { ALL_PAGE } from '@/features/gallery/catalog';
+import { GalleryIntro } from '@/features/gallery/intro';
 
 export const metadata: Metadata = {
-  title: 'Templates',
-  description: 'Art-directed motion templates: pick one, make it yours, export in your browser.',
+  title: ALL_PAGE.title,
+  description: ALL_PAGE.description,
 };
 
-/**
- * Choose a template. A plain list for now — the gallery with live previews and categories
- * arrives with the gallery phase (docs/02-experience.md §5).
- */
+/** Every template (docs/02-experience.md §5); the gallery itself is the layout. */
 export default function TemplatesPage() {
-  return <TemplateChooser />;
+  return <GalleryIntro heading={ALL_PAGE.heading} intro={ALL_PAGE.intro} />;
 }

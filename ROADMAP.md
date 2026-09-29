@@ -127,14 +127,16 @@
 
 ## Phase 4 — Gallery → `0.4.0`
 
-- [ ] Shared renderer for tiles (`bitmaprenderer`), per-frame budget scheduler, poster frames, hover/ambient playback
-- [ ] Category navigation, category pages (SEO copy), search (names, tags, use cases)
-- [ ] Format control re-laying out all tiles live
-- [ ] "Type a headline" personalization carried into the editor
-- [ ] Recent drafts row + popover
-- [ ] Tile → editor morph (React `<ViewTransition>`)
+- [x] Shared renderer for tiles (`bitmaprenderer`), per-frame budget scheduler, poster frames, hover/ambient playback
+- [x] Category navigation, category pages (SEO copy), search (names, tags, use cases)
+- [x] Format control re-laying out all tiles live
+- [x] "Type a headline" personalization carried into the editor
+- [x] Recent drafts row + popover
+- [x] Tile → editor morph (React `<ViewTransition>`)
 
 **Exit**: smooth scrolling (≥ 55 fps) with ambient previews on the reference desktop at 2560 × 1440 (6 columns); flows A and C pass e2e.
+
+*Status*: done — 2026-09-29. The gallery (`/templates` + ten category pages) shows every template as a live tile on one render worker (ADR-039); scrolling measured ~60 fps on the main thread with eight ambient tiles at 2560 × 1440 in the container's software-rendered Chromium (the reference desktop check happens with the owner's review); flows A and C pass e2e (`tests/e2e/gallery.spec.ts`). Search filters the current page (an empty category result links to matches across all templates); Look dots are pointer-only (keyboard users pick Looks in the editor).
 
 ---
 
