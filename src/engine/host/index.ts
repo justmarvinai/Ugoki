@@ -40,7 +40,12 @@ export {
 export type { Backdrop } from '../runtime/backdrop';
 export type { Capabilities, EncoderSupport } from '../runtime/capabilities';
 export { CATEGORIES, type CategoryId, categoryName } from '../template/categories';
-export type { Control, ControlSchema, ImageControl } from '../template/controls';
+export {
+  type Control,
+  type ControlSchema,
+  type ImageControl,
+  primaryTextKey,
+} from '../template/controls';
 export type { TemplateDescriptor } from '../template/describe';
 export {
   createFrame,
@@ -75,6 +80,7 @@ export type {
   QualityMode,
   TransferableGraphic,
   ViewId,
+  ViewRole,
   ViewSize,
   WorkerMessage,
 } from './protocol';

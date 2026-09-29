@@ -11,6 +11,7 @@ import type {
   QualityMode,
   TransferableGraphic,
   ViewId,
+  ViewRole,
   ViewSize,
   WorkerMessage,
 } from './protocol';
@@ -44,9 +45,19 @@ export class RenderClient {
     endpoint.addEventListener('message', this.receive);
   }
 
-  /** Hands a canvas to the worker; pass `canvasElement.transferControlToOffscreen()`. */
-  attach(view: ViewId, canvas: OffscreenCanvas, size: ViewSize, interactive = false): void {
-    this.send({ type: 'attach', view, canvas, size, interactive }, [canvas]);
+  /**
+   * Hands a canvas to the worker; pass `canvasElement.transferControlToOffscreen()`. `interactive`
+   * views report editable regions (the editor stage); `role: 'tile'` suits gallery tiles.
+   */
+  attach(
+    view: ViewId,
+    canvas: OffscreenCanvas,
+    size: ViewSize,
+    options: boolean | { interactive?: boolean; role?: ViewRole } = false,
+  ): void {
+    const { interactive = false, role = 'stage' } =
+      typeof options === 'boolean' ? { interactive: options } : options;
+    this.send({ type: 'attach', view, canvas, size, interactive, role }, [canvas]);
   }
 
   detach(view: ViewId): void {
@@ -93,6 +104,16 @@ export class RenderClient {
 
   setQuality(views: Views, mode: QualityMode): void {
     this.send({ type: 'setQuality', views: list(views), mode });
+  }
+
+  /** Views out of sight neither build nor render until they're visible again. */
+  setVisible(views: Views, visible: boolean): void {
+    this.send({ type: 'setVisible', views: list(views), visible });
+  }
+
+  /** Caps playback frame rate (ambient previews); null = the display's rate. */
+  setFrameRate(views: Views, fps: number | null): void {
+    this.send({ type: 'setFrameRate', views: list(views), fps });
   }
 
   /** What shows behind transparent designs in these views (preview only). */
