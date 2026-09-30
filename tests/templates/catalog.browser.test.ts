@@ -26,6 +26,9 @@ const MOVING_BACKGROUND: Readonly<Record<string, string>> = {};
 const END_CARD: Readonly<Record<string, string>> = {
   sheen: 'ends on the lit logo unless Out is on',
   bounce: 'ends on the landed logo unless Out is on',
+  draw: 'ends on the inked logo unless Out is on',
+  shards: 'ends on the assembled logo unless Out is on',
+  resolve: 'ends on the resolved logo unless Out is on',
 };
 
 const alphaIs = (frame: Frame, test: (alpha: number) => boolean) => {

@@ -749,7 +749,10 @@ export class CanvasDraw implements Draw {
   ): void {
     for (const shape of graphic.shapes) {
       const alpha = opacity * shape.opacity;
-      const fill = tint ?? (shape.fill === 'current' ? (current ?? BLACK) : shape.fill);
+      // A tint recolors the paint a shape has; it never adds a fill or stroke the artwork lacks.
+      const paint = (value: typeof shape.fill) =>
+        value === null ? null : (tint ?? (value === 'current' ? (current ?? BLACK) : value));
+      const fill = paint(shape.fill);
       if (fill) {
         this.path(shape.path, {
           fill,
@@ -757,7 +760,7 @@ export class CanvasDraw implements Draw {
           opacity: alpha * shape.fillOpacity,
         });
       }
-      const strokeColor = tint ?? (shape.stroke === 'current' ? (current ?? BLACK) : shape.stroke);
+      const strokeColor = paint(shape.stroke);
       if (strokeColor) {
         this.path(shape.path, {
           stroke: {
