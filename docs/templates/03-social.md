@@ -88,6 +88,12 @@ Category slug: `social` · Conventions: [`00-foundations.md`](00-foundations.md)
 
 **Engine needs.** UI kit (bubbles, header, indicator) · sequence builder · spring scroll · morphing rounded rects. User emoji render with the system emoji font (documented; defaults contain none).
 
+**Implementation notes (Phase 5, `src/templates/social/chat`).**
+- *Script*: one message per line in a single Messages control (up to 8). A line starting with `Me:` is yours, `Them:` — or the contact's name, e.g. `Maya:` — theirs; a line without a prefix keeps the previous sender (the first defaults to Them). Controls add *Status* (under the name; shows "typing…" while they type).
+- *Stage*: the messenger is a UI Kit panel (radius 30 UI px, elevation 2) floating on the palette's background, sized so message text is 4.5u (9:16), 4.3u (4:5), 4.2u (1:1); the whole UI is set in the pairing's text face (Mona Sans by default; `editorial` gives Inter). The panel hugs short threads (9:16) and in vertical formats its composer may sit below the social zone — the newest bubble always ends above it.
+- *Thread*: anchored to the composer like a real messenger — every item's slot (and the gap above it) opens on the Energy's spring, which is the scroll. Received messages: the indicator pops in, its dots bounce, then it morphs (width and height springs) into the bubble while the text fades in, clipped by the growing shape. Sent messages are typed into the composer first (seeded rhythm, ~0.4–1.1 s) and rise out of it. Tails pass down a group point by point; the read receipt appears under your last message when they start typing; the reaction badge overlaps the last bubble's bottom corner and the thread makes room for it.
+- *Timing*: Auto = entrance + conversation + 1.5 s end hold + exit (6–20 s). A fixed duration stretches the reading gaps (≤ 3×) and typing (≤ 1.5×) and gives the rest to the final hold, or shortens gaps, then typing, then the final hold (≥ 0.8 s). Pace: Chill ×1.3 · Normal ×1 · Hyper ×0.75. The poster (5.45 s) shows the last reply being typed — a one-message chat still shows its message there, before its exit.
+
 ---
 
 ## 3.3 Listicle — *numbered tips*
@@ -152,11 +158,18 @@ Category slug: `social` · Conventions: [`00-foundations.md`](00-foundations.md)
 
 **Defaults.** `Morning person or night owl?` · `SUNRISE` 41% · `MIDNIGHT` 59%
 
-**Looks.** Tangerine vs Cobalt · Ink vs Paper · Candy vs Acid
+**Looks.** Tangerine vs Indigo · Ink vs Paper · Candy vs Lemon *(see the notes: one palette can't hold tangerine and cobalt, or candy and acid)*
 
 **The expensive detail.** The winner push is a spring, so the layout feels physical; percentages count in tabular figures and land on their final value on the same frame the bars stop.
 
 **Engine needs.** Polygon splits · springs on layout · number formatting.
+
+**Implementation notes (Phase 5, `src/templates/social/versus`).**
+- *Colors*: a design has one palette, so the two fields are two of its roles, chosen by *A/B colors* (Background · Accent, Accent · Accent 2, Background · Text, Background · Accent 2); each field's text takes the palette role that contrasts most with it (≥ 4.5:1), the VS badge the role that stands out on both fields. The Looks follow: Tangerine (bg vs its deep-indigo accent), Ink (bg vs fg — ink vs paper), Candy (bg vs its lemon accent 2).
+- *Split*: Auto · Straight · Diagonal. Auto is straight in 9:16 and 16:9, diagonal (a tilted seam, 7–8°) in 1:1 and 4:5. 9:16, 4:5 and 1:1 stack the options (question on top, A above, B below) so labels get the full width; 16:9 sets them side by side and the question crosses the seam in both fields' inks. The seam passes through a computed center, and the labels (one size for both) shrink until question, both options, the badge's clearance and the push all fit.
+- *Motion*: the video starts and ends on the winner's color (A without results or on a tie): the other field slides in (the seam lands with a 2-frame shake), and at the end the seam wipes across it — so frame 0 and the last frame match. Each option gets a vote pill with the hint ("Tap to vote", optional) that pulses twice; with results it narrows into the result bar. Bars and counts share one progress, and a count shows its final value only once its bar is within 0.35 units of the end. The push (6% of the frame along the split) is the Energy's spring; both sides give way by half of it, the badge rides the seam, the winner's check draws on and the loser's field darkens (OKLCH lightness) while its content fades to 75%. Without results the pills keep pulsing through the hold.
+- *Images*: an *Images* toggle (off by default — the default question has no cut-outs) shows an object cut-out above each label.
+- *Timing*: results start a third into the hold (≥ 0.35 s), bars fill in up to 1.2 s (Calm 1.4, Punchy 0.95 with `snap`).
 
 ---
 
