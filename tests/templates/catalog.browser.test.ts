@@ -75,6 +75,8 @@ for (const entry of TEMPLATES) {
   const formats = template.formats as readonly FormatId[];
   const alpha = template.alpha !== 'none';
   const endsEmpty = !(template.id in END_CARD);
+  // A seamless loop has content on every frame; the loop-seam check covers its edit points.
+  const clearEdges = alpha && template.structure !== 'loop';
 
   describe(entry.name, () => {
     it('is deterministic', async () => {
@@ -105,8 +107,12 @@ for (const entry of TEMPLATES) {
           }
           if (alpha) {
             const clear = await build(template, { ...state, transparent: true });
-            expect(empty(render(clear, 0, SCALE))).toBe(true);
-            if (endsEmpty) expect(empty(render(clear, clear.timeline.duration, SCALE))).toBe(true);
+            if (clearEdges) {
+              expect(empty(render(clear, 0, SCALE))).toBe(true);
+              if (endsEmpty) {
+                expect(empty(render(clear, clear.timeline.duration, SCALE))).toBe(true);
+              }
+            }
             if (template.structure === 'transition') {
               const cut = clear.timeline.cut ?? Number.NaN;
               for (const t of [cut - 0.025, cut, cut + 0.025]) {
@@ -145,7 +151,7 @@ for (const entry of TEMPLATES) {
         const built = await build(template, { ...base, duration, transparent: alpha });
         const total = built.timeline.duration;
         for (const t of [0.1, 0.35, 0.65, 0.9]) render(built, total * t, SCALE);
-        if (alpha) {
+        if (clearEdges) {
           expect(empty(render(built, 0, SCALE))).toBe(true);
           if (endsEmpty) expect(empty(render(built, total, SCALE))).toBe(true);
         }
