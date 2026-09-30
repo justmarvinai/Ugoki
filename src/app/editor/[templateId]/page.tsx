@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Editor } from '@/features/editor/editor';
+import { pageMetadata, templateDescription } from '@/features/site/metadata';
 import { TEMPLATES } from '@/templates/registry';
 
 /** One prerendered editor per template (docs/05-architecture.md §5); anything else is a 404. */
@@ -16,12 +17,13 @@ export async function generateMetadata({
   params,
 }: PageProps<'/editor/[templateId]'>): Promise<Metadata> {
   const entry = entryOf((await params).templateId);
-  return {
-    title: entry ? `${entry.name} — ${entry.tagline}` : 'Editor',
-    description: entry
-      ? `Make ${entry.name} yours: edit the text, colors and timing, and export video in your browser.`
-      : undefined,
-  };
+  if (!entry) return { title: 'Editor' };
+  return pageMetadata({
+    title: `${entry.name} — ${entry.tagline}`,
+    description: templateDescription(entry),
+    path: `/editor/${entry.id}`,
+    og: `template-${entry.id}`,
+  });
 }
 
 /**

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CATEGORY_PAGES, categoryPage } from '@/features/gallery/catalog';
 import { GalleryIntro } from '@/features/gallery/intro';
+import { pageMetadata } from '@/features/site/metadata';
 
 /** One prerendered page per category (docs/05-architecture.md §5); anything else is a 404. */
 export const dynamicParams = false;
@@ -15,11 +16,12 @@ export async function generateMetadata({
 }: PageProps<'/templates/[category]'>): Promise<Metadata> {
   const page = categoryPage((await params).category);
   if (!page) return {};
-  return {
+  return pageMetadata({
     title: page.title,
     description: page.description,
-    alternates: { canonical: `/templates/${page.id}` },
-  };
+    path: `/templates/${page.id}`,
+    og: `templates-${page.id}`,
+  });
 }
 
 /** A category's heading and intro; the gallery (the layout) shows its templates. */
