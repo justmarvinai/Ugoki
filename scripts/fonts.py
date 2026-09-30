@@ -10,6 +10,9 @@ Downloads pinned SIL OFL font sources (SHA-256 verified), instances and subsets 
   public/fonts/licenses/<source>.txt      License texts that must accompany the fonts.
   src/engine/text/font-manifest.json      Engine font registry data (files, axes, metrics, credits).
 
+`pnpm fonts --only <file.woff2>` rebuilds just that interface font (and its license text), leaving
+every other output untouched — e.g. `pnpm fonts --only ugoki-jp.woff2` for the 動き signature.
+
 OFL compliance: subsetting/instancing creates a "Modified Version". Sources that declare a Reserved
 Font Name (e.g. Mona Sans reserves "Mona") are renamed in every name record except the ones that
 credit the original (copyright, trademark, designer, vendor, license). The script refuses to build a
@@ -20,6 +23,7 @@ Outputs are deterministic (no timestamps), so re-running without changes produce
 
 from __future__ import annotations
 
+import argparse
 import gzip
 import hashlib
 import io
@@ -202,6 +206,14 @@ SOURCES: dict[str, dict] = {
         "credit": "Unbounded by the Unbounded Project Authors (NaN)",
         "reserved_name": None,
     },
+    "m-plus-1": {
+        "url": f"{GF}/mplus1/MPLUS1%5Bwght%5D.ttf",
+        "sha256": "32dab296a06c3e87841ecd2bc9912434a964ad541e22ea19f764969dae93fced",
+        "license_url": f"{GF}/mplus1/OFL.txt",
+        "license_sha256": "04971e3fcee60b247395150d93b3616f6a0b092572332c96187b472976553abc",
+        "credit": "M PLUS 1 by the M+ FONTS Project Authors (Coji Morishita)",
+        "reserved_name": None,
+    },
 }
 
 # Latin + Latin Extended-A (German, French, Nordic, Polish, Czech, Turkish, …), Romanian,
@@ -264,6 +276,16 @@ UI_FONTS = [
         "source": "mona-sans-mono",
         "limits": {"wght": (350, 700)},
         "rename": "Ugoki Mono",
+    },
+    {
+        # 動き, the quiet signature in the footer (docs/03-design-system.md §2): two glyphs, one
+        # static weight. M PLUS 1 declares no Reserved Font Name, so it keeps its name.
+        "file": "ugoki-jp.woff2",
+        "source": "m-plus-1",
+        "limits": {"wght": 500},
+        "rename": None,
+        "unicodes": "U+52D5,U+304D",
+        "update_names": True,
     },
 ]
 
@@ -330,9 +352,16 @@ def check_reserved(font: TTFont, source_key: str) -> None:
             sys.exit(f"{source_key}: reserved name still present in name ID {record.nameID}")
 
 
-def build(font: TTFont, limits: dict, flavor: str | None) -> TTFont:
+def build(
+    font: TTFont,
+    limits: dict,
+    flavor: str | None,
+    unicodes: str = UNICODES,
+    update_names: bool = False,
+) -> TTFont:
     if limits and "fvar" in font:
-        font = instancer.instantiateVariableFont(font, limits)
+        # update_names renames a static instance after its weight (needs a STAT table).
+        font = instancer.instantiateVariableFont(font, limits, updateFontNames=update_names)
         # Round-trip through bytes: subsetting a lazily loaded, freshly instanced gvar can fail
         # (KeyError on glyph variations) in fontTools 4.60.
         font.recalcTimestamp = False
@@ -347,7 +376,7 @@ def build(font: TTFont, limits: dict, flavor: str | None) -> TTFont:
     options.drop_tables += ["DSIG"]
     options.flavor = flavor
     subsetter = subset.Subsetter(options)
-    subsetter.populate(unicodes=subset.parse_unicodes(UNICODES))
+    subsetter.populate(unicodes=subset.parse_unicodes(unicodes))
     subsetter.subset(font)
     font.flavor = flavor
     return font
@@ -381,8 +410,44 @@ def metrics_of(font: TTFont) -> dict:
     }
 
 
+def build_ui_font(spec: dict) -> None:
+    font, license_text = load_source(spec["source"])
+    (LICENSE_OUT / f"{spec['source']}.txt").write_text(license_text, encoding="utf-8")
+    font = build(
+        font,
+        spec["limits"],
+        "woff2",
+        spec.get("unicodes", UNICODES),
+        spec.get("update_names", False),
+    )
+    if spec["rename"]:
+        rename(font, spec["source"], spec["rename"])
+    check_reserved(font, spec["source"])
+    data = to_bytes(font)
+    (UI_OUT / spec["file"]).write_bytes(data)
+    print(f"  ui     {spec['file']:48} {len(data) / 1024:6.1f} KB (woff2)")
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Build Ugoki's fonts from pinned sources.")
+    parser.add_argument(
+        "--only",
+        metavar="FILE",
+        action="append",
+        choices=[spec["file"] for spec in UI_FONTS],
+        help="rebuild only this interface font (repeatable); nothing else is touched",
+    )
+    args = parser.parse_args()
     CACHE.mkdir(parents=True, exist_ok=True)
+
+    if args.only:
+        LICENSE_OUT.mkdir(parents=True, exist_ok=True)
+        UI_OUT.mkdir(parents=True, exist_ok=True)
+        for spec in UI_FONTS:
+            if spec["file"] in args.only:
+                build_ui_font(spec)
+        return
+
     for directory in (ENGINE_OUT, LICENSE_OUT):
         if directory.exists():
             shutil.rmtree(directory)
@@ -419,14 +484,7 @@ def main() -> None:
         print(f"  engine {name:48} {len(data) / 1024:6.0f} KB → gz {len(packed) / 1024:5.0f} KB")
 
     for spec in UI_FONTS:
-        font, license_text = load_source(spec["source"])
-        (LICENSE_OUT / f"{spec['source']}.txt").write_text(license_text, encoding="utf-8")
-        font = build(font, spec["limits"], "woff2")
-        if spec["rename"]:
-            rename(font, spec["source"], spec["rename"])
-        data = to_bytes(font)
-        (UI_OUT / spec["file"]).write_bytes(data)
-        print(f"  ui     {spec['file']:48} {len(data) / 1024:6.0f} KB (woff2)")
+        build_ui_font(spec)
 
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

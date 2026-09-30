@@ -25,6 +25,7 @@
     "test:watch": "vitest --project unit",
     "test:e2e": "playwright test",
     "fonts": "python3 scripts/fonts.py",
+    "licenses": "node scripts/licenses.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
