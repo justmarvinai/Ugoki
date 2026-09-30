@@ -2,7 +2,7 @@
 
 > From plan to v1.0: eight phases, each ending in a working, reviewable increment on a Vercel preview URL. Checkboxes are updated as work lands. Specs live in [`docs/`](docs/).
 
-**Now**: Phase 2 — editor & export MVP is in progress. Phase 1 shipped as 0.1.0 (merged 2026-09-26; the owner checked the Lab on the preview, O6). Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
+**Now**: Phase 5 — template wave 2 is done (50 templates), awaiting the owner's review together with Phase 4 (gallery). Phases 1–3 shipped as 0.1.0–0.3.0. Next: Phase 6 — landing, brand & legal. Decisions: [`USER_QUESTIONS.md`](USER_QUESTIONS.md).
 
 | Phase | Outcome | Version |
 |---|---|---|
@@ -144,18 +144,20 @@
 
 **Engine additions**: 3D planes (perspective, depth sort, depth blur) · variable-axis text + width solver · SVG vector effects (trim-draw) · Delaunay shards · noise paths & droplets · beat grid · split-flap renderer · backdrop blur for UI panels · *Screens* placeholders (UI Kit renders, from Phase 3) · Anybody font for *Stretch*.
 
-- [ ] Stretch · Echo
-- [ ] Editorial · Signal
-- [ ] Chat · Versus
-- [ ] Callouts · Reveal · Compare
-- [ ] Float · Ring · Zoom
-- [ ] Manifesto · Pattern
-- [ ] Hype · Grid · Departures
-- [ ] Liquid · Sweep
-- [ ] Draw · Shards · Resolve
-- [ ] Notify · Scroll · Command
+- [x] Stretch · Echo
+- [x] Editorial · Signal
+- [x] Chat · Versus
+- [x] Callouts · Reveal · Compare
+- [x] Float · Ring · Zoom
+- [x] Manifesto · Pattern
+- [x] Hype · Grid · Departures
+- [x] Liquid · Sweep
+- [x] Draw · Shards · Resolve
+- [x] Notify · Scroll · Command
 
 **Exit**: 50/50 templates pass the quality bar and golden frames.
+
+*Status*: done — 2026-09-30. All 50 templates are registered and pass the shared checks (`tests/templates/catalog.browser.test.ts`: every format, Look, energy and duration limit, determinism, clean edit points, loops, transition coverage, title-safe text with stress text) and have golden frames; each was built against contact sheets. New engine pieces: seeded simplex noise, `pathLength`, the space module (3D planes on Canvas 2D, ADR-040), UI Kit screens, phone, notifications, frosted glass, inertial scroll, spring chains and streaming text; Anybody joins the fonts. Frame costs were measured in the container's software renderer only — the heaviest (Notify, Command, Hype's whip pans, the 3D showcase) get their reference-desktop check in the owner's review.
 
 ---
 

@@ -239,6 +239,12 @@ Status legend: **Accepted** — technical decisions delegated to us by the brief
 **Why**: Live renders are the product's proof (no pre-rendered videos to host or keep in sync, €0), and one worker with one GPU context avoids browsers' context limits. Keeping the gallery in a layout avoids re-creating 25+ views on every category click.
 **Consequences**: The gallery's first visit loads the fonts of the Looks on screen (≈ 1 MB, cached forever). Posters appear as the worker builds them, nearest first. The measured bound in the container (software rendering): main-thread scrolling at ~60 fps with eight ambient tiles at 2560 × 1440.
 
+### ADR-040 — 3D planes are drawn with Canvas 2D, not WebGL2
+**Status**: Accepted · 2026-09-30 (Phase 5)
+**Decision**: The showcase templates' perspective (Float, Ring, Zoom) comes from the space module (`src/engine/space`, docs/06-engine.md §6): a CSS-style camera and 3D transforms, faces cut into affine-mapped triangles whose count adapts per frame so perspective error stays under a pixel, depth sorting, back-face culling, per-plane dim and blur through `g.fx`, and contact shadows drawn in the floor's own coordinates. Rich faces (app screens) are rasterized once in `build`. The planned `g.plane3d` in the WebGL2 compositor is dropped.
+**Why**: Planes must interleave with everything else a template draws (text, shadows, masks), which a separate GL pass would split into layers; the 2D path draws the same in every browser and worker (preview = export) and adds no GL state or shaders. Piecewise-affine texturing is exact at every triangle corner, and the adaptive grid keeps frontal planes at one draw.
+**Consequences**: Oblique, large planes cost more draw calls (≤ 240 cells each), so faces keep per-triangle drawing light and effects stay bounded. Planes that intersect each other aren't supported (painter's order); templates arrange them so they don't.
+
 ---
 
 ## Phase 1 spike results (2026-09-26)

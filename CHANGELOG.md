@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-30 — Template wave 2
+
+Twenty-five new templates complete the library: 50 in all, each in four formats with three Looks, three energies and your brand colors, and each rendered on your device.
+
+### Added
+
+- **Titles**: **Stretch** (poster type whose lines always fill the width exactly; the letters breathe in width while the line stays locked; set in Anybody) and **Echo** (a bold line with outlined copies stacking above and below it).
+- **Lower thirds**: **Editorial** (an italic serif name over a hairline rule and a tracked title) and **Signal** (a tech HUD with corner brackets, a mono data line and a blinking REC/LIVE dot).
+- **Social**: **Chat** (an unbranded message thread with a typing indicator and read receipt; its length follows the conversation) and **Versus** (two options split by a VS badge, with animated poll results).
+- **Product & ads**: **Callouts** (a product with engineering-drawing leader lines to its features), **Reveal** (a product emerging from darkness in a moving light, with a floor reflection) and **Compare** (before/after images with a sliding divider).
+- **Showcase**: **Float** (a generic phone showing an app screen, turning in 3D above a soft contact shadow), **Ring** (a 3D carousel of artworks with depth of field) and **Zoom** (a camera pushing through a grid of images into the hero shot).
+- **Brand & quotes**: **Manifesto** (short statements in alternating type treatments, ending on your logo) and **Pattern** (geometric tiles in brand colors flipping in waves, then clearing for the logo).
+- **Openers**: **Hype** (fast cuts on a beat grid ending on the channel name), **Grid** (a Swiss grid poster that assembles itself) and **Departures** (a split-flap departure board with real flap physics).
+- **Transitions**: **Liquid** (an organic wave with droplets that covers the frame at the cut) and **Sweep** (a giant word dragging a color across the frame).
+- **Logo**: **Draw** (the logo drawn with a pen, then filled in), **Shards** (fragments flying in from depth and locking together with a flash and a shockwave) and **Resolve** (a pixel mosaic refining into the logo, with an RGB split and a scanline).
+- **UI motion**: **Notify** (notifications stacking on a lock screen, frosted over the wallpaper), **Scroll** (a phone scrolled in natural flicks, with captions pointing at what matters) and **Command** (a command bar whose AI answer streams in word by word).
+- **Built-in app screens** (finance, feed, analytics, chat, settings) on a generic phone, used as placeholders by Float and Scroll until you add your own screenshot.
+
+### Fixed
+
+- Logos shown in mono or accent colors no longer gain fills or outlines that the artwork doesn't have.
+
 ## [0.4.0] — 2026-09-29 — Gallery
 
 Every template, alive: the gallery shows each one as a live render you can personalize before you open it.

@@ -123,7 +123,7 @@ Dependencies are added with the feature that uses them: Phase 1 installs the fra
 │   │   ├── not-found.tsx · sitemap.ts · robots.ts                   (Phase 6)
 │   ├── engine/                    # framework-agnostic, DOM-free, worker-safe (see 06-engine.md)
 │   │   ├── core/ template/ timeline/ draw/ text/ runtime/ host/   (Phase 1)
-│   │   ├── assets/ compositor/ ui-kit/ export/                    (Phase 2+)
+│   │   ├── assets/ compositor/ ui/ export/ space/                 (Phase 2+; ui = UI Kit, space = 3D planes)
 │   │   └── index.ts               # the public engine API templates may import
 │   ├── templates/                 # the 50 templates
 │   │   ├── registry.ts            # metadata (tiny, server-safe) + lazy loaders
