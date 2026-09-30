@@ -70,8 +70,9 @@ Category slug: `product-ads` · Conventions: [`00-foundations.md`](00-foundation
 - `6.30–7.00` Labels fade, lines retract into anchors, dots shrink, product fades.
 
 **Controls**
-- Content: Product image · Title (optional) · Callouts (2–4: title, detail, **anchor point picked on the stage**, side Auto/Left/Right)
+- Content: Product image · Title (optional) · Callouts 1–4 (title, detail; a callout with neither is hidden — 3 by default)
 - Style: Line style (Straight · Elbow) · Dot style (Solid · Ring)
+- Layout: per callout, the anchor point (X · Y, % of the product's box) and side (Auto · Left · Right)
 
 **Defaults.** Object *speaker* · Title `Nova One` · `40-hour battery` — *All week, on one charge.* · `Spatial audio` — *Sound that fills the room.* · `Recycled aluminium` — *Built to last longer.*
 
@@ -79,7 +80,9 @@ Category slug: `product-ads` · Conventions: [`00-foundations.md`](00-foundation
 
 **The expensive detail.** Labels auto-distribute vertically to avoid overlaps and leader lines keep consistent angles — precision reads as premium.
 
-**Engine needs.** Point controls (stage picking) · label layout solver · trim paths.
+**Implementation notes.** The engine has no point control yet, so each anchor is two number controls (X/Y as a share of the product's ink box: the dot stays on the same feature in every format and size); clicking a dot on the stage focuses them. *Auto* sides take the side nearer the anchor, then the columns are balanced (never more than one label apart) by moving the automatic label whose anchor sits nearest the middle. Each column is solved exactly: labels in anchor order, never overlapping, inside the column, each as near as the others allow (least squares) to where it wants to sit — a little away from the product's middle, so leaders fan out. Leaders are a 45° leg out of the anchor and a level run into the label (a leader that would almost level off levels off; only a label moved further than its run allows steepens its leg); a stack taller than its column shrinks its labels first. Where a leader or dot crosses the product it gets a thin casing in `bg`, so it reads on dark and light products. The title slides out of the leader's end (clipped there) and back into it on the exit. Title and product are one group, centered in the free height; label columns sit a gutter from the product, symmetric around the layout area's middle.
+
+**Engine needs.** Point controls (stage picking — number controls until then) · label layout solver · trim paths.
 
 ---
 
@@ -112,6 +115,8 @@ Category slug: `product-ads` · Conventions: [`00-foundations.md`](00-foundation
 
 **The expensive detail.** One light does all the work: a soft gradient mask with a brighter leading edge sells "premium launch" without any extra decoration.
 
+**Implementation notes.** The band travels up at a slight tilt (−7°). Its matte lights the product from below with a soft ramp; the leading edge is the product itself under the light — brightened and cast in the light's color — plus a glow of its brightest parts (metal and print glint as the band crosses them). Both images, and the floor reflection (the lower third of the product flipped, faded from 30%, blurred), are baked once in `build`, so a frame only masks them (vector artwork falls back to live `fx`). The reflection comes up as the light reaches the product's foot; the haze (a 5% radial glow) lifts a little while the band crosses. Hold passes: every 3 s (Calm 4 s, Punchy 2 s) once the hold has room for a whole pass. 16:9 sets product and type side by side as one centered lockup; the other formats stack product, reflection and centered type. Calm softens the edge, Punchy sharpens it and snaps the sweep and the tracking. The name keeps the user's case (all caps get +6% tracking).
+
 **Engine needs.** Gradient masks · reflection (flip + fade + blur) · tracking animation.
 
 ---
@@ -142,6 +147,8 @@ Category slug: `product-ads` · Conventions: [`00-foundations.md`](00-foundation
 **Looks.** Paper · Ink · Mono Light
 
 **The expensive detail.** Overshoot-then-settle divider motion, and images aligned by their focal points so the comparison is truthful.
+
+**Implementation notes.** The sweep uncovers *After* from the left edge, so *After* sits left of the divider (above it when vertical) and ends the spot when the divider sweeps home. Both pictures are placed with their focal points on the same spot of the card (the mean of where each would sit on its own), each still covering it; pictures of the same proportions share one size, and focal points too far apart for a modest zoom fall back to each picture's own cover crop. When both slots hold the same picture (the default: *Scene* Alpine), *Before* shows it flat — lifted, low-contrast, muted, a grey cast, baked once in `build` — against the graded original. The settle spring follows Energy (Calm `heavy` from 75%, Balanced `snappy` from 85%, Punchy `lively` from 90%); the hold drifts ±4% (Calm ±3%). Labels are two text fields; each pill is clipped to its own side, and *After* pops when the sweep uncovers its middle. Vertical formats keep the card symmetric inside the social zone.
 
 **Engine needs.** Image focal points · clip by divider · color adjustments (for the default pair) · springs.
 
