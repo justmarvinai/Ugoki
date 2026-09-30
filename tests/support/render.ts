@@ -9,7 +9,7 @@ import type { EditableRegion } from '@/engine/draw/types';
 import { type BuiltScene, buildScene, renderScene } from '@/engine/runtime/scene';
 import type { AnyTemplate } from '@/engine/template/define';
 import { isPairingAvailable, PAIRING_IDS, pairingFonts } from '@/engine/template/pairings';
-import type { DesignState } from '@/engine/template/state';
+import { type DesignState, designFonts } from '@/engine/template/state';
 import { createTextEngine, type TextEngineHandle } from '@/engine/text/engine';
 import { createFetchLoader } from '@/engine/text/font-source';
 
@@ -27,7 +27,10 @@ export function textEngine(): Promise<TextEngineHandle> {
 }
 
 export async function build(template: AnyTemplate, state: DesignState): Promise<BuiltScene> {
-  return buildScene(template, state, await textEngine());
+  const text = await textEngine();
+  // Fonts a template declares beyond its pairings (e.g. the UI Kit's Inter, Anybody).
+  await text.load(designFonts(template, state));
+  return buildScene(template, state, text);
 }
 
 export type Frame = {

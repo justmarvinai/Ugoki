@@ -77,6 +77,10 @@ Category slug: `showcase` · Conventions: [`00-foundations.md`](00-foundations.m
 
 **Engine needs.** WebGL2 3D planes · device frames (UI kit) · canvas-to-texture screens.
 
+*Deviation (Phase 5):* the 3D planes are the engine's `space` module (perspective-correct on Canvas 2D, no WebGL2 needed), and screens are painted once into textures (`rasterize`). Screens are three image slots (2 and 3 optional); a slot left on its default (the `object-phone` placeholder — there is no screen placeholder set yet) shows a procedural screen of the fictional finance app (UI Kit: home, analytics, settings; a split view on the tablet; a desktop dashboard on the laptop and in the browser window); any other image shows as it is — a tall one scrolls, several crossfade every 1.8 s.
+
+**Implementation notes.** Devices are slabs: the metal band is shaded facet by facet by a key light (Lambert plus a tight highlight), under a glass face and the display plane. A laptop is seen from above (the whole device pitched toward the camera, lid opened ~115°) so its keyboard shows. The reflection is a band fixed in screen space — the display turns beneath it — plus one slow sweep in the hold. The contact shadow is the device's footprint straight down, a separable blurred box on the floor (foreshortened with it) whose penumbra widens and darkness halves as the height grows; the device starts at the floor and rises into its hover. Energy: the rise is a named spring on a slower clock (Calm `heavy`, Balanced `gentle`, Punchy `snappy`). Right mirrors the layout and the turn; Center stacks the copy above a device turned half as far.
+
 ---
 
 ## 5.3 Ring — *3D carousel*
@@ -107,6 +111,10 @@ Category slug: `showcase` · Conventions: [`00-foundations.md`](00-foundations.m
 **The expensive detail.** Correct depth sorting, back-face culling and depth-of-field by z; captions swap exactly when a card reaches the front.
 
 **Engine needs.** WebGL2 3D planes · depth sort · per-plane blur/dim.
+
+*Deviation (Phase 5):* images are ten slots plus a Cards count (3–10), captions one per line; the planes are the engine's `space` module (Canvas 2D, no WebGL2). A card turned away shows its reverse — the print seen through thin stock, mirrored and veiled — instead of leaving the far side of the ring empty: the renderer still swaps faces by facing, so a front is never seen from behind. Looping, the ring makes one revolution per loop (a step per card: the step period is duration ÷ cards, the turn takes at most 72% of it); with Loop off, steps keep the spec's 0.7 s turn and 0.9 s pause. The title defaults to `Studies in form`.
+
+**Implementation notes.** A level camera with its eye above the ring (a shift lens: verticals stay vertical, the ring opens into an ellipse). Depth of field by z: sharp at the front card's depth, dimmed toward the page and blurred with distance; the far side shares one blur layer. Captions swap in lockstep with the turn — the old one leaves as it starts, the new one lands with its card (Continuous: at the half step, when the next card becomes the front one). Energy: Calm turns on `drift` and crossfades captions, Balanced `snap`, Punchy lands on a `lively` spring. The hold floats the ring (±0.35u) and sways the camera, on a period that divides the loop. With a transparent background, distance fades cards instead of dimming them.
 
 ---
 
@@ -139,6 +147,10 @@ Category slug: `showcase` · Conventions: [`00-foundations.md`](00-foundations.m
 **The expensive detail.** Log-scale zoom avoids the "slow start, explosive end" of linear zooms; gaps scale with zoom so seams stay crisp.
 
 **Engine needs.** 2D camera (zoom/pan/rotate) · log interpolation · distance blur.
+
+*Deviation (Phase 5):* images are a Hero slot (default `scene-dusk`) plus eight grid slots (6–8 optional) — there are six Scenes, so the grid cycles through the filled slots and every repeat gets its own seeded crop, and every other repeat is mirrored, so the wall never looks tiled. Grid size: Auto (4 × 4) · 4 × 4 · 5 × 5 · 6 × 6; the hero sits a third in from the top left. The title may take up to three lines.
+
+**Implementation notes.** Tiles have the frame's proportions, so the hero fills it exactly; gap and radius are set as seen in the wide shot, which covers the frame. The camera zooms about the one point that stays put on screen (scale log-linear, eased with `drift`, `snap` for Punchy) while the tilt straightens. Tiles blur in rings of distance from the hero, one bounded layer per ring on screen. Title and subtitle sit bottom left over a scrim of the palette's darker color, set in its lighter one. Through: the push continues ×1.3 in log space and the frame fades to the page; Back: the camera returns to the wall and the tiles pop away.
 
 ---
 

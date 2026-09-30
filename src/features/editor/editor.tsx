@@ -10,7 +10,14 @@
  */
 
 import { MotionConfig } from 'motion/react';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  ViewTransition,
+} from 'react';
 import { useStore } from 'zustand';
 import { IconButton } from '@/components/button';
 import { Sheet } from '@/components/sheet';
@@ -20,6 +27,8 @@ import {
   type Capabilities,
   categoryName,
   type DesignState,
+  FORMATS,
+  type FormatId,
   type Section,
   type SectionName,
   type TemplateDescriptor,
@@ -37,13 +46,19 @@ import { usePastedImage } from '../assets/paste';
 import { keepPreviewFile } from '../assets/previews';
 import { keepFile, useAutosave } from '../drafts/drafts';
 import { ExportPanel } from '../export/export-panel';
+import { HandoffCover, HandoffStill, useHandoff } from '../gallery/handoff';
 import { ShareButton } from '../share/share-button';
 import { Stage, type StageDropTarget } from '../stage/stage';
 import { STEP, Transport } from '../transport/transport';
 import { EditorInspector } from './editor-inspector';
 import { ShortcutList } from './shortcut-list';
 import { StageOverlay } from './stage-overlay';
-import { type StartingDesign, startingDesign } from './starting-design';
+import {
+  requestedFormat,
+  type StartingDesign,
+  startingDesign,
+  withGalleryChoices,
+} from './starting-design';
 import { FormatStrip, TopBar } from './top-bar';
 import { useRenderClient } from './use-render-client';
 import { useShortcuts } from './use-shortcuts';
@@ -91,6 +106,23 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
   /** How the design was opened (a link, a draft or the template), for the probe's answer. */
   const opening = useRef<StartingDesign | null>(null);
 
+  /** The stage's view-transition name, shared with the gallery tile that opened it. */
+  const morph = useMorphName(entry.id);
+  /**
+   * The format the stage opens in, for its placeholder frame: a gallery link may ask for one
+   * (read before the link's choices leave the address bar; applied once hydrated).
+   */
+  const [requested] = useState(() =>
+    typeof window === 'undefined' ? null : requestedFormat(entry),
+  );
+  const hydrated = useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false,
+  );
+  const handoff = useHandoff(morph);
+  const opensIn: FormatId =
+    handoff?.format ?? (hydrated ? requested : null) ?? entry.formats[0] ?? '16:9';
   const design = useStore(project, (s) => s.design);
   const canUndo = useStore(project, (s) => s.canUndo);
   const canRedo = useStore(project, (s) => s.canRedo);
@@ -123,6 +155,16 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
     switch (message.type) {
       case 'loaded':
         if (message.view !== PROBE) break;
+        // A gallery link's choices (headline, format) go through the probe once more, so the
+        // worker sanitizes them like any other state.
+        if (opening.current?.choices && !resetting.current) {
+          const { choices } = opening.current;
+          opening.current = { ...opening.current, choices: undefined };
+          client?.load(PROBE, entry.id, {
+            state: withGalleryChoices(message.state, message.template, choices),
+          });
+          break;
+        }
         client?.detach(PROBE);
         if (resetting.current) {
           resetting.current = false;
@@ -204,7 +246,15 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
       }
       if (cancelled) return;
       client.attach(PROBE, new OffscreenCanvas(1, 1), { width: 1, height: 1, dpr: 1 });
-      client.load(PROBE, entry.id, start.state === undefined ? {} : { state: start.state });
+      client.load(
+        PROBE,
+        entry.id,
+        start.state !== undefined
+          ? { state: start.state }
+          : start.look !== undefined
+            ? { look: start.look }
+            : {},
+      );
     });
     return () => {
       cancelled = true;
@@ -436,78 +486,85 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
 
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <main className="flex min-h-[56vh] min-w-0 flex-1 flex-col lg:min-h-0">
-            {client && design ? (
-              <Stage
-                client={client}
-                view={STAGE}
-                format={shown?.format ?? design.format}
-                zoom={zoom}
-                checkerboard={transparent}
-                guides={guides}
-                label={summary}
-                onAttach={syncStage}
-                drop={{
-                  target: dropTarget,
-                  onDrop: (file, at) => {
-                    const target = dropTarget(at);
-                    if (target) deliver(target.control, file);
-                  },
-                }}
-                overlay={(box) => (
-                  <StageOverlay
-                    box={box}
-                    names={names}
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              {client && design ? (
+                <ViewTransition name={morph} share={MORPH_CLASS} default="none">
+                  <Stage
+                    client={client}
+                    view={STAGE}
                     format={shown?.format ?? design.format}
-                    project={project}
-                    ui={ui}
-                    onGrab={pause}
-                  />
-                )}
-                controls={
-                  <>
-                    <IconButton
-                      label="Safe areas (G)"
-                      pressed={guides}
-                      onClick={() => ui.getState().toggleGuides()}
-                    >
-                      <GuidesIcon size={18} />
-                    </IconButton>
-                    {design.transparent && (
-                      <IconButton
-                        label={
-                          backdrop.kind === 'none'
-                            ? 'Show the preview backdrop'
-                            : 'Show transparency'
-                        }
-                        pressed={backdrop.kind === 'none'}
-                        onClick={() =>
-                          ui
-                            .getState()
-                            .setBackdrop(
-                              backdrop.kind === 'none'
-                                ? descriptor
-                                  ? defaultBackdrop(descriptor)
-                                  : { kind: 'footage' }
-                                : { kind: 'none' },
-                            )
-                        }
-                      >
-                        <CheckerIcon size={18} />
-                      </IconButton>
+                    zoom={zoom}
+                    checkerboard={transparent}
+                    guides={guides}
+                    label={summary}
+                    onAttach={syncStage}
+                    drop={{
+                      target: dropTarget,
+                      onDrop: (file, at) => {
+                        const target = dropTarget(at);
+                        if (target) deliver(target.control, file);
+                      },
+                    }}
+                    overlay={(box) => (
+                      <StageOverlay
+                        box={box}
+                        names={names}
+                        format={shown?.format ?? design.format}
+                        project={project}
+                        ui={ui}
+                        onGrab={pause}
+                      />
                     )}
-                    <IconButton
-                      label={zoom === 'fit' ? 'Actual size (100%)' : 'Fit to the stage'}
-                      pressed={zoom === 'actual'}
-                      onClick={() => ui.getState().setZoom(zoom === 'fit' ? 'actual' : 'fit')}
-                    >
-                      <FitIcon size={18} />
-                    </IconButton>
-                  </>
-                }
-              />
-            ) : (
-              <StageLoading />
-            )}
+                    controls={
+                      <>
+                        <IconButton
+                          label="Safe areas (G)"
+                          pressed={guides}
+                          onClick={() => ui.getState().toggleGuides()}
+                        >
+                          <GuidesIcon size={18} />
+                        </IconButton>
+                        {design.transparent && (
+                          <IconButton
+                            label={
+                              backdrop.kind === 'none'
+                                ? 'Show the preview backdrop'
+                                : 'Show transparency'
+                            }
+                            pressed={backdrop.kind === 'none'}
+                            onClick={() =>
+                              ui
+                                .getState()
+                                .setBackdrop(
+                                  backdrop.kind === 'none'
+                                    ? descriptor
+                                      ? defaultBackdrop(descriptor)
+                                      : { kind: 'footage' }
+                                    : { kind: 'none' },
+                                )
+                            }
+                          >
+                            <CheckerIcon size={18} />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          label={zoom === 'fit' ? 'Actual size (100%)' : 'Fit to the stage'}
+                          pressed={zoom === 'actual'}
+                          onClick={() => ui.getState().setZoom(zoom === 'fit' ? 'actual' : 'fit')}
+                        >
+                          <FitIcon size={18} />
+                        </IconButton>
+                      </>
+                    }
+                  />
+                </ViewTransition>
+              ) : (
+                <StageLoading format={opensIn} morph={morph} />
+              )}
+              {client && design && (
+                <HandoffCover name={morph} format={design.format} client={client} view={STAGE} />
+              )}
+            </div>
             {notice && (
               <div
                 role="status"
@@ -610,12 +667,50 @@ export function Editor({ entry }: { entry: TemplateEntry }) {
   );
 }
 
-/** The stage while the template loads: the Dot, pulsing (docs/02-experience.md §9). */
-function StageLoading() {
+/** The tile → stage morph's view-transition class (styled with the gallery). */
+const MORPH_CLASS = 'ugoki-morph';
+const noSubscription = () => () => {};
+
+/**
+ * The stage's view-transition name: the gallery tile's that opened it — the template's, or the
+ * draft's (docs/03-design-system.md §9, signature interaction 1).
+ */
+function useMorphName(templateId: string): string {
+  const search = useSyncExternalStore(
+    noSubscription,
+    () => window.location.search,
+    () => '',
+  );
+  const draft = new URLSearchParams(search).get('draft');
+  return draft ? `draft-${draft}` : `template-${templateId}`;
+}
+
+/**
+ * The stage while the template loads (docs/02-experience.md §9): the frame where the design
+ * will appear, with the Dot pulsing. It is fitted like the stage's frame (32 px of room) in CSS
+ * alone, so it is in place in the navigation's first commit — where a gallery tile morphs into
+ * it.
+ */
+function StageLoading({ format, morph }: { format: FormatId; morph: string }) {
+  const { aspect } = FORMATS[format];
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center" aria-live="polite">
+    <div
+      className="flex min-h-0 flex-1 items-center justify-center overflow-hidden [container-type:size]"
+      aria-live="polite"
+    >
       <span className="sr-only">Loading the template…</span>
-      <span aria-hidden="true" className="size-3 animate-pulse rounded-full bg-dot" />
+      <ViewTransition name={morph} share={MORPH_CLASS} default="none">
+        <div
+          className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-[20px] bg-bg-2 ring-1 ring-line"
+          style={{
+            aspectRatio: aspect,
+            width: `max(0px, min(100cqw - 64px, (100cqh - 64px) * ${aspect}))`,
+          }}
+        >
+          <span aria-hidden="true" className="size-3 animate-pulse rounded-full bg-dot" />
+          <HandoffStill name={morph} />
+        </div>
+      </ViewTransition>
     </div>
   );
 }

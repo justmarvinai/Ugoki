@@ -37,7 +37,14 @@ import {
   Tooltip,
   type TooltipOptions,
 } from './components';
+import {
+  LockClock,
+  type LockClockOptions,
+  Notification,
+  type NotificationOptions,
+} from './notification';
 import { BoxShadow } from './shape';
+import { StreamingText, type StreamingTextOptions } from './stream';
 import {
   ELEVATIONS,
   type Elevation,
@@ -78,6 +85,11 @@ export type UiTextOptions = {
   align?: TextAlign;
   /** Shrink down to this size (UI px) to fit `maxWidth` and `maxLines`. */
   minSize?: number;
+  /**
+   * Balanced line breaks (default true). Interfaces wrap greedily — pass false for message
+   * text, and for text that streams in (a greedy layout's prefix never reflows).
+   */
+  balance?: boolean;
 };
 
 export type UiKitOptions = {
@@ -156,6 +168,7 @@ export class UiKit {
         maxLines,
         lineHeight: options.lineHeight ?? UI_TYPE[role].lineHeight,
         align: options.align ?? 'left',
+        balance: options.balance,
         fit: options.minSize !== undefined ? { minSize: options.minSize * this.unit } : undefined,
       });
     const block = layout(text);
@@ -223,6 +236,21 @@ export class UiKit {
 
   tooltip(options: TooltipOptions): Tooltip {
     return new Tooltip(this, options);
+  }
+
+  /** A notification card's content, laid out at (0, 0). */
+  notification(options: NotificationOptions): Notification {
+    return new Notification(this, options);
+  }
+
+  /** A lock screen's date and large time. */
+  lockClock(options: LockClockOptions): LockClock {
+    return new LockClock(this, options);
+  }
+
+  /** Text that streams in token by token (an AI answer). */
+  streamingText(text: string, role: UiTypeRole, options: StreamingTextOptions): StreamingText {
+    return new StreamingText(this, text, role, options);
   }
 
   lineChart(options: LineChartOptions): LineChart {

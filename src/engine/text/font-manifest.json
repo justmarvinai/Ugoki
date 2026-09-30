@@ -141,6 +141,34 @@
       "license": "OFL-1.1",
       "credit": "Archivo by the Archivo Project Authors (Omnibus-Type)"
     },
+    "anybody": {
+      "url": "/fonts/engine/anybody.a42ccdc9b3.ttf.gz",
+      "bytes": 80116,
+      "sha256": "a42ccdc9b376ff5b8c12991dc6e1fab2d4277595e227862353cdaec6583fca5b",
+      "family": "Anybody",
+      "axes": {
+        "wdth": {
+          "min": 50.0,
+          "default": 100.0,
+          "max": 150.0
+        },
+        "wght": {
+          "min": 100.0,
+          "default": 100.0,
+          "max": 900.0
+        }
+      },
+      "metrics": {
+        "upem": 2000,
+        "ascender": 1590,
+        "descender": -480,
+        "lineGap": 0,
+        "capHeight": 1350,
+        "xHeight": 1186
+      },
+      "license": "OFL-1.1",
+      "credit": "Anybody by the Anybody Project Authors (Etcetera Type Co)"
+    },
     "big-shoulders": {
       "url": "/fonts/engine/big-shoulders.15e5d8a732.ttf.gz",
       "bytes": 112098,

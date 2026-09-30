@@ -2,10 +2,10 @@
 
 Ugoki (動き, "movement") is a browser-based motion design tool: users pick an art-directed template, customize it (text, colors, images, timing, layout), preview it live and export video — **rendered entirely on the user's device**. Flow: **Choose → Customize → Preview → Export.**
 
-## Current phase: 3 — Template wave 1
+## Current phase: 5 — Template wave 2
 
 - The owner gave the go-ahead to code on 2026-09-26. Work phase by phase as laid out in `ROADMAP.md`; don't start a new phase's scope without finishing (or explicitly re-planning) the current one.
-- Phases 1 (0.1.0) and 2 (0.2.0) are merged. Phase 3 (scope and exit in `ROADMAP.md`) goes to `main` as one PR. The repo is on Vercel (O3, 2026-09-26): every branch and PR gets a preview deployment (Vercel comments its URL on the PR) — link it in the PR.
+- Phases 1–3 (0.1.0–0.3.0) are merged. Phases 4 and 5 (scope and exit in `ROADMAP.md`) go to `main` together in one PR (Phase 5 began before Phase 4's PR was merged); from Phase 6 on, one PR per phase again. The repo is on Vercel (O3, 2026-09-26): every branch and PR gets a preview deployment (Vercel comments its URL on the PR) — link it in the PR.
 - **Pace (owner, 2026-09-27, E6)**: finish phases faster — still working and looking good, but no excessive checking. **Don't watch PRs or CI** (no PR subscriptions, no CI babysitting); the owner tests the preview and reports what's broken. Run the fast local checks listed under Workflow, parallelize independent work, and judge templates on contact sheets (`pnpm sheet`).
 - The owner's decisions (2026-09-26) are recorded in `USER_QUESTIONS.md` — a decision table plus open items (O1 = the go-ahead). New product/brand questions go there too; when answered, update the affected docs and ADRs.
 - Progress is tracked in `ROADMAP.md` (tick boxes as work lands).
@@ -75,7 +75,7 @@ src/engine/      DOM-free, React-free, worker-safe engine — public API in src/
                  engine/host = main-thread client + pure data for features
 src/templates/   registry.ts (metadata + lazy loaders) + <category>/<id>/index.ts (one defineTemplate each)
 src/workers/     composition root: render.worker.ts + createRenderEndpoint()
-src/features/    React features: editor, stage (+ overlay), inspector, transport, export, gallery (chooser), assets (file import), lab; drafts, share, landing next
+src/features/    React features: editor, stage (+ overlay), inspector, transport, export, gallery (tiles + scheduler), assets (file import), drafts, lab; landing next
 src/components/  design-system primitives (Button, SegmentedControl, Slider, Switch, Wordmark)
 src/design/      motion tokens, icons
 src/fonts/       UI WOFF2s for next/font/local

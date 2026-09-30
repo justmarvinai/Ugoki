@@ -158,6 +158,12 @@ Category slug: `lower-thirds` · Conventions: [`00-foundations.md`](00-foundatio
 
 **Engine needs.** Glyph bounds (actual ink extents) · per-character stagger · blur.
 
+**Implementation notes (Phase 5, `src/templates/lower-thirds/editorial`).**
+- *Sizes*: the name 7.2u (16:9) · 8.6u (9:16) · 7.8u (1:1) · 8.1u (4:5) in the display face's italic (a pairing without one stays upright), shrinking to 72% on one line before taking two; title caps 2.5 · 3 · 2.7 · 2.8u in the text face (500). S · M · L ×0.82 · 1 · 1.2.
+- *One edge from ink*: the name is placed by its actual ink — its first letter's italic overhang included — and the hairline and the title's caps start exactly there. The hairline (0.1u, `fg` at 90%) spans the lockup's width, 0.4× the name size below its baseline; the title hangs 1.9u below it.
+- *Tracking by size*: 14% × (2.6u ÷ size)^0.35 — smaller caps get more air; a long title shrinks (retracked at every size) down to 80% before it takes a second line. Its letters fade in 18 ms apart (compressed to a 0.5 s span for long titles) while their tracking settles from 8% wider.
+- *Motion*: as specified; the hairline draws from the anchor side (from its center when centered, with Punchy's `snap`); the hold drifts 0.4u up; the exit is one layer through a 5 px blur. Right anchors mirror the lockup; Center centers it.
+
 ---
 
 ## 2.5 Signal — *tech HUD*
@@ -189,3 +195,10 @@ Category slug: `lower-thirds` · Conventions: [`00-foundations.md`](00-foundatio
 **The expensive detail.** Timecode digits are tabular mono, so nothing jitters as it runs; bracket corners snap to the pixel grid at rest for razor-sharp edges.
 
 **Engine needs.** Scramble + typewriter helpers (shared with *Decode*) · pixel-snapping at rest · RGB-split effect.
+
+**Implementation notes (Phase 5, `src/templates/lower-thirds/signal`).**
+- *Grid*: one unit `k` (1u in 16:9, ×1.18 in 9:16, ×1.08 in 1:1, ×1.12 in 4:5; ×0.82 / ×1.2 for S / L). The name is the display face in caps (wght ≥ 700, variable widths at `wdth` 108), 4.6k; the role 2.3k caps +12% at 74%; the data line and the status label are always JetBrains Mono (a template font), so digits are tabular whatever the pairing. The status (dot + label) sits at the right end of the name's line; the brackets frame the text with 3.1k / 2.7k of air.
+- *Data* (changed while building it): a Data control — Text · Live timecode — picks what the data line shows. The timecode is HH:MM:SS:FF at 25 fps, counting from the moment the line types in, drawn in fixed digit slots. Typing runs 30 ms a character (compressed to 0.9 s for long lines) with a block cursor.
+- *Decode*: Decode's slots — scrambled glyphs of a similar width scaled to each final glyph's slot, seeded, on a 24 fps clock (12 fps in Calm); characters arrive at most 45 ms apart and lock 0.15–0.3 s later; scrambling glyphs are `accent`.
+- *Brackets*: `accent`, whole-pixel thickness and arms. Once landed, their corners are rounded to the output pixel grid, and the breath (0.2u, a 0.9 s swell every 2 s) moves them in whole pixels — no blended edge pixels at 720p, 1080p or 4K. Punchy lands them with `pop`, Calm glides.
+- *Glitch*: two frames (24 fps) of channel copies — red, green and blue drawn apart by ±0.9u, then ∓0.6u, on an isolated layer and added back together (`lighter`); then the text is gone and the brackets collapse to the center and fade. Scanlines: 6% `fg` bands, pitch 0.5u (never under 3 output pixels).

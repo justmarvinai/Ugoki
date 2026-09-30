@@ -20,6 +20,13 @@ export type ViewSize = { width: number; height: number; dpr: number };
 
 export type QualityMode = 'adaptive' | 'full';
 
+/**
+ * What a view is for. A `stage` (editor, Lab) renders paused frames with motion blur and can
+ * report editable regions; a `tile` (gallery) renders every frame with one sample, so posters
+ * are cheap, and shares the worker's time with many other tiles.
+ */
+export type ViewRole = 'stage' | 'tile';
+
 /** A user's file, decoded on the main thread (raster bitmaps are transferred, not copied). */
 export type TransferableGraphic =
   | { kind: 'vector'; graphic: VectorGraphic }
@@ -33,6 +40,8 @@ export type HostMessage =
       size: ViewSize;
       /** Editor stage: report movable/editable regions for the overlay. */
       interactive?: boolean;
+      /** Default `stage`. */
+      role?: ViewRole;
     }
   | { type: 'detach'; view: ViewId }
   | { type: 'resize'; view: ViewId; size: ViewSize }
@@ -53,6 +62,13 @@ export type HostMessage =
   | { type: 'seek'; views: readonly ViewId[]; t: number; scrub?: boolean; seq: number }
   | { type: 'setLoop'; views: readonly ViewId[]; loop: boolean }
   | { type: 'setQuality'; views: readonly ViewId[]; mode: QualityMode }
+  /**
+   * Views out of sight (e.g. tiles scrolled away) neither build nor render — the worker catches
+   * up when they come back. Views are visible when attached.
+   */
+  | { type: 'setVisible'; views: readonly ViewId[]; visible: boolean }
+  /** Caps a view's playback frame rate (ambient tile previews); null = the display's rate. */
+  | { type: 'setFrameRate'; views: readonly ViewId[]; fps: number | null }
   /** What shows behind transparent designs in the preview (never in stills or exports). */
   | { type: 'setBackdrop'; views: readonly ViewId[]; backdrop: Backdrop }
   /** Renders a still at `shortSide` resolution (PNG). */

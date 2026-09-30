@@ -1,0 +1,75 @@
+/*
+ * Tile → editor stage morph (docs/03-design-system.md §9): the tile's media and the editor's
+ * stage share a view-transition name with the class `ugoki-morph` (React <ViewTransition>).
+ * The tile's picture travels to the stage on `glide` and stays until the stage takes over;
+ * the rest of the page crossfades (the browser's default). Reduced motion: a short fade in
+ * place. Browsers without view transitions simply navigate.
+ */
+
+::view-transition-group(.ugoki-morph) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Media and stage are 20 px rounded boxes; pictures of another shape are cropped to it. */
+  border-radius: 20px;
+  overflow: clip;
+}
+
+::view-transition-old(.ugoki-morph),
+::view-transition-new(.ugoki-morph) {
+  height: 100%;
+  object-fit: cover;
+}
+
+::view-transition-old(.ugoki-morph) {
+  animation: 480ms cubic-bezier(0.4, 0, 0.2, 1) both ugoki-morph-hold;
+}
+
+::view-transition-new(.ugoki-morph) {
+  animation: 480ms cubic-bezier(0.4, 0, 0.2, 1) both ugoki-morph-arrive;
+}
+
+@keyframes ugoki-morph-hold {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ugoki-morph-arrive {
+  0%,
+  40% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.ugoki-morph) {
+    animation: none;
+  }
+
+  ::view-transition-old(.ugoki-morph) {
+    animation: 160ms linear both ugoki-morph-fade-out;
+  }
+
+  ::view-transition-new(.ugoki-morph) {
+    animation: 160ms linear both ugoki-morph-fade-in;
+  }
+}
+
+@keyframes ugoki-morph-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ugoki-morph-fade-in {
+  from {
+    opacity: 0;
+  }
+}

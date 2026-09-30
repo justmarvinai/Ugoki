@@ -81,6 +81,14 @@ Category slug: `text-titles` · Conventions: [`00-foundations.md`](00-foundation
 
 **Engine needs.** Path text via HarfBuzz with variation axes (glyph outlines cached per quantized axis value) · width solver (binary search on `wdth`) · traveling-wave helper.
 
+**Implementation notes (Phase 5, `src/templates/text-titles/stretch`).**
+- *Font* (changed while building it): the Font control picks the family — Mona Sans (`wdth` 75–125), Archivo (62–125) or Anybody (50–150), declared as template fonts — and the template lists only the `grotesk` pairing, so the editor shows no pairing picker that would do nothing. Lines hold at wght 900; Anybody holds at 800, because its condensed Black closes its counters.
+- *Width model*: each line is shaped once per master and weight (`wdth` at the axis ends and 100, × `wght` every 100 units, plus five widths at the hold weight); advances (kerning included) and ink edges interpolate bilinearly, which is exact because masters interpolate linearly, so nothing is shaped per frame.
+- *Justified block*: every line's ink spans the layout width exactly (title-safe; the social zone's symmetric width in 9:16/4:5). Lines share one size where their resting widths — kept 12% inside the axis, room for the wave — can absorb their different lengths; a preferred cap height (36 · 34 · 30 · 30% of the layout height in 16:9 · 9:16 · 1:1 · 4:5) sets that size; lines whose widths run out change size instead. The block fills at most 92 · 86 · 88 · 88% of the height; beyond that the lines may use the whole axis, and only then does the block shrink (no longer filling — e.g. two 2-letter lines in 16:9).
+- *Lines*: user line breaks win, except that 16:9 merges down to 2 lines (shortest neighbours first) and 9:16 (up to 4) and 1:1/4:5 (up to 3) split long multi-word lines at the space nearest the middle.
+- *Hold*: one wavelength per line width (0.7 for Wild), each line 0.12 cycle behind the one above. Every frame the widths are redistributed (a solved offset, clamped to the axis), quantized to 0.5 `wdth` for cached outlines, and the rounding spread over the gaps (sub-pixel), so the ink edges don't move at all. Subtle is ±24% of the axis range (±12 on Mona Sans), Wild ±40% and faster; Calm ×0.8 at 2.2 s, Balanced 1.6 s, Punchy ×1.1 at 1.2 s with a squarer, pulsing wave. It eases in over the hold's first 0.9 s and runs on into the exit.
+- *Entrance and exit*: as specified; the letters start 30% closer than their natural spacing, spring on Energy's spring (Punchy's overshoots the frame edges a touch before settling), and letters in motion use coarser axis steps (fast motion — every letter of a line walks the same few cached instances).
+
 ---
 
 ## 1.3 Echo — *stacked outline repeats*
@@ -111,6 +119,14 @@ Category slug: `text-titles` · Conventions: [`00-foundations.md`](00-foundation
 **The expensive detail.** True glyph outlines (miter joins) with stroke width tied to the *frame*, not the text size, so it looks consistent across formats; the wave is phase-continuous, so the stack reads as one living object.
 
 **Engine needs.** `strokeText`/`fillText` with per-copy transforms · traveling-wave helper · horizontal mask wipe.
+
+**Implementation notes (Phase 5, `src/templates/text-titles/echo`).**
+- *Stack* (changed while building it): copies sit 1.12× the cap height (plus their outline) apart instead of 0.85× the line height — the same thing for a face whose caps are 0.7 em, but Anton's caps are 0.86 em, and at 0.85× its 0.9 line height every copy overlapped the next. The first echo clears the solid copy, whose letters no outline ever crosses.
+- *Outlines of the union* (changed while building it): variable fonts keep overlapping contours, which a stroke draws as lines inside the letters. Each echo is a double-width miter stroke with everything inside the letters erased — a second pass in the background color over the flat background, an inverted alpha matte when transparent — so the echoes are clean outlines, and neighbours that touch merge into one. Visible widths: Thin 0.18u · Regular 0.32u · Bold 0.5u.
+- *Color*: the solid copy is `accent`, the echoes `fg`.
+- *Accordion*: every gap rides one traveling wave (0.13 cycle per rank outward; the gap next to the solid copy at half amplitude), 0.2× the cap height at 100% — at the default 70% the tightest gap just closes; alternate copies sway ±1u across. It eases in over the hold's first 0.8 s and runs on into the collapse. Calm 2.4 s at ×0.75, Balanced 1.6 s, Punchy 1.1 s with a squarer pulse; landings glide in Calm, snap otherwise with a 1.2u overshoot.
+- *Sizes*: the solid copy spans up to 100 · 94 · 84 · 62% of the layout width (9:16 · 4:5 · 1:1 · 16:9), at most 24 · 21 · 19 · 21u; variable-width faces run at `wdth` 84. Copies 4–14 (an odd count puts the extra copy above); the distance fade goes from 1 to 0.22.
+- *Horizontal*: the phrase repeats along its baseline, a band of copies a word space apart (the solid copy 40–62% of the width), cascading in from the left edge.
 
 ---
 

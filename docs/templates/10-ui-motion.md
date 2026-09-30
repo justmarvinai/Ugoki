@@ -81,6 +81,8 @@ Every visible label is editable, so the card title, the recipient row and the bu
 - `Insights` · *Milestone* · `You just passed 10k followers`
 - Headline `Everything, as it happens.`
 
+**Implementation notes (0.5.0).** Notifications are one text control, one per line: `App | Title | Message | Time` (time optional, "now" by default). Every visible label is editable, so the clock's time and date have controls, and an *App icon* (logo) shows on the first app's notifications — the others get a tile in the palette's accent family with a glyph matched to the app's name (payments, orders, insights…) or its initials. *Wallpaper image* (scenes) shows when Wallpaper is Image; adding your own picture switches to it. Cards arrive 0.6–0.9 s apart (by how much there is to read, × Pace); a card is solid within ~0.1 s and frosts everything behind it, including the card it lands on. Tucked cards: 95 % / 70 %, then 90 % / 40 %; deeper ones hide behind. The exit fades the stack, clock and headline while the wallpaper returns to 104 %, so the first and last frames are the same wallpaper. 9:16, 4:5 and 1:1 stack clock, cards and headline; 16:9 puts the clock and headline left of the cards. A fixed duration scales the gaps (0.5–1.4×) and the final read (≥ 0.8 s).
+
 **Looks.** Dark/Midnight · Light/Blush · Dark/Forest
 
 **The expensive detail.** Physically coupled springs (new card lands, older cards react a beat later) and true backdrop blur of the wallpaper behind each card.
@@ -111,6 +113,8 @@ Every visible label is editable, so the card title, the recipient row and the bu
 - Style: Device finish · Tilt (Flat · 3D) · Tap ripples (on/off)
 
 **Defaults.** Procedural long feed screen · `Your week at a glance` · `Smart insights` · `Share in one tap`
+
+**Implementation notes (0.5.0).** Captions are one per line (up to 4); there is no mini-map control yet, so each caption stops at the next spot of the built-in screen's tour (Feed: week, insights, share, post), and a trailing `@ 60%` sets a stop by page position instead (on a screenshot, stops spread evenly otherwise). *Screen* picks the built-in UI Kit screen (Feed · Finance · Analytics · Chat · Settings) or *Image*; *Screenshot* is an image slot — your own file always replaces the built-in screen, the built-in artworks show when Screen is Image (a `screen` placeholder kind would merge the two). Also *Theme* (Light · Dark) for the screen. *Device finish*: Graphite · Silver · Sand · None (a frameless screen). *Tilt 3D* is an axonometric turn-and-lean (no perspective foreshortening yet). *Tap ripples* also shows the finger: a disc that lands, drags with the page and lifts at the release. One caption shows at a time, beside the phone, level with its connector; the last stop, when it is the end of the page, is thrown past it and rubber-bands. Default headline: `Your whole week, in one app.`
 
 **Looks.** Paper · Ink · Lilac
 
@@ -180,6 +184,8 @@ The line chart is titled with the first KPI's label and uses its units on the ax
 - Style: Theme (Light · Dark)
 
 **Defaults.** Placeholder `Search or ask…` · Query `Turn this into a launch video` · Results `Pick a template` / `Apply brand colors` / `Export as 4K MP4` · Answer `Done. Your video is ready.` · Shortcut `⌘K`
+
+**Implementation notes (0.5.0).** Results are one per line (3–6), each with an icon picked from its words (template, colors, export, share…). The highlight glides from the first row to the third (the last, with fewer) — one ↓ per row. ↵ opens the chosen row into the answer card: the row becomes its header and the answer streams in token by token (words with their leading space, punctuation apart, long words in pieces) behind a soft dot caret; with no answer, the palette just holds. The palette grows with its results and settles into the card on the energy's spring. The footer shows keycaps only (↑ ↓ ↵ esc). The glass frosts its own drifting color fields; with a transparent background it turns into a denser, solid panel. 16:9 sets the headline left of the palette, the other formats above it. Default headline: `Ask, and it’s done.`
 
 **Looks.** Dark/Lilac · Light/Ink · Dark/Graphite
 

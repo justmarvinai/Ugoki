@@ -70,6 +70,17 @@ export default defineConfig({
           provide: { sheet: process.env.SHEET ?? '', sheetMode: process.env.SHEET_MODE ?? '' },
         },
       },
+      {
+        // Open Graph images, hero posters and the Apple touch icon (`pnpm og [filter…]`), written
+        // into public/ and src/app/; Chromium only (WebP encoding); not part of CI.
+        extends: true,
+        test: {
+          name: 'og',
+          include: ['tests/og/**/*.og.ts'],
+          browser: { ...browser(), instances: [{ browser: 'chromium' as const }] },
+          provide: { og: process.env.OG ?? '' },
+        },
+      },
     ],
   },
 });

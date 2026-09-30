@@ -123,7 +123,7 @@ Dependencies are added with the feature that uses them: Phase 1 installs the fra
 │   │   ├── not-found.tsx · sitemap.ts · robots.ts                   (Phase 6)
 │   ├── engine/                    # framework-agnostic, DOM-free, worker-safe (see 06-engine.md)
 │   │   ├── core/ template/ timeline/ draw/ text/ runtime/ host/   (Phase 1)
-│   │   ├── assets/ compositor/ ui-kit/ export/                    (Phase 2+)
+│   │   ├── assets/ compositor/ ui/ export/ space/                 (Phase 2+; ui = UI Kit, space = 3D planes)
 │   │   └── index.ts               # the public engine API templates may import
 │   ├── templates/                 # the 50 templates
 │   │   ├── registry.ts            # metadata (tiny, server-safe) + lazy loaders
@@ -192,10 +192,11 @@ Dexie schema v1:
 |---|---|---|---|
 | `projects` | `id` (12 random base64url characters) | `templateId`, `templateVersion`, `state`, `name`, `createdAt`, `updatedAt`, `thumbnail` (PNG bytes + type, 180 px short side, from the render worker) | Index on `updatedAt` for "Continue where you left off" |
 | `assets` | `hash` (SHA-256 of bytes) | `bytes`, `name`, `mime`, `createdAt` | Deduplicated; stored when the user adds a file; unreferenced assets are garbage-collected later (not yet) |
-| `prefs` | `key` | `value` | Last format, dismissed hints, gallery personalization text |
+| `prefs` | `key` | `value` | Dismissed hints (reserved) |
 
 - A draft is created by the **first edit** (opening a template leaves nothing behind) and then autosaved 500 ms after edits settle; the URL gains `?draft=<id>` (replaced in history), so a reload reopens it with its files. `src/features/drafts` (`useAutosave`, `openDraft`, the draft list), `src/lib/db.ts`.
 - After the first saved draft, request persistent storage (`navigator.storage.persist()`); a full quota is reported in the top bar ("browser storage is full").
+- The gallery's headline and format live in `sessionStorage` (per tab, read synchronously so tiles start with the visitor's text instead of flashing the defaults) and travel into the editor as `?headline=`/`?format=`/`?look=` query parameters, which the editor reads once and removes (ADR-039).
 - Uploaded images/logos are stored **only** here, never uploaded.
 - Bytes are stored as `ArrayBuffer`s, not Blobs: browsers keep IndexedDB Blobs as files, which WebKit's private and ephemeral sessions refuse to write (the drafts test failed there); ArrayBuffers are stored inline everywhere.
 - Schema changes go through Dexie versioning + tested migrations.

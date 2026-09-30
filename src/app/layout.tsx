@@ -1,15 +1,31 @@
 import type { Metadata, Viewport } from 'next';
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  SITE_NAME,
+  SITE_URL,
+  shareImage,
+} from '@/features/site/metadata';
 import { ugokiMono, ugokiSans } from './fonts';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: SITE_URL,
   title: {
-    default: 'Ugoki — Motion, made yours.',
-    template: '%s · Ugoki',
+    default: DEFAULT_TITLE,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    'Art-directed motion templates. Customize in seconds, export in your browser. Free, no sign-up, nothing leaves your device.',
-  applicationName: 'Ugoki',
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  // Share cards for pages that set none of their own: Open Graph and Twitter fill in each page's
+  // title and description; the picture is the landing's card.
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    locale: 'en_US',
+    images: [shareImage('home', DEFAULT_TITLE)],
+  },
+  twitter: { card: 'summary_large_image' },
 };
 
 export const viewport: Viewport = {

@@ -183,6 +183,44 @@ describe('RenderRuntime', () => {
     client.dispose();
   });
 
+  it('keeps tiles out of sight idle and caps ambient frame rates', async () => {
+    const { client, messages, next, canvas } = setup();
+    const other = new OffscreenCanvas(1, 1);
+    client.attach('a', canvas, { width: 100, height: 100, dpr: 1 }, { role: 'tile' });
+    client.attach('b', other, { width: 100, height: 100, dpr: 1 }, { role: 'tile' });
+    client.setVisible('b', false);
+    const loadedA = next('loaded', 'a');
+    client.load('a', 'probe');
+    client.load('b', 'probe');
+    await loadedA;
+    await next('frame', 'a');
+    // B loaded, but out of sight it neither builds nor renders.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const of = (view: string, type: WorkerMessage['type']) =>
+      messages.filter((m) => m.type === type && 'view' in m && m.view === view);
+    expect(of('b', 'built')).toHaveLength(0);
+    expect(of('b', 'frame')).toHaveLength(0);
+    // In sight, it catches up with a poster frame.
+    const shown = next('frame', 'b');
+    client.setVisible('b', true);
+    expect((await shown).playing).toBe(false);
+
+    // A 20 fps cap keeps at least ~45 ms between playback frames.
+    client.setFrameRate('a', 20);
+    const times: number[] = [];
+    const unsubscribe = client.subscribe((m) => {
+      if (m.type === 'frame' && m.view === 'a' && m.playing) times.push(performance.now());
+    });
+    client.play('a');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    unsubscribe();
+    expect(times.length).toBeGreaterThan(3);
+    expect(times.length).toBeLessThanOrEqual(15);
+    const gaps = times.slice(1).map((time, i) => time - (times[i] ?? time));
+    expect(Math.min(...gaps)).toBeGreaterThan(40);
+    client.dispose();
+  });
+
   it('tells frames from before the latest transport command apart', async () => {
     const { client, next, canvas } = setup();
     client.attach('a', canvas, { width: 100, height: 100, dpr: 1 });
