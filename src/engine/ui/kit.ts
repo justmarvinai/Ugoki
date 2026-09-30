@@ -1,6 +1,8 @@
 /**
- * Ugoki UI Kit v1 (docs/06-engine.md, docs/templates/10-ui-motion.md): cards, inputs, buttons,
- * toasts, charts and a cursor, drawn with the Draw API in `u` for UI-motion templates.
+ * Ugoki UI Kit (docs/06-engine.md, docs/templates/10-ui-motion.md): cards, inputs, buttons,
+ * toasts, charts, a cursor, app screens and devices, notifications, and the motion helpers of
+ * real interfaces (inertial scroll, coupled springs, streaming text, frosted panels), drawn with
+ * the Draw API for UI-motion templates.
  *
  * A template creates the kit in `build` — `createUiKit({ text: ctx.text, palette: ctx.palette,
  * mode, unit })`, where `unit` is how many design units one UI px is — lays out components
@@ -66,7 +68,43 @@ export {
   PathSampler,
   type Ticks,
 } from './curves';
+export { createPhone, PHONE_FINISHES, Phone, type PhoneFinish, type PhoneOptions } from './device';
 export {
+  type Backdrop,
+  drawGlass,
+  FrostedPanel,
+  type FrostOptions,
+  frostBackdrop,
+} from './frosted';
+export {
+  type FlickOptions,
+  type FlickTiming,
+  InertialScroll,
+  SpringChain,
+  type SpringChainOptions,
+  type SpringRange,
+  StretchTrack,
+  springRange,
+} from './motion';
+export {
+  type AppIcon,
+  LockClock,
+  type LockClockOptions,
+  Notification as UiNotification,
+  type NotificationOptions,
+} from './notification';
+export {
+  createScreen,
+  SCREEN_HEIGHT,
+  SCREEN_KINDS,
+  SCREEN_WIDTH,
+  Screen,
+  type ScreenAnchor,
+  type ScreenKind,
+  type ScreenOptions,
+} from './screens';
+export {
+  arcPath,
   BoxShadow,
   circlePath,
   drawIcon,
@@ -76,10 +114,20 @@ export {
   morphRect,
   phi,
   roundRectPath,
+  roundRectPathReverse,
 } from './shape';
+export {
+  type CaretState,
+  StreamingText,
+  type StreamingTextOptions,
+  type StreamOptions,
+  streamSchedule,
+  streamTokens,
+} from './stream';
 export {
   ELEVATIONS,
   type Elevation,
+  iconColors,
   onFill,
   pickAccent,
   type ShadowLayer,

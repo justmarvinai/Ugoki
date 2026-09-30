@@ -15,6 +15,7 @@ import {
   relativeLuminance,
   toOklch,
 } from '../core/color';
+import { clamp } from '../core/math';
 import type { Palette } from '../template/palettes';
 
 export type UiMode = 'light' | 'dark';
@@ -204,4 +205,41 @@ export function uiTheme(
     shadow: SHADOW[mode],
     shadowStrength: relativeLuminance(options.stage ?? palette.roles.bg) < 0.18 ? 2.4 : 1,
   };
+}
+
+/** A vivid version of a color for an icon tile (lightness and chroma kept in range). */
+function vivid(color: Color, hueShift = 0): Color {
+  const lch = toOklch(color);
+  return fromOklch({
+    L: clamp(lch.L, 0.58, 0.78),
+    C: clamp(lch.C, 0.11, 0.19),
+    h: lch.h + hueShift,
+  });
+}
+
+/**
+ * Colors for app icons and category tiles, one per item: the palette's accent, its second
+ * accent when that has color, then turns of the accent's hue — one family, each item its own.
+ * Monochrome palettes start from a neutral blue.
+ */
+export function iconColors(
+  palette: Palette,
+  count: number,
+  options: {
+    /** Stay close to the accent's hue (color fields, backgrounds) instead of spreading out. */
+    analogous?: boolean;
+  } = {},
+): Color[] {
+  const { accent, accent2 } = palette.roles;
+  const base = toOklch(accent).C < COLORFUL ? fromOklch({ L: 0.66, C: 0.14, h: 255 }) : accent;
+  const turns = options.analogous ? [40, -40, 80, -80] : [150, -95, 55, 200];
+  const second = toOklch(accent2).C >= COLORFUL ? vivid(accent2) : vivid(base, turns[0] as number);
+  const colors = [
+    vivid(base),
+    second,
+    vivid(base, turns[1] as number),
+    vivid(base, turns[2] as number),
+    vivid(base, turns[3] as number),
+  ];
+  return Array.from({ length: Math.max(0, count) }, (_, i) => colors[i % colors.length] as Color);
 }

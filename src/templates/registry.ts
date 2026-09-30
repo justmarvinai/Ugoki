@@ -560,6 +560,42 @@ export const TEMPLATES: readonly TemplateEntry[] = [
     tags: ['ui', 'dashboard', 'charts', 'data', 'saas'],
     useCases: ['SaaS launches', 'Investor updates', 'Analytics features', 'Monthly reports'],
   },
+  {
+    id: 'notify',
+    name: 'Notify',
+    tagline: 'Notification stack',
+    category: 'ui-motion',
+    formats: ['9:16', '4:5', '1:1', '16:9'],
+    duration: { default: 'auto', min: 4, max: 12 },
+    structure: 'sequence',
+    alpha: 'none',
+    tags: ['ui', 'notifications', 'lock screen', 'app', 'fintech'],
+    useCases: ['App launches', 'Fintech', 'E-commerce', 'Creator milestones'],
+  },
+  {
+    id: 'scroll',
+    name: 'Scroll',
+    tagline: 'Phone scroll tour',
+    category: 'ui-motion',
+    formats: ['16:9', '1:1', '4:5', '9:16'],
+    duration: { default: 8, min: 5, max: 15 },
+    structure: 'in-hold-out',
+    alpha: 'optional',
+    tags: ['ui', 'phone', 'app', 'scroll', 'mockup', 'walkthrough'],
+    useCases: ['App store previews', 'Website tours', 'Case studies', 'Product walkthroughs'],
+  },
+  {
+    id: 'command',
+    name: 'Command',
+    tagline: 'Command bar & AI answer',
+    category: 'ui-motion',
+    formats: ['16:9', '1:1', '4:5', '9:16'],
+    duration: { default: 7, min: 5, max: 12 },
+    structure: 'in-hold-out',
+    alpha: 'optional',
+    tags: ['ui', 'ai', 'search', 'command palette', 'productivity'],
+    useCases: ['AI features', 'Search', 'Productivity tools', 'Developer tools'],
+  },
 ];
 
 const LOADERS: Readonly<Record<string, () => Promise<{ default: AnyTemplate }>>> = {
@@ -607,6 +643,9 @@ const LOADERS: Readonly<Record<string, () => Promise<{ default: AnyTemplate }>>>
   resolve: () => import('./logo-branding/resolve'),
   click: () => import('./ui-motion/click'),
   dashboard: () => import('./ui-motion/dashboard'),
+  notify: () => import('./ui-motion/notify'),
+  scroll: () => import('./ui-motion/scroll'),
+  command: () => import('./ui-motion/command'),
 };
 
 export function templateEntry(id: string): TemplateEntry | undefined {

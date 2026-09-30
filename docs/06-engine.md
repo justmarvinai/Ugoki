@@ -223,6 +223,13 @@ UI-motion templates build realistic, unbranded interfaces with the UI Kit. In `b
 - **Cursor**: vector `drawCursor` (arrow or hand; crisp outline, soft shadow, press dip). `CursorPath` is a builder — `.move(to, { dur, bow, overshoot, correct })`, `.wait()`, `.until()`, `.click()` — with minimum-jerk timing by arc length, overshoot-and-correct and random access `at(t)`.
 - **Typing**: `typedText` / `typedFigure` (money formatted live: €2 → €25 → €250.00), `typingSchedule(keys, ctx.rng(key), { cps, fit })` (a seeded human rhythm), `typedCount`, and `caretOpacity` (solid while typing, blinks when idle).
 - UI text is set in Inter (`UI_FONT`): templates using the kit declare `fonts: [UI_FONT]`, so preview and export load it whatever the pairing (§7).
+- **App screens** (`createScreen({ text, palette, mode, kind, rect, radius?, tall?, chrome?, time? })`): procedural, unbranded phone screens — `finance`, `feed`, `analytics`, `chat`, `settings` — laid out once at a phone's 390 UI px width and drawn into any rect; `tall` pages scroll (`draw(g, { scroll })`, rubber-banding past the ends) and name their interesting spots (`anchors`, `scrollTo(anchor)`, `toFrame(x, y, scroll)`). They are the *Screens* placeholder set (foundations §7).
+- **Phone** (`createPhone({ screen, finish, bare? })`): a generic device around a display rect — draw `back(g)`, the screen clipped to `display`, then `front(g)`; finishes graphite, silver, sand; `bare` is a frameless screen with its shadow.
+- **Notifications and lock clock**: `ui.notification({ app, title, message, time, icon })` (card content at the origin, so a stack can move and scale it; icons are glyph or initials tiles in `iconColors`, or a logo) and `ui.lockClock({ time, date })`.
+- **Frosted glass** (no Canvas `filter`): the template's own background drawn again inside the panel under `g.fx({ blur, adjust })`, with a tint, lit rim and hairline — `FrostedPanel` (fixed-size moving panels), `drawGlass` (a rect changing per frame), `frostBackdrop` (one blur for several panels).
+- **Motion**: `InertialScroll` (flicks, an exponential glide landing with zero velocity, rubber band; random access), `SpringChain` (coupled springs tabulated in build — link n follows link n − 1), `springRange`/`StretchTrack` (a range whose leading edge springs stiffer, so it stretches toward its travel).
+- **Streaming text** (`ui.streamingText(text, role, { rng })`): model-like tokens on a seeded uneven schedule, laid out at the final length so nothing reflows; `drawCaret` breathes, holds and blinks.
+- **Gotcha**: the drawer caches `PathData` and gradients by object identity — a path or gradient that changes per frame must be a new object each frame.
 
 ## 7. Text engine (HarfBuzz)
 

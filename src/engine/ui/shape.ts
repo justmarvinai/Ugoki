@@ -58,6 +58,65 @@ export function circlePath(cx: number, cy: number, r: number): PathCommand[] {
 }
 
 /**
+ * A circular arc as cubic segments (≤ 90° each). Angles are degrees clockwise from 12 o'clock
+ * (y down), like `circlePath`; `from > to` runs counter-clockwise. With `move` false the arc
+ * continues the current subpath (a line joins it to the arc's start).
+ */
+export function arcPath(
+  cx: number,
+  cy: number,
+  r: number,
+  from: number,
+  to: number,
+  move = true,
+): PathCommand[] {
+  const rad = Math.PI / 180;
+  const sweep = to - from;
+  const pieces = Math.max(1, Math.ceil(Math.abs(sweep) / 90 - 1e-9));
+  const step = sweep / pieces;
+  const k = (4 / 3) * Math.tan((step * rad) / 4) * r;
+  const px = (a: number) => cx + r * Math.sin(a * rad);
+  const py = (a: number) => cy - r * Math.cos(a * rad);
+  const path: PathCommand[] = [[move ? 'M' : 'L', px(from), py(from)]];
+  for (let i = 0; i < pieces; i++) {
+    const a0 = from + step * i;
+    const a1 = a0 + step;
+    // Tangent of a clockwise-from-12 angle: (cos a, sin a).
+    path.push([
+      'C',
+      px(a0) + k * Math.cos(a0 * rad),
+      py(a0) + k * Math.sin(a0 * rad),
+      px(a1) - k * Math.cos(a1 * rad),
+      py(a1) - k * Math.sin(a1 * rad),
+      px(a1),
+      py(a1),
+    ]);
+  }
+  return path;
+}
+
+/** A rounded rectangle traced counter-clockwise (cut it out of a clockwise shape: nonzero). */
+export function roundRectPathReverse(r: Rect, radius: number): PathCommand[] {
+  const rr = Math.max(0, Math.min(radius, r.w / 2, r.h / 2));
+  const k = rr * (1 - KAPPA);
+  const { x, y, w, h } = r;
+  if (rr <= 0) {
+    return [['M', x, y], ['L', x, y + h], ['L', x + w, y + h], ['L', x + w, y], ['Z']];
+  }
+  return [
+    ['M', x + rr, y],
+    ['C', x + k, y, x, y + k, x, y + rr],
+    ['L', x, y + h - rr],
+    ['C', x, y + h - k, x + k, y + h, x + rr, y + h],
+    ['L', x + w - rr, y + h],
+    ['C', x + w - k, y + h, x + w, y + h - k, x + w, y + h - rr],
+    ['L', x + w, y + rr],
+    ['C', x + w, y + k, x + w - k, y, x + w - rr, y],
+    ['Z'],
+  ];
+}
+
+/**
  * The rounded rect of a pill ↔ circle morph that keeps its center and its radius continuous:
  * the width eases from `w` to `h` (a circle) while the radius runs from `radius` to `h / 2`
  * in step with it — at `p = 1` the shape is exactly the circle, and no frame jumps.
@@ -234,6 +293,50 @@ export class BoxShadow {
   }
 }
 
+/**
+ * A crescent: the circle (x1, y1, r1) minus the circle (x2, y2, r2), traced along the first
+ * circle's far side and back along the second's inner arc (the circles must intersect).
+ */
+function crescentPath(
+  x1: number,
+  y1: number,
+  r1: number,
+  x2: number,
+  y2: number,
+  r2: number,
+): PathCommand[] {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const d = Math.hypot(dx, dy);
+  const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d);
+  const h = Math.sqrt(Math.max(0, r1 * r1 - a * a));
+  const px = x1 + (a * dx) / d;
+  const py = y1 + (a * dy) / d;
+  // The two tips, ordered so the first circle's arc runs clockwise away from the second.
+  const tips = [
+    { x: px - (h * dy) / d, y: py + (h * dx) / d },
+    { x: px + (h * dy) / d, y: py - (h * dx) / d },
+  ];
+  const angle = (cx: number, cy: number, p: { x: number; y: number }) =>
+    (Math.atan2(p.x - cx, -(p.y - cy)) * 180) / Math.PI;
+  let [start, end] = tips as [{ x: number; y: number }, { x: number; y: number }];
+  let a0 = angle(x1, y1, start);
+  let a1 = angle(x1, y1, end);
+  while (a1 <= a0) a1 += 360;
+  const mid = ((a0 + a1) / 2) * (Math.PI / 180);
+  if (Math.hypot(x1 + r1 * Math.sin(mid) - x2, y1 - r1 * Math.cos(mid) - y2) < r2) {
+    [start, end] = [end, start];
+    a0 = angle(x1, y1, start);
+    a1 = angle(x1, y1, end);
+    while (a1 <= a0) a1 += 360;
+  }
+  // The inner arc returns through the part of the second circle inside the first.
+  const b0 = angle(x2, y2, end);
+  let b1 = angle(x2, y2, start);
+  while (b1 >= b0) b1 -= 360;
+  return [...arcPath(x1, y1, r1, a0, a1), ...arcPath(x2, y2, r2, b0, b1, false), ['Z']];
+}
+
 // --- icons --------------------------------------------------------------------------------
 
 /** A 24 × 24 icon: stroked outlines (2 units, round caps and joins) and filled shapes. */
@@ -343,6 +446,380 @@ export const ICONS = {
     ],
     null,
   ),
+  chevronLeft: icon([
+    ['M', 14.5, 6],
+    ['L', 8.5, 12],
+    ['L', 14.5, 18],
+  ]),
+  arrowRight: icon([
+    ['M', 5, 12],
+    ['L', 18.5, 12],
+    ['M', 13, 6.5],
+    ['L', 18.5, 12],
+    ['L', 13, 17.5],
+  ]),
+  trendDown: icon([
+    ['M', 4, 7.5],
+    ['L', 9.5, 13],
+    ['L', 13, 9.5],
+    ['L', 20, 16.5],
+    ['M', 14.5, 16.5],
+    ['L', 20, 16.5],
+    ['L', 20, 11],
+  ]),
+  close: icon([
+    ['M', 6.5, 6.5],
+    ['L', 17.5, 17.5],
+    ['M', 17.5, 6.5],
+    ['L', 6.5, 17.5],
+  ]),
+  home: icon([
+    ['M', 3.75, 11],
+    ['L', 12, 4],
+    ['L', 20.25, 11],
+    ['M', 6, 9.5],
+    ['L', 6, 18.5],
+    ['C', 6, 19.6, 6.9, 20.5, 8, 20.5],
+    ['L', 16, 20.5],
+    ['C', 17.1, 20.5, 18, 19.6, 18, 18.5],
+    ['L', 18, 9.5],
+    ['M', 10, 20.5],
+    ['L', 10, 15.5],
+    ['C', 10, 14.9, 10.4, 14.5, 11, 14.5],
+    ['L', 13, 14.5],
+    ['C', 13.6, 14.5, 14, 14.9, 14, 15.5],
+    ['L', 14, 20.5],
+  ]),
+  bell: icon([
+    ['M', 12, 3],
+    ['L', 12, 4.5],
+    ['M', 18, 16],
+    ['L', 18, 10.5],
+    ['C', 18, 7.2, 15.3, 4.5, 12, 4.5],
+    ['C', 8.7, 4.5, 6, 7.2, 6, 10.5],
+    ['L', 6, 16],
+    ['L', 4.5, 17.75],
+    ['L', 19.5, 17.75],
+    ['Z'],
+    ['M', 10, 20.25],
+    ['C', 10.5, 21, 11.2, 21.4, 12, 21.4],
+    ['C', 12.8, 21.4, 13.5, 21, 14, 20.25],
+  ]),
+  bars: icon([
+    ['M', 6, 20],
+    ['L', 6, 13],
+    ['M', 12, 20],
+    ['L', 12, 5],
+    ['M', 18, 20],
+    ['L', 18, 10],
+  ]),
+  pie: icon([
+    ...arcPath(12, 12, 8.5, 90, 360),
+    ['L', 12, 3.5],
+    ['L', 12, 12],
+    ['Z'],
+    ['M', 15, 2.75],
+    ...arcPath(15, 9, 6.25, 0, 90, false),
+    ['L', 15, 9],
+    ['Z'],
+  ]),
+  sliders: icon([
+    ['M', 4, 7],
+    ['L', 7, 7],
+    ['M', 11, 7],
+    ['L', 20, 7],
+    ...circlePath(9, 7, 2),
+    ['M', 4, 12],
+    ['L', 13, 12],
+    ['M', 17, 12],
+    ['L', 20, 12],
+    ...circlePath(15, 12, 2),
+    ['M', 4, 17],
+    ['L', 5, 17],
+    ['M', 9, 17],
+    ['L', 20, 17],
+    ...circlePath(7, 17, 2),
+  ]),
+  grid: icon([
+    ...roundRectPath({ x: 4, y: 4, w: 6.5, h: 6.5 }, 1.75),
+    ...roundRectPath({ x: 13.5, y: 4, w: 6.5, h: 6.5 }, 1.75),
+    ...roundRectPath({ x: 4, y: 13.5, w: 6.5, h: 6.5 }, 1.75),
+    ...roundRectPath({ x: 13.5, y: 13.5, w: 6.5, h: 6.5 }, 1.75),
+  ]),
+  send: icon([
+    ['M', 20.5, 3.5],
+    ['L', 10.5, 13.5],
+    ['M', 20.5, 3.5],
+    ['L', 14.25, 20.5],
+    ['L', 10.5, 13.5],
+    ['L', 3.5, 9.75],
+    ['Z'],
+  ]),
+  heart: icon([
+    ['M', 12, 20],
+    ['C', 12, 20, 3.5, 15, 3.5, 9.25],
+    ['C', 3.5, 6.6, 5.5, 4.5, 8, 4.5],
+    ['C', 9.75, 4.5, 11.2, 5.5, 12, 7],
+    ['C', 12.8, 5.5, 14.25, 4.5, 16, 4.5],
+    ['C', 18.5, 4.5, 20.5, 6.6, 20.5, 9.25],
+    ['C', 20.5, 15, 12, 20, 12, 20],
+    ['Z'],
+  ]),
+  chat: icon([
+    ['M', 6.5, 4.5],
+    ['L', 17.5, 4.5],
+    ['C', 18.9, 4.5, 20, 5.6, 20, 7],
+    ['L', 20, 14],
+    ['C', 20, 15.4, 18.9, 16.5, 17.5, 16.5],
+    ['L', 10.5, 16.5],
+    ['L', 6.5, 20],
+    ['L', 6.5, 16.5],
+    ['C', 5.1, 16.5, 4, 15.4, 4, 14],
+    ['L', 4, 7],
+    ['C', 4, 5.6, 5.1, 4.5, 6.5, 4.5],
+    ['Z'],
+  ]),
+  share: icon([
+    ['M', 12, 3.5],
+    ['L', 12, 14.5],
+    ['M', 8, 7.5],
+    ['L', 12, 3.5],
+    ['L', 16, 7.5],
+    ['M', 8.5, 10.5],
+    ['L', 7.5, 10.5],
+    ['C', 6.1, 10.5, 5, 11.6, 5, 13],
+    ['L', 5, 18],
+    ['C', 5, 19.4, 6.1, 20.5, 7.5, 20.5],
+    ['L', 16.5, 20.5],
+    ['C', 17.9, 20.5, 19, 19.4, 19, 18],
+    ['L', 19, 13],
+    ['C', 19, 11.6, 17.9, 10.5, 16.5, 10.5],
+    ['L', 15.5, 10.5],
+  ]),
+  bookmark: icon([
+    ['M', 7.5, 4],
+    ['L', 16.5, 4],
+    ['C', 17.3, 4, 18, 4.7, 18, 5.5],
+    ['L', 18, 20],
+    ['L', 12, 16],
+    ['L', 6, 20],
+    ['L', 6, 5.5],
+    ['C', 6, 4.7, 6.7, 4, 7.5, 4],
+    ['Z'],
+  ]),
+  image: icon([
+    ...roundRectPath({ x: 3.5, y: 4.5, w: 17, h: 15 }, 2.75),
+    ...circlePath(9, 9.75, 1.75),
+    ['M', 4.25, 17.5],
+    ['L', 9.75, 12.5],
+    ['L', 13.5, 16],
+    ['L', 16, 13.75],
+    ['L', 19.75, 17],
+  ]),
+  globe: icon([
+    ...circlePath(12, 12, 8.5),
+    ['M', 12, 3.5],
+    ['C', 9.1, 6.2, 9.1, 17.8, 12, 20.5],
+    ['M', 12, 3.5],
+    ['C', 14.9, 6.2, 14.9, 17.8, 12, 20.5],
+    ['M', 3.75, 12],
+    ['L', 20.25, 12],
+  ]),
+  moon: icon(crescentPath(12, 12, 8.25, 16.25, 7.75, 6.75)),
+  sun: icon([
+    ...circlePath(12, 12, 3.75),
+    ['M', 12, 2.75],
+    ['L', 12, 4.75],
+    ['M', 12, 19.25],
+    ['L', 12, 21.25],
+    ['M', 2.75, 12],
+    ['L', 4.75, 12],
+    ['M', 19.25, 12],
+    ['L', 21.25, 12],
+    ['M', 5.45, 5.45],
+    ['L', 6.9, 6.9],
+    ['M', 17.1, 17.1],
+    ['L', 18.55, 18.55],
+    ['M', 5.45, 18.55],
+    ['L', 6.9, 17.1],
+    ['M', 17.1, 6.9],
+    ['L', 18.55, 5.45],
+  ]),
+  shield: icon([
+    ['M', 12, 3.25],
+    ['L', 19, 6],
+    ['L', 19, 11.5],
+    ['C', 19, 15.9, 16, 19.2, 12, 20.75],
+    ['C', 8, 19.2, 5, 15.9, 5, 11.5],
+    ['L', 5, 6],
+    ['Z'],
+  ]),
+  info: icon(
+    [...circlePath(12, 12, 8.5), ['M', 12, 11], ['L', 12, 16.5]],
+    circlePath(12, 7.9, 1.15),
+  ),
+  help: icon(
+    [
+      ...circlePath(12, 12, 8.5),
+      ['M', 9.6, 9.5],
+      ['C', 9.6, 8.1, 10.7, 7.1, 12, 7.1],
+      ['C', 13.4, 7.1, 14.4, 8.1, 14.4, 9.35],
+      ['C', 14.4, 11.1, 12, 11.4, 12, 13.2],
+    ],
+    circlePath(12, 16.6, 1.15),
+  ),
+  more: icon(null, [
+    ...circlePath(6, 12, 1.7),
+    ...circlePath(12, 12, 1.7),
+    ...circlePath(18, 12, 1.7),
+  ]),
+  bag: icon([
+    ['M', 6.2, 8],
+    ['L', 17.8, 8],
+    ['L', 18.9, 18.4],
+    ['C', 19.05, 19.6, 18.1, 20.6, 16.9, 20.6],
+    ['L', 7.1, 20.6],
+    ['C', 5.9, 20.6, 4.95, 19.6, 5.1, 18.4],
+    ['Z'],
+    ['M', 9, 10.5],
+    ['L', 9, 7],
+    ['C', 9, 5.3, 10.3, 4, 12, 4],
+    ['C', 13.7, 4, 15, 5.3, 15, 7],
+    ['L', 15, 10.5],
+  ]),
+  wallet: icon([
+    ...roundRectPath({ x: 3.5, y: 6, w: 17, h: 13.5 }, 3),
+    ['M', 20.5, 10.25],
+    ['L', 16.25, 10.25],
+    ['C', 15, 10.25, 14, 11.25, 14, 12.75],
+    ['C', 14, 14.25, 15, 15.25, 16.25, 15.25],
+    ['L', 20.5, 15.25],
+    ['M', 6.5, 6],
+    ['L', 15.5, 3.75],
+    ['C', 16.4, 3.5, 17, 4.1, 17, 5],
+    ['L', 17, 6],
+  ]),
+  clock: icon([...circlePath(12, 12, 8.5), ['M', 12, 7.5], ['L', 12, 12], ['L', 15.25, 14]]),
+  star: icon([
+    ['M', 12, 3.5],
+    ['L', 14.6, 8.9],
+    ['L', 20.5, 9.65],
+    ['L', 16.2, 13.75],
+    ['L', 17.3, 19.6],
+    ['L', 12, 16.75],
+    ['L', 6.7, 19.6],
+    ['L', 7.8, 13.75],
+    ['L', 3.5, 9.65],
+    ['L', 9.4, 8.9],
+    ['Z'],
+  ]),
+  bolt: icon([
+    ['M', 13.25, 3],
+    ['L', 5.5, 13.5],
+    ['L', 11.5, 13.5],
+    ['L', 10.75, 21],
+    ['L', 18.5, 10.5],
+    ['L', 12.5, 10.5],
+    ['Z'],
+  ]),
+  layout: icon([
+    ...roundRectPath({ x: 4, y: 4, w: 16, h: 16 }, 2.75),
+    ['M', 4, 9.5],
+    ['L', 20, 9.5],
+    ['M', 10, 9.5],
+    ['L', 10, 20],
+  ]),
+  droplet: icon([
+    ['M', 12, 3.5],
+    ['C', 12, 3.5, 5.5, 10.4, 5.5, 14.5],
+    ['C', 5.5, 18.1, 8.4, 21, 12, 21],
+    ['C', 15.6, 21, 18.5, 18.1, 18.5, 14.5],
+    ['C', 18.5, 10.4, 12, 3.5, 12, 3.5],
+    ['Z'],
+  ]),
+  download: icon([
+    ['M', 12, 4],
+    ['L', 12, 15],
+    ['M', 7.5, 10.5],
+    ['L', 12, 15],
+    ['L', 16.5, 10.5],
+    ['M', 5, 19.5],
+    ['L', 19, 19.5],
+  ]),
+  film: icon([
+    ...roundRectPath({ x: 3, y: 6, w: 13, h: 12 }, 2.75),
+    ['M', 16, 10.5],
+    ['L', 20.25, 8.1],
+    ['C', 20.6, 7.9, 21, 8.15, 21, 8.55],
+    ['L', 21, 15.45],
+    ['C', 21, 15.85, 20.6, 16.1, 20.25, 15.9],
+    ['L', 16, 13.5],
+  ]),
+  play: icon(null, [
+    ['M', 8.5, 5.6],
+    ['C', 8.5, 4.85, 9.3, 4.4, 9.95, 4.8],
+    ['L', 18.6, 10.95],
+    ['C', 19.2, 11.35, 19.2, 12.65, 18.6, 13.05],
+    ['L', 9.95, 19.2],
+    ['C', 9.3, 19.6, 8.5, 19.15, 8.5, 18.4],
+    ['Z'],
+  ]),
+  doc: icon([
+    ['M', 7, 3.5],
+    ['L', 14, 3.5],
+    ['L', 18.5, 8],
+    ['L', 18.5, 19],
+    ['C', 18.5, 19.8, 17.8, 20.5, 17, 20.5],
+    ['L', 7, 20.5],
+    ['C', 6.2, 20.5, 5.5, 19.8, 5.5, 19],
+    ['L', 5.5, 5],
+    ['C', 5.5, 4.2, 6.2, 3.5, 7, 3.5],
+    ['Z'],
+    ['M', 14, 3.5],
+    ['L', 14, 8],
+    ['L', 18.5, 8],
+    ['M', 8.75, 12.5],
+    ['L', 15.25, 12.5],
+    ['M', 8.75, 16],
+    ['L', 13, 16],
+  ]),
+  pin: icon([
+    ['M', 12, 21],
+    ['C', 12, 21, 5.5, 15, 5.5, 10],
+    ['C', 5.5, 6.4, 8.4, 3.5, 12, 3.5],
+    ['C', 15.6, 3.5, 18.5, 6.4, 18.5, 10],
+    ['C', 18.5, 15, 12, 21, 12, 21],
+    ['Z'],
+    ...circlePath(12, 10, 2.5),
+  ]),
+  award: icon([
+    ...circlePath(12, 9.5, 5.75),
+    ['M', 8.9, 14.4],
+    ['L', 7.75, 20.5],
+    ['L', 12, 18.25],
+    ['L', 16.25, 20.5],
+    ['L', 15.1, 14.4],
+  ]),
+  users: icon([
+    ...circlePath(9, 8.5, 3.25),
+    ['M', 3, 19.5],
+    ['C', 3.6, 16.4, 6, 14.5, 9, 14.5],
+    ['C', 12, 14.5, 14.4, 16.4, 15, 19.5],
+    ['M', 15.5, 5.6],
+    ['C', 17.1, 5.9, 18.25, 7.1, 18.25, 8.6],
+    ['C', 18.25, 10.1, 17.1, 11.3, 15.5, 11.6],
+    ['M', 17.25, 14.75],
+    ['C', 19.2, 15.4, 20.6, 17.1, 21, 19.5],
+  ]),
+  mic: icon([
+    ...roundRectPath({ x: 9, y: 3.5, w: 6, h: 11 }, 3),
+    ['M', 5.75, 11.5],
+    ['C', 5.75, 15, 8.55, 17.75, 12, 17.75],
+    ['C', 15.45, 17.75, 18.25, 15, 18.25, 11.5],
+    ['M', 12, 17.75],
+    ['L', 12, 20.75],
+  ]),
+  target: icon([...circlePath(12, 12, 8.5), ...circlePath(12, 12, 4.75)], circlePath(12, 12, 1.6)),
 } as const satisfies Record<string, Icon>;
 
 export type IconName = keyof typeof ICONS;
