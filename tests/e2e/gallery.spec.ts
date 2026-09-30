@@ -1,10 +1,14 @@
 import { expect, type Page, test } from '@playwright/test';
+import { TEMPLATES } from '../../src/templates/registry';
 
 /**
  * The gallery (docs/02-experience.md §5) and the flows through it (§3): A — a headline typed in
  * the gallery opens in the editor and exports; C — a draft continues from the gallery as it was
  * left.
  */
+
+/** How many tiles a category page shows. */
+const inCategory = (id: string) => TEMPLATES.filter((entry) => entry.category === id).length;
 
 /** Fails the test on console errors and uncaught exceptions. */
 function watchErrors(page: Page): string[] {
@@ -146,7 +150,7 @@ test('the gallery: categories, search, format and keyboard', async ({ page }) =>
   await page.goto('/templates');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Motion templates');
   const grid = page.getByRole('list', { name: 'Templates' });
-  await expect(grid.getByRole('link')).toHaveCount(25);
+  await expect(grid.getByRole('link')).toHaveCount(TEMPLATES.length);
   await tilesPainted(page);
 
   // The personalization carries across category pages.
@@ -155,7 +159,7 @@ test('the gallery: categories, search, format and keyboard', async ({ page }) =>
   await nav.getByRole('link', { name: /^Lower Thirds/ }).click();
   await expect(page).toHaveURL(/\/templates\/lower-thirds$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lower thirds');
-  await expect(grid.getByRole('link')).toHaveCount(3);
+  await expect(grid.getByRole('link')).toHaveCount(inCategory('lower-thirds'));
   await expect(nav.getByRole('link', { name: /^Lower Thirds/ })).toHaveAttribute(
     'aria-current',
     'page',
@@ -167,7 +171,7 @@ test('the gallery: categories, search, format and keyboard', async ({ page }) =>
   );
   await nav.getByRole('link', { name: /^All/ }).click();
   await expect(page).toHaveURL(/\/templates$/);
-  await expect(grid.getByRole('link')).toHaveCount(25);
+  await expect(grid.getByRole('link')).toHaveCount(TEMPLATES.length);
 
   // `/` searches names, categories, tags and use cases.
   await page.getByRole('heading', { level: 1 }).click();
@@ -175,14 +179,14 @@ test('the gallery: categories, search, format and keyboard', async ({ page }) =>
   const search = page.getByRole('searchbox', { name: 'Search templates' });
   await expect(search).toBeFocused();
   await page.keyboard.type('podcast');
-  await expect(grid.getByRole('link')).toHaveCount(4);
+  await expect(grid.getByRole('link')).toHaveCount(4); // Decode, Capsule, Quote, Episode
   await search.fill('zebra');
   await expect(page.getByRole('status')).toContainText('Nothing matched “zebra”.');
   await page.getByRole('button', { name: '“logo”' }).click();
   await expect(search).toHaveValue('logo');
-  await expect(grid.getByRole('link')).toHaveCount(2);
+  await expect(grid.getByRole('link')).toHaveCount(6); // Pattern and the Logo & Branding category
   await search.fill('');
-  await expect(grid.getByRole('link')).toHaveCount(25);
+  await expect(grid.getByRole('link')).toHaveCount(TEMPLATES.length);
 
   // The format control re-lays out every tile.
   const firstMedia = () => grid.getByRole('link').first().locator('[data-ready]').boundingBox();
@@ -201,7 +205,7 @@ test('the gallery: categories, search, format and keyboard', async ({ page }) =>
   await page.keyboard.press('ArrowRight');
   await expect(grid.getByRole('link', { name: 'Focus — Blur-to-sharp headline' })).toBeFocused();
   await page.keyboard.press('End');
-  await expect(grid.getByRole('link', { name: 'Dashboard — Analytics build' })).toBeFocused();
+  await expect(grid.getByRole('link').last()).toBeFocused();
   await page.keyboard.press('Home');
   await page.keyboard.press('ArrowDown');
   const columns = await grid.evaluate(
