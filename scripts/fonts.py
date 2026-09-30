@@ -106,6 +106,14 @@ SOURCES: dict[str, dict] = {
         "credit": "Archivo by the Archivo Project Authors (Omnibus-Type)",
         "reserved_name": None,
     },
+    "anybody": {
+        "url": f"{GF}/anybody/Anybody%5Bwdth,wght%5D.ttf",
+        "sha256": "b184bd7e6ca8348bbaecec98951565729d7e89b7872d4898a1f9981342b5b64c",
+        "license_url": f"{GF}/anybody/OFL.txt",
+        "license_sha256": "7f0313b042b462fcae1934436cc747f9fd4433e3b08fd6459a4a5104b0bbd5db",
+        "credit": "Anybody by the Anybody Project Authors (Etcetera Type Co)",
+        "reserved_name": None,
+    },
     "big-shoulders": {
         "url": f"{GF}/bigshoulders/BigShoulders%5Bopsz,wght%5D.ttf",
         "sha256": "4b4b24aa6f799aa73cdcd5b6fa840cbcbbb38b81fa9fa82c25126a4530c1ba44",
@@ -229,6 +237,7 @@ ENGINE_FONTS = [
     },
     {"id": "anton", "source": "anton", "limits": {}, "rename": None},
     {"id": "archivo", "source": "archivo", "limits": {}, "rename": None},
+    {"id": "anybody", "source": "anybody", "limits": {}, "rename": None},
     {"id": "big-shoulders", "source": "big-shoulders", "limits": {}, "rename": None},
     {"id": "bricolage-grotesque", "source": "bricolage-grotesque", "limits": {}, "rename": None},
     {"id": "dm-serif-display", "source": "dm-serif-display", "limits": {}, "rename": None},

@@ -50,6 +50,7 @@ export {
   unionRect,
   type Vec2,
 } from './core/math';
+export { createNoise, type Noise } from './core/noise';
 export type { Rng } from './core/rng';
 export {
   SPRINGS,
@@ -61,6 +62,7 @@ export {
 } from './core/spring';
 export { type StaggerOptions, type StaggerPattern, stagger, staggerSpan } from './core/stagger';
 export { stepped, wave } from './core/time';
+export { pathLength } from './draw/path';
 // Drawing
 export type {
   BlendMode,
@@ -82,6 +84,8 @@ export type {
   TextDrawOptions,
   Transform,
 } from './draw/types';
+// Space (3D planes for showcase templates)
+export * from './space';
 // Template contract
 export { CATEGORIES, type CategoryId, categoryName } from './template/categories';
 export {
