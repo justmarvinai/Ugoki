@@ -15,7 +15,9 @@ const entry = (id: string) => {
 describe('gallery search', () => {
   it('matches names, categories, tags and use cases, ignoring case and accents', () => {
     expect(found('rise')).toEqual(['rise']);
-    expect(found('LOWER THIRDS')).toEqual(['line', 'broadcast', 'capsule']);
+    expect(found('LOWER THIRDS')).toEqual(
+      TEMPLATES.filter((entry) => entry.category === 'lower-thirds').map((entry) => entry.id),
+    );
     expect(found('podcast')).toEqual(expect.arrayContaining(['decode', 'capsule', 'episode']));
     expect(found('wedding')).toEqual(['cinematic']);
     expect(found('YouTube')).toEqual(expect.arrayContaining(['rise', 'capsule', 'episode']));
